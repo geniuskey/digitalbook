@@ -1,0 +1,386 @@
+<!doctype html>
+<!-- Copyright (c) 2026 geniuskey and DigitalBook contributors.
+     Executable code: MIT (see ../LICENSE-MIT).
+     Text, illustrations, questions and explanations: CC-BY-4.0 (see ../LICENSE.md). -->
+<html lang="ko">
+<head>
+<!--head:start {"desc": "회로가 기억을 갖는 법. 인버터 두 개의 쌍안정 고리에서 SR·D 래치, 마스터-슬레이브 플립플롭, setup·hold·clk-to-Q 곡선, 메타안정성과 MTBF, 리셋·스캔·펄스 래치 같은 변종까지 직접 끌고 토글하며 익힌다."}-->
+<!--head:end-->
+<style>
+  .lt-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .lt-row .btn b { font-family: var(--mono); }
+  .lt-row .btn.on { border-color: var(--hi); color: var(--hi); background: color-mix(in srgb, var(--hi) 14%, transparent); }
+  .lt-tt-wrap { display: flex; flex-wrap: wrap; gap: 18px 28px; justify-content: center; margin: 18px 0; }
+  .lt-tt-wrap figure { margin: 0; }
+  .lt-tt-wrap figcaption { text-align: center; font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+  .play-view canvas { touch-action: auto; }
+</style>
+</head>
+<body data-chapter="latch">
+<main class="chapter">
+  <header class="chapter-hero">
+    <div class="eyebrow">Chapter 08</div>
+    <h1>래치와 플립플롭</h1>
+    <p class="lead">지금까지 만든 게이트는 모두 건망증 환자였다. 입력이 바뀌면 출력도 바뀌고, 방금 무엇이 들어왔는지는 기억하지 못한다. 그런데 계산기는 덧셈 중간값을, CPU는 다음에 실행할 명령의 주소를 붙잡고 있어야 한다. 회로가 기억을 가지려면 무엇이 필요할까? 답은 놀랍도록 단순하다. 출력을 다시 입력으로 돌려 보내는 <b>고리</b>다. 이 장에서는 인버터 두 개를 고리로 묶는 데서 출발해 SR 래치, D 래치, 마스터-슬레이브 플립플롭을 차례로 짓고, 플립플롭이 정확히 언제 데이터를 받아들이는지(setup·hold·clk-to-Q), 그 약속을 어기면 무슨 일이 생기는지(메타안정성)를 직접 만져 본다.</p>
+    <ul class="objectives">
+      <li>되먹임 고리가 기억을 만드는 이유를 두 인버터의 VTC와 안정·불안정 평형점으로 설명한다.</li>
+      <li>SR 래치, 전송 게이트 D 래치, 마스터-슬레이브 D 플립플롭의 동작과 차이(레벨 감응 vs 에지 트리거)를 안다.</li>
+      <li>setup·hold·clk-to-Q를 "clk→Q 지연 vs 데이터 도착 시각" 곡선에서 정의하고 수치로 읽는다.</li>
+      <li>메타안정 상태의 결정 시간이 지수 분포임을 이해하고, MTBF 식으로 동기화기 단 수를 정한다.</li>
+    </ul>
+    <div class="dg-ladder" data-level="seq" data-caption="게이트에 되먹임을 더하면 순차 회로가 된다. 이 장의 래치와 플립플롭이 9장 상태 기계와 10장 타이밍의 바탕이다."></div>
+  </header>
+
+  <!-- ============================================================ 1 -->
+  <section id="memory">
+    <h2>조합 회로와 순차 회로: 기억은 되먹임이다</h2>
+    <p>NAND, NOR, 덧셈기처럼 출력이 <b>지금의 입력만으로</b> 정해지는 회로를 <span class="term">조합 회로</span><span class="en">(Combinational circuit)</span>라 한다. 입력을 정하면 (지연 시간이 지난 뒤) 출력이 하나로 정해진다. 과거는 상관없다. 반면 출력이 지금의 입력뿐 아니라 <b>과거의 입력</b>에도 의존하는 회로를 <span class="term">순차 회로</span><span class="en">(Sequential circuit)</span>라 한다. 과거를 반영하려면 회로 어딘가에 과거가 저장되어 있어야 하고, 그 저장소를 <span class="term">상태</span><span class="en">(State)</span>라 부른다.</p>
+    <p>게이트만으로 상태를 만드는 방법은 하나뿐이다. 출력을 다시 자신의 입력으로 돌려 보내는 <span class="term">되먹임</span><span class="en">(Feedback)</span>이다. 아래 그림의 두 회로는 똑같은 OR 게이트다. 왼쪽은 두 번째 입력을 0에 묶었고, 오른쪽은 두 번째 입력을 자기 출력에 이었다. A를 한 번 1로 올렸다 내려 보자.</p>
+    <figure class="play" id="fig-feedback">
+      <div class="play-view"><canvas id="cv-feedback"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>입력</span><div class="lt-row"><button class="btn sm" id="fb-a">A = <b>0</b></button></div></div>
+        <div class="ctrl"><span>오른쪽 회로의 고리</span><div class="seg" id="fb-loop"><button data-value="on" class="on">이음</button><button data-value="off">끊음(0에 묶음)</button></div></div>
+      </div>
+      <figcaption><b>그림 8-1.</b> <span class="try">해 보기</span>A 버튼을 누르거나 캔버스의 A 단자를 눌러 0과 1을 오가 보자. 아래 파형은 시간이 흐르며 왼쪽으로 밀린다. 왼쪽 회로의 Y는 A를 그대로 따라간다. 오른쪽 회로는 A가 한 번이라도 1이 된 적이 있으면 Y가 1에 머문다. 같은 입력 A=0에 대해 출력이 둘(0 또는 1) 가능하고, 어느 쪽인지는 <b>과거</b>가 정한다. 고리를 끊으면 기억도 사라진다.</figcaption>
+    </figure>
+    <p>오른쪽 회로는 "한 번이라도 1이 들어온 적이 있는가"라는 1비트 정보를 기억한다. 다만 지울 방법이 없다. 쓰기만 되고 지우기가 안 되는 기억은 쓸모가 적다. 쓰기와 지우기를 모두 갖춘 기억 소자를 만들려면, 되먹임 고리가 <b>두 가지 상태를 똑같이 안정적으로</b> 유지할 수 있어야 한다. 이것이 다음 절의 쌍안정 회로다.</p>
+    <div class="callout tip"><strong>순차 회로의 두 부품</strong><p>디지털 시스템은 거의 예외 없이 "조합 논리 + 상태를 담는 레지스터"로 나뉜다. 레지스터는 클럭이 칠 때만 값을 바꾸고, 그 사이에 조합 논리가 다음 값을 계산한다. 이 장은 레지스터를 이루는 <b>래치</b><span class="en">(Latch)</span>와 <b>플립플롭</b><span class="en">(Flip-flop)</span>의 내부를 다룬다. 그것을 엮어 상태 기계를 만드는 일은 <a href="fsm.html">9장</a>, 클럭 주기를 정하는 일은 <a href="timing.html">10장</a>에서 한다.</p></div>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="bistable">
+    <h2>쌍안정 회로: 인버터 두 개의 고리</h2>
+    <p>인버터 두 개를 고리로 이으면 가장 단순한 기억 소자가 된다. 첫 인버터의 출력 \(V_2\)가 둘째 인버터로 들어가고, 둘째의 출력 \(V_1\)이 다시 첫째로 돌아온다. \(V_1=0\)이면 \(V_2=1\), 그러면 \(V_1=0\)이 유지된다. 반대로 \(V_1=1, V_2=0\)도 스스로 유지된다. 두 상태가 모두 안정하므로 <span class="term">쌍안정</span><span class="en">(Bistable)</span> 회로라 한다.</p>
+    <p>정말 그 둘뿐일까? 두 인버터의 전압 전달 특성(VTC, <a href="inverter.html">4장</a>)을 한 그래프에 겹쳐 보자. 첫 인버터는 \(V_2 = f(V_1)\), 둘째 인버터는 \(V_1 = f(V_2)\)이므로 둘째 곡선은 축을 바꿔 그린다. 고리가 만족해야 하는 점은 두 곡선이 만나는 곳이고, 교점은 <b>세 개</b>다. 양 끝 두 점과 가운데 한 점. 가운데 점 \(V_1=V_2=V_M\)도 분명히 평형이지만, 아래에서 직접 확인해 보면 이 점은 머물 수 없는 점이다.</p>
+    <figure class="play" id="fig-bistable">
+      <div class="play-view"><canvas id="cv-bistable"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>초기 전압 \(V_1(0)\) <output id="bs-v0-out"></output></span><input type="range" id="bs-v0" min="0" max="0.75" step="0.0005" value="0.40"></label>
+        <label class="ctrl"><span>인버터 2의 pMOS 폭 \(W_p\) <output id="bs-wp-out"></output></span><input type="range" id="bs-wp" min="0.6" max="4" step="0.05" value="1.6"></label>
+        <div class="ctrl"><span>동작</span><div class="lt-row"><button class="btn sm" id="bs-again">다시 돌리기</button><button class="btn sm" id="bs-vm">\(V_M\)에 놓기</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">고리를 돈 횟수</span><span class="v" id="bs-n">—</span></div>
+        <div class="stat"><span class="k">수렴한 상태</span><span class="v" id="bs-q">—</span></div>
+        <div class="stat"><span class="k">\(V_M\)에서 고리 이득</span><span class="v" id="bs-g">—</span></div>
+      </div>
+      <figcaption><b>그림 8-2.</b> <span class="try">해 보기</span>나비 모양 그래프 아래쪽(\(V_1\) 축)을 좌우로 끌어 초기 전압을 놓으면, 신호가 인버터 1(파란 곡선, 세로 이동)과 인버터 2(분홍 곡선, 가로 이동)를 번갈아 지나며 계단을 그린다. 실제 DG-7 인버터 VTC로 계산한다. 가운데 교점 근처에서 시작해도 몇 바퀴 만에 양 끝 중 한쪽으로 빨려 간다. 오른쪽(좁은 화면에선 아래) 언덕 위의 공이 같은 이야기를 한다. \(W_p\)를 바꾸면 가운데 교점, 곧 언덕 꼭대기가 옮겨 간다.</figcaption>
+    </figure>
+    <p>가운데 점이 불안정한 이유는 VTC의 기울기에 있다. \(V_M\) 근처에서 인버터의 이득은 \(|A| \gg 1\)이다. \(V_1\)이 \(V_M\)에서 \(\delta\)만큼 벗어나면 인버터 1을 지나며 \(A\delta\), 인버터 2를 지나며 \(A^2\delta\)로 커진다. 고리를 한 바퀴 돌 때마다 어긋남이 \(A^2\)배씩 불어나니 결국 전원 끝까지 밀려난다. 반대로 양 끝 점에서는 VTC가 거의 평평해서(\(|A| \ll 1\)) 작은 교란이 고리를 돌며 줄어든다. 언덕 꼭대기에 놓인 공과 골짜기 바닥에 놓인 공의 차이다.</p>
+    <div class="formula">$$\text{안정 조건:}\quad |A_1 A_2| < 1 \ \ (\text{양 끝 교점}), \qquad \text{불안정:}\quad |A_1 A_2| > 1 \ \ (V_M)$$
+      <div class="where">\(A_1, A_2\): 교점에서 두 인버터 VTC의 기울기 \(dV_{out}/dV_{in}\). 고리 이득이 1보다 크면 작은 교란이 증폭되어 평형을 떠나고, 1보다 작으면 교란이 사그라든다.</div></div>
+    <p>여기서 두 가지를 기억해 두자. 첫째, 쌍안정 고리에 값을 쓰려면 바깥에서 한쪽 노드를 <b>강제로</b> 반대편 골짜기까지(적어도 언덕 꼭대기 너머로) 밀어야 한다. 둘째, 공을 정확히 꼭대기에 놓으면 공은 한동안 그 자리에 머문다. 얼마나 오래 머물지는 아무도 모른다. 이 두 번째 사실이 이 장 후반의 <a href="#metastability">메타안정성</a>이다.</p>
+    <div class="callout deep"><strong>SRAM 셀과 같은 고리</strong><p>캐시를 이루는 6T SRAM 셀의 심장도 바로 이 인버터 두 개의 고리다. 두 VTC를 겹친 나비 모양 그림은 SRAM에서 <b>나비 곡선</b><span class="en">(Butterfly curve)</span>이라 부르며, 두 날개 안에 들어가는 가장 큰 정사각형의 변이 정적 잡음 여유(SNM)다. <a href="memory.html">13장</a>에서 읽기·쓰기 동작과 함께 다시 만난다.</p></div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="sr">
+    <h2>SR 래치: 쓰고 지울 수 있는 고리</h2>
+    <p>인버터 고리에는 입력이 없다. 각 인버터를 2입력 NOR로 바꾸고 남는 입력 하나씩을 바깥에 내놓으면 <span class="term">SR 래치</span><span class="en">(Set-Reset latch)</span>가 된다. NOR는 다른 입력이 0이면 인버터처럼 행동하므로, S=R=0이면 그대로 인버터 고리이고 값을 유지한다. S를 1로 올리면 아래 NOR의 출력 \(\overline{Q}\)가 무조건 0이 되고, 그것이 위 NOR로 돌아가 Q=1이 된다. 이것이 <b>셋</b><span class="en">(Set)</span>이다. R=1은 반대로 Q=0으로 <b>리셋</b><span class="en">(Reset)</span>한다.</p>
+    <figure class="play" id="fig-sr">
+      <div class="play-view"><canvas id="cv-sr"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>게이트 종류</span><div class="seg" id="sr-type"><button data-value="NOR" class="on">NOR 래치</button><button data-value="NAND">NAND 래치</button></div></div>
+        <div class="ctrl"><span>입력 토글</span><div class="lt-row"><button class="btn sm" id="sr-s"><span id="sr-s-n">S</span> = <b>0</b></button><button class="btn sm" id="sr-r"><span id="sr-r-n">R</span> = <b>0</b></button><button class="btn sm" id="sr-both">둘 다 동시에 바꾸기</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">동작</span><span class="v" id="sr-mode">—</span></div>
+        <div class="stat"><span class="k">Q / Q̄</span><span class="v" id="sr-q">—</span></div>
+      </div>
+      <figcaption><b>그림 8-3.</b> <span class="try">해 보기</span>S·R 버튼이나 캔버스의 입력 단자를 눌러 셋·리셋·유지를 차례로 해 보자. 선의 색은 논리값이다(초록 1, 회색 0, 빨강 빗금 X). NOR 래치에서 S=R=1을 넣으면 Q와 Q̄가 <b>둘 다 0</b>이 되어 "Q̄는 Q의 반대"라는 약속이 깨진다. 그 상태에서 "둘 다 동시에 바꾸기"로 S와 R을 한꺼번에 0으로 내리면 두 게이트가 서로를 뒤쫓으며 진동하다가 결과를 알 수 없게 된다(X). NAND 래치는 입력이 액티브 로우(\(\overline{S}, \overline{R}\))다.</figcaption>
+    </figure>
+    <div class="lt-tt-wrap">
+      <figure>
+        <table class="tt">
+          <thead><tr><th>S</th><th>R</th><th class="sep">Q<sub>다음</sub></th><th>동작</th></tr></thead>
+          <tbody>
+            <tr><td class="zero">0</td><td class="zero">0</td><td class="sep">Q</td><td>유지</td></tr>
+            <tr><td class="one">1</td><td class="zero">0</td><td class="sep one">1</td><td>셋</td></tr>
+            <tr><td class="zero">0</td><td class="one">1</td><td class="sep zero">0</td><td>리셋</td></tr>
+            <tr><td class="one">1</td><td class="one">1</td><td class="sep">0*</td><td>금지</td></tr>
+          </tbody>
+        </table>
+        <figcaption>NOR SR 래치 (* Q̄도 0)</figcaption>
+      </figure>
+      <figure>
+        <table class="tt">
+          <thead><tr><th>S̄</th><th>R̄</th><th class="sep">Q<sub>다음</sub></th><th>동작</th></tr></thead>
+          <tbody>
+            <tr><td class="one">1</td><td class="one">1</td><td class="sep">Q</td><td>유지</td></tr>
+            <tr><td class="zero">0</td><td class="one">1</td><td class="sep one">1</td><td>셋</td></tr>
+            <tr><td class="one">1</td><td class="zero">0</td><td class="sep zero">0</td><td>리셋</td></tr>
+            <tr><td class="zero">0</td><td class="zero">0</td><td class="sep">1*</td><td>금지</td></tr>
+          </tbody>
+        </table>
+        <figcaption>NAND S̄R̄ 래치 (* Q̄도 1)</figcaption>
+      </figure>
+    </div>
+    <p>S=R=1 자체는 회로를 망가뜨리지 않는다. 문제는 그다음이다. 두 입력이 정확히 동시에 0으로 돌아오면 두 NOR가 모두 "이제 내가 1을 낼 차례"라고 판단해 함께 올라가고, 그러면 서로를 다시 끌어내린다. 실제 회로에서는 두 게이트의 미세한 지연 차이나 잡음이 승자를 정하지만, 설계자는 그것을 예측할 수 없다. 그래서 S=R=1을 <span class="term">금지 입력</span><span class="en">(Forbidden input)</span>으로 정해 피한다. 다음 절의 D 래치는 이 금지 조합이 애초에 나올 수 없게 입력을 하나로 묶은 구조다.</p>
+    <div class="predict"><strong>진동은 영원히 계속될까?</strong>
+      <p>그림 8-3의 이상적인 모델에서 두 NOR의 지연이 똑같으면 S=R=1→0 뒤에 Q와 Q̄가 0과 1을 영원히 오간다. 실제 칩에서도 그럴까?</p>
+      <details><summary>답 보기</summary><p>아니다. 두 게이트의 지연이 조금이라도 다르면 진동하는 두 신호의 위상이 한 바퀴마다 조금씩 어긋나고, 게이트가 유한한 상승·하강 시간을 가지므로 진폭도 줄어든다. 결국 고리는 <b>가운데 전압 \(V_M\) 부근(언덕 꼭대기)</b>으로 모였다가 한쪽으로 굴러떨어진다. 언제 어느 쪽으로 떨어질지 모른다는 점에서 이것은 <a href="#metastability">메타안정</a> 상태와 같은 문제다.</p></details></div>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="dlatch">
+    <h2>D 래치: 투명할 때와 닫혀 있을 때</h2>
+    <p>SR 래치의 금지 입력을 없애는 가장 쉬운 방법은 S와 R을 하나의 데이터 입력 D에서 만드는 것이다(S=D, R=D̄). 여기에 언제 쓸지를 정하는 <b>클럭</b>(또는 인에이블) 입력을 더하면 <span class="term">D 래치</span><span class="en">(D latch)</span>가 된다. D 래치는 두 가지 얼굴을 가진다.</p>
+    <ul>
+      <li><b>투명</b><span class="en">(Transparent)</span>: 클럭이 1인 동안 Q는 D를 그대로 따라간다. 래치는 그냥 버퍼다.</li>
+      <li><b>유지</b><span class="en">(Opaque, Hold)</span>: 클럭이 0이 되는 순간의 D를 붙잡고, 클럭이 0인 동안에는 D가 아무리 바뀌어도 Q는 그대로다.</li>
+    </ul>
+    <p>클럭의 <b>레벨</b>(1인지 0인지)이 동작을 정하므로 <span class="term">레벨 감응</span><span class="en">(Level-sensitive)</span> 소자라 한다. 게이트로 지을 수도 있지만 CMOS 표준 셀의 D 래치는 대개 <a href="styles.html">7장</a>의 <span class="term">전송 게이트</span><span class="en">(Transmission gate, TG)</span> 두 개와 인버터 두 개로 만든다. TG1은 클럭이 1일 때 D를 안으로 들이고, TG2는 클럭이 0일 때 인버터 두 개를 고리로 닫아 값을 붙잡는다. 두 TG는 언제나 하나만 켜진다.</p>
+    <figure class="play" id="fig-dlatch">
+      <div class="play-view"><canvas id="cv-dlatch"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>입력 토글</span><div class="lt-row"><button class="btn sm" id="dl-clk">CLK = <b>1</b></button><button class="btn sm" id="dl-d">D = <b>0</b></button></div></div>
+        <div class="ctrl"><span>클럭</span><div class="seg" id="dl-auto"><button data-value="man" class="on">수동</button><button data-value="auto">자동으로 깜박임</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">래치 상태</span><span class="v" id="dl-mode">—</span></div>
+        <div class="stat"><span class="k">켜진 전송 게이트</span><span class="v" id="dl-tg">—</span></div>
+        <div class="stat"><span class="k">Q</span><span class="v" id="dl-q">—</span></div>
+      </div>
+      <figcaption><b>그림 8-4.</b> <span class="try">해 보기</span>CLK와 D를 토글하거나 캔버스의 D·CLK 단자를 눌러 보자. 켜진 TG의 채널이 칠해지고, 지금 신호가 흐르는 경로를 따라 점이 움직인다. CLK=1이면 D → TG1 → 인버터 두 개 → Q로 곧장 흐르고(투명), CLK=0이면 TG1이 끊기고 TG2가 고리를 닫아 X 노드의 값이 고리 안에서 맴돈다(유지). 유지 중에 D를 바꿔도 Q가 꿈쩍하지 않는 것을 아래 파형에서 확인하자.</figcaption>
+    </figure>
+    <p>TG 두 개는 서로 반대 클럭(CLK와 \(\overline{\text{CLK}}\))을 받으므로, 래치 하나에 클럭을 받는 트랜지스터가 4개 있고 클럭 반전용 인버터가 하나 더 필요하다. 클럭은 매 주기 두 번씩 바뀌는 신호라서 이 클럭 트랜지스터의 게이트 커패시턴스가 래치 전력의 상당 부분을 차지한다. 설계자가 "클럭 부하"를 줄이려고 애쓰는 이유다.</p>
+    <div class="callout warn"><strong>투명함의 대가: 경주 문제</strong><p>래치 두 개를 같은 클럭으로 줄지어 놓으면, 클럭이 1인 동안 두 래치가 모두 투명하다. 그러면 데이터가 첫 래치를 지나 둘째 래치까지 <b>한 클럭 레벨 안에 연달아</b> 통과해 버릴 수 있다. 이를 <span class="term">경주</span><span class="en">(Race-through)</span>라 한다. 래치만으로 파이프라인을 만들려면 인접한 래치가 반대 위상의 클럭을 받아야 하고, 그 생각을 그대로 소자 하나로 묶은 것이 다음 절의 플립플롭이다.</p></div>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="flipflop">
+    <h2>마스터-슬레이브 D 플립플롭</h2>
+    <p>D 래치 두 개를 이어 붙이고 반대 위상의 클럭을 주자. 앞의 <b>마스터</b><span class="en">(Master)</span> 래치는 CLK=0일 때 투명하고, 뒤의 <b>슬레이브</b><span class="en">(Slave)</span> 래치는 CLK=1일 때 투명하다. 두 래치가 동시에 투명한 순간이 없으므로 D에서 Q까지 곧장 뚫린 길이 생기지 않는다.</p>
+    <ul>
+      <li>CLK=0: 마스터는 D를 따라가고, 슬레이브는 닫혀 이전 Q를 지킨다.</li>
+      <li>CLK가 0→1로 오르는 순간: 마스터가 닫히며 <b>그 순간의 D</b>를 붙잡는다. 동시에 슬레이브가 열려 그 값을 Q로 내보낸다.</li>
+      <li>CLK=1: 마스터는 닫혀 있으므로 D가 바뀌어도 Q는 그대로다.</li>
+    </ul>
+    <p>결과적으로 Q는 클럭의 <b>상승 에지</b>에서만 바뀐다. 이것이 <span class="term">에지 트리거</span><span class="en">(Edge-triggered)</span> <span class="term">D 플립플롭</span><span class="en">(D flip-flop, DFF)</span>이다. 아래 시뮬레이터에서 마스터 노드 M과 Q가 어떻게 움직이는지, 같은 입력을 받는 D 래치 하나와 무엇이 다른지 비교해 보자.</p>
+
+    <div class="sim" id="sim-msff">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>마스터-슬레이브 플립플롭 vs D 래치</h3></div>
+      <div class="sim-view"><canvas id="cv-msff"></canvas></div>
+      <div class="sim-controls">
+        <div class="ctrl"><span>입력 만들기</span><div class="seg" id="ms-src"><button data-value="auto" class="on">자동 생성</button><button data-value="man">직접 토글</button></div></div>
+        <div class="ctrl"><span>직접 토글 (지금 시각에 적용)</span><div class="lt-row"><button class="btn sm" id="ms-clk">CLK 토글</button><button class="btn sm" id="ms-d">D 토글</button></div></div>
+        <div class="ctrl"><span>시간</span><div class="lt-row"><button class="btn sm primary" id="ms-run">▶ 실행</button><button class="btn sm" id="ms-step">한 칸 진행</button><button class="btn sm" id="ms-clear">지우기</button></div></div>
+        <label class="ctrl"><span>D가 한 칸마다 바뀔 확률 <output id="ms-p-out"></output></span><input type="range" id="ms-p" min="0" max="0.5" step="0.01" value="0.15"></label>
+        <div class="ctrl"><span>비교</span><div class="seg" id="ms-cmp"><button data-value="both" class="on">FF와 래치</button><button data-value="ff">FF만</button></div></div>
+        <label class="ctrl"><span>속도 <output id="ms-sp-out"></output></span><input type="range" id="ms-sp" min="2" max="30" step="1" value="10"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">마스터 (CLK=0 투명)</span><span class="v" id="ms-m">—</span></div>
+        <div class="stat"><span class="k">슬레이브 (CLK=1 투명)</span><span class="v" id="ms-s">—</span></div>
+        <div class="stat"><span class="k">Q 변화 횟수: FF</span><span class="v" id="ms-nff">—</span></div>
+        <div class="stat"><span class="k">Q 변화 횟수: 래치</span><span class="v" id="ms-nl">—</span></div>
+      </div>
+      <div class="sim-note">한 클럭 주기를 8칸으로 나눈 교육용 논리 모델이다(래치 지연 0). 위쪽 그림은 지금 시각의 두 래치 상태, 아래 파형은 최근 64칸이다. <b>Q(FF)</b>는 CLK 상승 에지(파형의 세로 점선)에서만 바뀌고, 그 값은 에지 직전의 D다. <b>Q(래치)</b>는 CLK=1인 동안 D를 그대로 따라가므로 한 주기에 여러 번 바뀔 수 있다. "직접 토글"에서는 클럭도 손으로 친다. CLK=1인 채로 D를 아무리 흔들어도 FF의 Q가 움직이지 않는 것을 확인해 보자.</div>
+    </div>
+
+    <p>플립플롭의 장점은 <b>생각하기 쉽다</b>는 것이다. "클럭이 칠 때 D가 Q로 옮겨 간다"는 한 줄이면 동작이 설명된다. 모든 레지스터가 같은 에지에서 동시에 값을 바꾸므로, 그 사이 한 주기 동안 조합 논리가 다음 값을 계산할 시간이 온전히 주어진다. 거의 모든 동기식 디지털 설계와 합성 도구가 이 모델 위에 서 있다. Verilog의 <code>always @(posedge clk)</code>가 바로 이 소자다(<a href="hdl.html">17장</a>).</p>
+    <div class="predict"><strong>음의 에지 플립플롭은 어떻게 만들까?</strong>
+      <p>위 구조는 상승 에지에서 동작한다. 클럭의 하강 에지(1→0)에서 값을 받는 플립플롭을 만들려면 무엇을 바꾸면 될까?</p>
+      <details><summary>답 보기</summary><p>두 래치의 위상을 바꾸면 된다. 마스터를 CLK=1일 때 투명하게, 슬레이브를 CLK=0일 때 투명하게 하면 CLK가 1→0으로 내려가는 순간 마스터가 닫히고 슬레이브가 열린다. TG 회로에서는 CLK와 \(\overline{\text{CLK}}\) 배선을 맞바꾸는 것뿐이다. 실제 표준 셀 라이브러리에는 두 종류가 다 있지만, 설계는 대개 상승 에지 하나로 통일한다.</p></details></div>
+    <div class="callout deep"><strong>클럭 겹침과 2상 비겹침 클럭</strong><p>실제 CLK와 \(\overline{\text{CLK}}\)는 인버터 하나만큼 어긋나 있고 상승·하강에도 시간이 걸린다. 그래서 에지 근처의 아주 짧은 순간에는 마스터와 슬레이브의 TG가 <b>둘 다 반쯤 켜질</b> 수 있다. 이 짧은 겹침 동안 데이터가 두 래치를 연달아 통과하면 hold 위반과 같은 문제가 생긴다. 예전에는 두 클럭이 결코 겹치지 않게 만든 <b>2상 비겹침 클럭</b><span class="en">(Two-phase non-overlapping clock)</span>을 썼고, 지금은 셀 내부의 클럭 버퍼 지연과 TG 크기를 조절해 겹침을 hold 시간 안에 가둔다. 같은 이유로 클럭 신호의 상승 시간이 너무 길면 플립플롭이 오동작할 수 있다.</p></div>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="timing-params">
+    <h2>타이밍 파라미터: setup, hold, clk-to-Q</h2>
+    <p>"클럭이 칠 때 D가 Q로 옮겨 간다"는 말에는 숨은 조건이 있다. D는 클럭 에지보다 <b>조금 앞서</b> 도착해 있어야 하고, 에지가 지난 뒤에도 <b>조금 동안</b> 바뀌지 말아야 한다. 마스터 래치 안의 노드가 새 값으로 충분히 옮겨 갈 시간, 그리고 TG가 완전히 닫힐 시간이 필요하기 때문이다. 플립플롭의 시간 약속은 세 숫자로 요약된다.</p>
+    <ul>
+      <li><span class="term">clk-to-Q 지연</span><span class="en">(Clock-to-Q delay, \(t_{cq}\))</span>: 클럭 에지에서 Q가 새 값으로 바뀌기까지 걸리는 시간.</li>
+      <li><span class="term">setup 시간</span><span class="en">(Setup time, \(t_{setup}\))</span>: D가 에지보다 최소한 이만큼 먼저 안정되어 있어야 한다.</li>
+      <li><span class="term">hold 시간</span><span class="en">(Hold time, \(t_{hold}\))</span>: D가 에지 뒤로 최소한 이만큼 그대로 있어야 한다.</li>
+    </ul>
+    <p>그런데 setup은 칼로 자른 듯한 경계가 아니다. D가 에지에 가까이 올수록 마스터 노드는 새 값으로 다 옮겨 가지 못한 채 닫히고, 슬레이브의 재생 고리가 그 어중간한 전압을 끝까지 밀어내는 데 시간이 더 걸린다. 그래서 clk→Q 지연이 <b>서서히, 그러다 갑자기</b> 늘어난다. 아래 시뮬레이터에서 D의 천이 시각을 끌어 보자.</p>
+
+    <div class="sim" id="sim-setup">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>clk→Q 지연 vs 데이터 도착 시각</h3></div>
+      <div class="sim-view"><canvas id="cv-setup"></canvas></div>
+      <div class="sim-controls">
+        <div class="ctrl"><span>쓸어 볼 조건</span><div class="seg" id="su-mode"><button data-value="setup" class="on">setup (D가 에지 전에 바뀜)</button><button data-value="hold">hold (D가 에지 뒤에 다시 바뀜)</button></div></div>
+        <label class="ctrl"><span id="su-t-lbl">에지 전 D 천이 시각 \(t_{DC}\) <output id="su-t-out"></output></span><input type="range" id="su-t" min="-4" max="40" step="0.05" value="20"></label>
+        <label class="ctrl"><span>재생 시정수 \(\tau\) <output id="su-tau-out"></output></span><input type="range" id="su-tau" min="1.2" max="6" step="0.1" value="2.5"></label>
+        <div class="ctrl"><span>동작</span><div class="lt-row"><button class="btn sm" id="su-sweep">자동 쓸기</button><button class="btn sm" id="su-def">setup 정의점으로</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">clk→Q</span><span class="v" id="su-cq">—</span></div>
+        <div class="stat"><span class="k">D→Q</span><span class="v" id="su-dq">—</span></div>
+        <div class="stat"><span class="k">마스터 노드 (에지 순간)</span><span class="v" id="su-x">—</span></div>
+        <div class="stat"><span class="k">결과</span><span class="v" id="su-res">—</span></div>
+        <div class="stat"><span class="k" id="su-def-k">setup 시간 (10% 정의)</span><span class="v" id="su-def-v">—</span></div>
+      </div>
+      <div class="sim-note">위 파형: 클럭 에지(0 ps) 전후의 CLK, D, 마스터 노드 X, Q. 아래 그래프: 가로축은 D 천이와 에지 사이 간격, 세로축은 지연. 그래프를 좌우로 끌어도 된다. 교육용 모델: 마스터 노드는 D를 시정수 4 ps로 따라가고(전달 지연 3 ps), 에지 순간의 어긋남 \(\Delta V\)를 슬레이브 고리가 \(e^{t/\tau}\)로 키운다. 공칭 clk→Q는 DG-7 FF의 약 18 ps(≈2.4 FO4). 빨간 영역에서는 Q가 새 값을 받지 못한다.</div>
+    </div>
+
+    <p>곡선의 오른쪽 끝, D가 에지보다 한참 먼저 도착한 경우 clk→Q는 공칭값으로 평평하다. 왼쪽으로 갈수록 서서히 늘다가 어느 지점부터 수직으로 치솟고, 그 너머에서는 아예 새 값을 받지 못한다. 경계 바로 근처에서는 결정에 걸리는 시간에 상한이 없다. 그렇다면 setup 시간은 어디로 정할까? 업계의 흔한 관습은 <b>clk→Q가 공칭값보다 10% 늘어나는 지점</b>이다(5%나 고정 ps를 쓰는 라이브러리도 있다). hold도 같은 방식으로 정한다.</p>
+    <p>주황 곡선 D→Q(= \(t_{DC}+t_{cq}\))를 보자. 이 합은 어느 지점에서 <b>최소</b>가 된다. D를 일찍 보내면 에지까지 기다리는 시간이 아깝고, 너무 늦게 보내면 clk→Q가 늘어난다. 최소점은 clk→Q 곡선의 기울기가 −1인 곳이며, 공격적인 고성능 설계는 setup 정의점보다 이 최적점 가까이에서 플립플롭을 쓰기도 한다.</p>
+    <div class="formula">$$T_{clk} \;\ge\; t_{cq} + t_{logic,max} + t_{setup}, \qquad t_{cq} + t_{logic,min} \;\ge\; t_{hold}$$
+      <div class="where">왼쪽은 setup 조건(가장 느린 경로도 다음 에지 전에 도착해야 한다), 오른쪽은 hold 조건(가장 빠른 경로가 같은 에지에서 막 잡힌 값을 덮어쓰면 안 된다). hold 조건에는 클럭 주기 \(T_{clk}\)가 없다. 그래서 hold 위반은 클럭을 늦춰도 고쳐지지 않는다. 클럭 스큐를 넣은 완전한 식과 정적 타이밍 분석은 <a href="timing.html">10장</a>에서 다룬다.</div></div>
+    <p>DG-7 기준 공정에서 TG 마스터-슬레이브 FF는 clk→Q 약 18 ps, setup 약 8 ps, hold 약 2 ps 정도다. 합하면 플립플롭 하나가 매 주기 약 26 ps, FO4 지연으로 3.5개 남짓을 "세금"으로 가져간다. 클럭 주기가 FO4 20개 안팎인 고성능 코어에서 이것은 주기의 15~20%에 해당하는 큰 몫이다. 그래서 고속 설계에서는 플립플롭의 오버헤드를 줄이는 변종(펄스 래치, 감지 증폭기형 FF)을 찾는다.</p>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="metastability">
+    <h2>메타안정성: 언덕 꼭대기의 공</h2>
+    <p>setup·hold를 지키지 못하면 어떻게 될까? 마스터 노드는 에지 순간 \(V_M\) 근처의 어중간한 전압에 붙잡히고, 슬레이브의 쌍안정 고리는 언덕 꼭대기 근처에서 출발한다. 꼭대기 근처에서 고리 전압의 어긋남 \(\Delta V\)는 지수적으로 커진다.</p>
+    <div class="formula">$$\Delta V(t) = \Delta V_0\, e^{t/\tau}, \qquad \tau \approx \frac{C}{g_m}$$
+      <div class="where">\(\Delta V_0\): 에지 순간 고리 노드와 \(V_M\)의 차이. \(\tau\): <span class="term">재생 시정수</span><span class="en">(Regeneration time constant)</span>. 고리 노드 커패시턴스 \(C\)를 교차 결합된 트랜지스터의 트랜스컨덕턴스 \(g_m\)로 나눈 값으로, FO4 지연의 수분의 일 정도다. DG-7 공칭 조건에서 약 2.5 ps.</div></div>
+    <p>논리 레벨(\(\Delta V \approx V_{DD}/2\))까지 커지는 데 걸리는 <b>결정 시간</b>은 \(t = \tau \ln(V_{DD}/2\Delta V_0)\)이다. \(\Delta V_0\)가 작을수록 오래 걸리고, \(\Delta V_0=0\)이면 이론상 영원히 걸린다. 이 상태를 <span class="term">메타안정</span><span class="en">(Metastable)</span>이라 한다. 메타안정 중인 플립플롭의 출력은 0도 1도 아닌 중간 전압에 머물거나, 늦게 한쪽으로 떨어지거나, 심지어 짧게 튀었다가 돌아오기도 한다. 뒤의 회로는 그것을 서로 다른 값으로 읽을 수 있다.</p>
+    <p>비동기 신호(다른 클럭 영역에서 오거나 버튼처럼 바깥에서 오는 신호)는 언젠가 반드시 에지와 겹친다. 데이터 천이가 에지 근처 어디에 떨어질지는 고르게 퍼져 있으므로 \(\Delta V_0\)도 0 근처에 고르게 퍼져 있다. 그러면 결정 시간은 어떤 분포를 가질까?</p>
+    <figure class="play" id="fig-meta">
+      <div class="play-view"><canvas id="cv-meta"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>재생 시정수 \(\tau\) <output id="mt-tau-out"></output></span><input type="range" id="mt-tau" min="1.5" max="10" step="0.1" value="2.5"></label>
+        <label class="ctrl"><span>기다리는 시간 \(t_r\) <output id="mt-tr-out"></output></span><input type="range" id="mt-tr" min="0" max="60" step="0.5" value="15"></label>
+        <div class="ctrl"><span>표본</span><div class="lt-row"><button class="btn sm" id="mt-new">새 표본 2만 개</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">\(t_r\) 뒤에도 미결정 (모의)</span><span class="v" id="mt-sim">—</span></div>
+        <div class="stat"><span class="k">이론 \(\propto e^{-t_r/\tau}\)</span><span class="v" id="mt-th">—</span></div>
+        <div class="stat"><span class="k">\(\tau\)만큼 더 기다리면</span><span class="v" id="mt-gain">—</span></div>
+      </div>
+      <figcaption><b>그림 8-5.</b> <span class="try">해 보기</span>왼쪽(좁은 화면에서는 위)은 에지 순간 서로 다른 \(\Delta V_0\)에서 출발한 고리 전압 궤적들이다. 꼭대기(가운데 점선) 가까이에서 출발한 궤적일수록 늦게 갈라진다. 오른쪽은 2만 번의 표본에서 \(t_r\)이 지나도 아직 결정되지 못한 비율로, 세로축이 로그 눈금이다. 직선이 된다는 것은 지수 분포라는 뜻이다. \(\tau\)를 키우면 기울기가 완만해진다. 표본은 데이터 천이가 에지 앞뒤 ±4 ps 창에 고르게 떨어진다고 가정했다.</figcaption>
+    </figure>
+    <p>결정 시간의 꼬리는 지수적으로 줄어든다. \(\tau\)만큼 더 기다릴 때마다 실패 확률이 \(e\)배(약 2.7배) 줄어든다. 줄어들 뿐 0이 되지는 않는다. 그래서 설계자는 "실패하지 않게"가 아니라 "평균 몇 년에 한 번 실패하게"를 목표로 삼고, 그 척도가 <span class="term">MTBF</span><span class="en">(Mean Time Between Failures)</span>다.</p>
+    <div class="formula">$$\text{MTBF} = \frac{e^{\,t_r/\tau}}{T_0\, f_{clk}\, f_{data}}$$
+      <div class="where">\(t_r\): 메타안정이 풀리도록 허락한 시간. \(T_0\): 메타안정에 빠질 수 있는 데이터 천이 창의 실효 폭(공정 상수, 수 ps). \(f_{clk}\): 샘플링 클럭 주파수. \(f_{data}\): 비동기 데이터의 천이 빈도. 분모는 "1초에 위험한 창에 걸리는 횟수", 분자는 "그중 \(t_r\) 안에 못 풀리는 비율"의 역수다.</div></div>
+    <p>\(t_r\)을 늘리는 가장 확실한 방법은 플립플롭을 하나 더 두는 것이다. 첫 FF가 메타안정에 빠져도 둘째 FF가 한 주기 뒤에 샘플링하므로 거의 한 주기 전체가 결정 시간으로 더해진다. 이렇게 FF를 2~3개 줄지어 놓은 회로를 <span class="term">동기화기</span><span class="en">(Synchronizer)</span>라 한다. 지수 함수의 위력을 직접 확인해 보자.</p>
+    <figure class="play" id="fig-mtbf">
+      <div class="play-view"><canvas id="cv-mtbf"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>동기화기 FF 단 수 <output id="mb-n-out"></output></span><input type="range" id="mb-n" min="1" max="4" step="1" value="1"></label>
+        <label class="ctrl"><span>클럭 \(f_{clk}\) <output id="mb-f-out"></output></span><input type="range" id="mb-f" min="0.2" max="5" step="0.05" value="2"></label>
+        <label class="ctrl"><span>데이터 천이율 \(f_{data}\) <output id="mb-d-out"></output></span><input type="range" id="mb-d" min="3" max="9" step="0.1" value="8"></label>
+        <label class="ctrl"><span>재생 시정수 \(\tau\) <output id="mb-tau-out"></output></span><input type="range" id="mb-tau" min="2" max="25" step="0.5" value="10"></label>
+        <label class="ctrl"><span>첫 FF 뒤 남는 여유 (주기의 %) <output id="mb-s-out"></output></span><input type="range" id="mb-s" min="0" max="60" step="1" value="10"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">결정 시간 \(t_r\)</span><span class="v" id="mb-tr">—</span></div>
+        <div class="stat"><span class="k">MTBF</span><span class="v" id="mb-mtbf">—</span></div>
+        <div class="stat"><span class="k">비교</span><span class="v" id="mb-cmp">—</span></div>
+      </div>
+      <figcaption><b>그림 8-6.</b> <span class="try">해 보기</span>세로축은 MTBF(초)의 로그다. 가로 점선은 1초, 1일, 1년, 칩 수명 10년, 우주 나이(약 138억 년). 1단(FF 출력이 바로 논리로 들어가 주기의 대부분을 써 버린 경우)에서는 MTBF가 1초도 안 될 수 있다. 단 수를 하나 늘리면 곡선이 수십 자리 위로 뛴다. \(\tau\)는 공칭 DG-7에서 약 2.5 ps지만 저전압·느린 코너에서는 크게 늘어나므로 기본값을 10 ps로 보수적으로 잡았다. \(T_0\)=5 ps, FF 하나의 clk→Q+setup=26 ps로 두었다.</figcaption>
+    </figure>
+    <div class="predict"><strong>클럭을 두 배로 올리면?</strong>
+      <p>2단 동기화기를 1 GHz에서 2 GHz로 올렸다. 분모의 \(f_{clk}\)가 두 배가 되니 MTBF는 절반이 될까?</p>
+      <details><summary>답 보기</summary><p>훨씬 더 나빠진다. 분모가 두 배가 되는 효과는 작고, 진짜 문제는 분자다. 주기가 1000 ps에서 500 ps로 줄면 \(t_r\)이 약 500 ps 줄고, \(\tau\)=10 ps라면 \(e^{-50} \approx 10^{-22}\)배가 된다. MTBF는 클럭 주파수에 지수적으로 민감하다. 그래서 고속 클럭 영역에서는 동기화기를 3단으로 늘리거나, \(\tau\)가 작은 전용 동기화기 셀을 쓴다.</p></details></div>
+    <div class="callout warn"><strong>동기화기는 한 비트만 지켜 준다</strong><p>여러 비트짜리 버스를 비트마다 따로 동기화하면, 각 비트가 서로 다른 주기에 결정될 수 있어 존재하지 않는 값(예: 0111→1000 사이의 1111)을 읽게 된다. 다중 비트는 그레이 코드 카운터, 핸드셰이크, 비동기 FIFO로 건넨다. 클럭 도메인 건너기<span class="en">(CDC)</span>의 설계 패턴은 <a href="timing.html">10장</a>에서 다룬다.</p></div>
+  </section>
+
+  <!-- ============================================================ 8 -->
+  <section id="variants">
+    <h2>플립플롭 변종과 레지스터</h2>
+    <p>표준 셀 라이브러리에는 기본 D 플립플롭 말고도 기능을 덧붙인 변종이 수십 가지 있다. 대부분은 D 입력 앞에 작은 논리를 붙이거나 내부 고리에 트랜지스터를 몇 개 더한 것이다.</p>
+    <ul>
+      <li><b>동기 리셋</b><span class="en">(Synchronous reset)</span>: D 앞에 AND 게이트를 두어 RST=1이면 다음 에지에서 0을 받는다. 리셋도 클럭에 맞춰 일어나므로 타이밍 분석이 쉽다.</li>
+      <li><b>비동기 리셋</b><span class="en">(Asynchronous reset)</span>: 내부 고리의 NAND/NOR 입력으로 들어가 클럭과 상관없이 <b>즉시</b> Q를 0으로 만든다. 클럭이 아직 돌지 않는 전원 투입 직후에도 동작하지만, 리셋을 <b>해제</b>하는 순간이 에지와 가까우면 메타안정 위험이 있어 해제는 동기화해서 쓴다(비동기 인가·동기 해제).</li>
+      <li><b>인에이블</b><span class="en">(Enable)</span>: EN=0이면 Q를 다시 D로 돌려 넣는 MUX를 둔다. 값을 유지하는 레지스터 파일, 카운터에 쓴다. 클럭 자체를 멈추는 클럭 게이팅(<a href="power.html">15장</a>)과 기능은 같지만 전력은 더 든다.</li>
+      <li><b>스캔 FF</b><span class="en">(Scan flip-flop)</span>: D 앞에 MUX를 두어 SE=1이면 D 대신 스캔 입력 SI를 받는다. 칩의 모든 FF를 하나의 긴 시프트 레지스터로 엮어 상태를 밀어 넣고 읽어 내는 테스트용 구조다(<a href="robust.html">16장</a>). 거의 모든 FF가 스캔 FF이며, MUX 때문에 setup이 몇 ps 늘어난다.</li>
+    </ul>
+    <figure class="play" id="fig-variants">
+      <div class="play-view"><canvas id="cv-variants"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>변종</span><div class="seg" id="vr-type"><button data-value="base" class="on">기본</button><button data-value="srst">동기 리셋</button><button data-value="arst">비동기 리셋</button><button data-value="en">인에이블</button><button data-value="scan">스캔</button></div></div>
+        <div class="ctrl"><span>파형</span><div class="lt-row"><button class="btn sm" id="vr-rand">입력 무작위로</button><button class="btn sm" id="vr-zero">입력 모두 0</button></div></div>
+      </div>
+      <figcaption><b>그림 8-7.</b> <span class="try">해 보기</span>아래 파형에서 <b>D, RST, EN, SE, SI</b> 줄의 칸을 눌러 값을 뒤집어 보자(반 주기 단위). Q는 바로 다시 계산된다. 기본 FF는 첫 에지 전까지 Q가 X(빨간 빗금)다. 전원을 켠 직후 FF의 값은 알 수 없기 때문에 리셋이 필요하다. 동기 리셋은 다음 상승 에지에서야 Q를 지우지만, 비동기 리셋은 RST가 오르는 즉시 지운다. 인에이블을 0으로 내리면 에지가 와도 Q가 바뀌지 않는다.</figcaption>
+    </figure>
+    <p>고성능 설계에서는 오버헤드 \(t_{cq}+t_{setup}\)를 줄이는 구조도 쓴다.</p>
+    <ul>
+      <li><span class="term">펄스 래치</span><span class="en">(Pulsed latch)</span>: 래치 하나에 클럭 상승 에지에서 만든 아주 짧은(수 ps~십수 ps) 펄스를 준다. 래치는 펄스 동안만 투명하므로 에지 트리거처럼 행동하면서 래치 하나의 지연(D→Q)만 든다. setup이 0이나 음수가 될 수 있지만 대신 <b>hold가 펄스 폭만큼 늘어난다</b>. 펄스 생성기는 여러 래치가 나눠 쓴다.</li>
+      <li><span class="term">감지 증폭기형 FF</span><span class="en">(Sense-amplifier flip-flop, SAFF)</span>: 첫 단에 SRAM 감지 증폭기처럼 교차 결합된 차동 증폭기를 두고, 클럭 에지에서 D와 D̄의 작은 차이를 재생 고리로 빠르게 증폭한 뒤 SR 래치로 붙잡는다. 입력 차이가 작아도 되므로 setup이 짧고 저진폭 입력도 받을 수 있지만, 매 주기 프리차지하므로 전력이 크다.</li>
+    </ul>
+    <p>여러 비트를 함께 저장하려면 FF를 나란히 놓고 클럭을 묶는다. 이것이 \(n\)비트 <span class="term">레지스터</span><span class="en">(Register)</span>다. 표준 셀 라이브러리에는 2비트·4비트 FF를 한 셀로 묶어 클럭 인버터를 공유하는 <b>멀티비트 FF</b>도 있어 면적과 클럭 전력을 10~20% 줄인다. 아래 표는 DG-7 기준 공정에서 여러 순차 소자의 대략적인 특성이다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>소자 (DG-7, FO4 부하)</th><th class="num">clk→Q (ps)</th><th class="num">setup (ps)</th><th class="num">hold (ps)</th><th class="num">오버헤드 \(t_{cq}+t_{su}\)</th><th class="num">면적 (인버터=1)</th><th class="num">에너지/주기 (fJ)</th></tr></thead>
+        <tbody>
+          <tr><td>단위 인버터 (참고)</td><td class="num">FO4 7.5</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">1</td><td class="num">~0.1</td></tr>
+          <tr><td>TG D 래치 (투명 시 D→Q 약 12)</td><td class="num">14</td><td class="num">6</td><td class="num">2</td><td class="num">20 (2.7 FO4)</td><td class="num">~3.5</td><td class="num">~0.6</td></tr>
+          <tr><td>TG 마스터-슬레이브 DFF</td><td class="num">18</td><td class="num">8</td><td class="num">2</td><td class="num">26 (3.5 FO4)</td><td class="num">~6</td><td class="num">~1.2</td></tr>
+          <tr><td>비동기 리셋 DFF</td><td class="num">20</td><td class="num">9</td><td class="num">2</td><td class="num">29 (3.9 FO4)</td><td class="num">~7.5</td><td class="num">~1.4</td></tr>
+          <tr><td>스캔 DFF (MUX 포함)</td><td class="num">18</td><td class="num">13</td><td class="num">3</td><td class="num">31 (4.1 FO4)</td><td class="num">~8</td><td class="num">~1.4</td></tr>
+          <tr><td>펄스 래치 (펄스 폭 10 ps)</td><td class="num">13</td><td class="num">−2</td><td class="num">11</td><td class="num">11 (1.5 FO4)</td><td class="num">~4 (+생성기)</td><td class="num">~0.9</td></tr>
+          <tr><td>감지 증폭기형 FF</td><td class="num">15</td><td class="num">3</td><td class="num">4</td><td class="num">18 (2.4 FO4)</td><td class="num">~7.5</td><td class="num">~1.8</td></tr>
+          <tr><td>2단 동기화기 (전용 셀)</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">지연 2주기</td><td class="num">~13</td><td class="num">~2.4</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>표의 값은 교과서와 공개 자료를 바탕으로 DG-7에 맞춘 교육용 대략값이다. 실제 7 nm급 상용 라이브러리(약 2019~2022년)의 DFF는 clk→Q 약 20~40 ps, setup 약 10~30 ps 범위로 셀 크기·부하·코너에 따라 크게 달라진다. 에너지는 데이터가 매 주기 바뀐다고(활동도 0.5) 보았을 때의 값이며, 데이터가 바뀌지 않아도 클럭 트랜지스터 때문에 그 절반가량은 늘 쓴다. 칩 전체로 보면 FF와 클럭 배선이 동적 전력의 30~50%를 차지하기도 한다.</p>
+    <div class="callout tip"><strong>래치냐 플립플롭이냐</strong><p>래치 기반 설계(2상 래치 파이프라인)는 오버헤드가 작고, 한 단의 논리가 늦어지면 다음 단의 시간을 빌려 쓰는 <b>타임 보로잉</b><span class="en">(Time borrowing)</span>이 가능해 고성능 CPU의 일부 경로에 쓰인다. 대신 타이밍 분석이 복잡하고 hold 검증이 까다롭다. 대부분의 ASIC은 플립플롭 하나로 통일하고, 래치는 클럭 게이팅 셀 내부처럼 꼭 필요한 곳에만 쓴다.</p></div>
+  </section>
+
+  <section class="keypoints">
+    <h2>핵심 정리</h2>
+    <ol>
+      <li>순차 회로의 출력은 과거에 의존하며, 과거를 담는 유일한 방법은 되먹임 고리다.</li>
+      <li>인버터 두 개의 고리는 VTC 교점 셋 중 양 끝 둘이 안정(고리 이득 &lt; 1), 가운데 \(V_M\)이 불안정(고리 이득 &gt; 1)한 쌍안정 회로다.</li>
+      <li>SR 래치는 쓰기·지우기가 가능하지만 S=R=1이 금지다. D 래치는 클럭이 1이면 투명, 0이면 유지하는 레벨 감응 소자로, TG 두 개와 인버터 두 개로 만든다.</li>
+      <li>반대 위상의 D 래치 두 개(마스터-슬레이브)를 이으면 클럭 상승 에지에서만 Q가 바뀌는 D 플립플롭이 된다.</li>
+      <li>D가 에지에 가까워지면 clk→Q가 서서히, 그러다 급격히 늘어난다. setup·hold는 보통 clk→Q가 10% 늘어나는 점으로 정의하며, D→Q 합이 최소인 최적점이 있다.</li>
+      <li>메타안정의 결정 시간은 지수 분포이고 MTBF \(= e^{t_r/\tau}/(T_0 f_{clk} f_{data})\)이다. 동기화기에 FF를 한 단 더하면 MTBF가 수십 자리 커진다.</li>
+      <li>리셋·인에이블·스캔 FF는 D 앞 논리나 내부 고리를 고친 변종이고, 펄스 래치와 감지 증폭기형 FF는 오버헤드를 줄인다. FF를 클럭으로 묶은 것이 레지스터다.</li>
+    </ol>
+  </section>
+
+  <section class="quiz-sec">
+    <h2>확인 퀴즈</h2>
+    <div class="quiz">
+      <div class="quiz-q"><p>Q1. 인버터 두 개를 고리로 이은 회로에서 \(V_1=V_2=V_M\)인 점이 평형이면서도 불안정한 이유는?</p>
+        <div class="opts">
+          <button class="opt">그 점에서 두 인버터에 관통 전류가 흐르기 때문</button>
+          <button class="opt" data-correct>그 점에서 고리 이득 \(|A_1A_2|\)가 1보다 커서 작은 교란이 증폭되기 때문</button>
+          <button class="opt">그 점에서 고리 이득이 1보다 작아 신호가 사라지기 때문</button>
+          <button class="opt">VTC 두 곡선이 그 점에서 만나지 않기 때문</button>
+        </div>
+        <div class="quiz-exp">\(V_M\)에서 인버터의 이득은 1보다 훨씬 크다. 어긋남 \(\delta\)가 한 바퀴마다 \(A^2\)배 불어나므로 고리는 양 끝 안정점 중 하나로 굴러간다. 관통 전류는 전력 문제이지 안정성의 이유가 아니다.</div></div>
+      <div class="quiz-q"><p>Q2. NOR SR 래치에 S=1, R=1을 넣었을 때 출력은?</p>
+        <div class="opts">
+          <button class="opt">Q=1, Q̄=0</button>
+          <button class="opt">Q=0, Q̄=1</button>
+          <button class="opt" data-correct>Q=0, Q̄=0</button>
+          <button class="opt">이전 값을 유지한다</button>
+        </div>
+        <div class="quiz-exp">NOR는 입력 중 하나라도 1이면 0을 낸다. 두 게이트 모두 바깥 입력이 1이므로 둘 다 0이다. Q̄가 Q의 반대라는 약속이 깨지고, 두 입력을 동시에 내리면 결과를 예측할 수 없다.</div></div>
+      <div class="quiz-q"><p>Q3. CLK=1에서 투명한 D 래치에 CLK=1인 동안 D가 0→1→0→1로 바뀌었다. 같은 D를 받는 상승 에지 D 플립플롭과 비교한 설명으로 옳은 것은?</p>
+        <div class="opts">
+          <button class="opt" data-correct>래치의 Q는 D를 따라 여러 번 바뀌고, FF의 Q는 다음 상승 에지 전까지 바뀌지 않는다</button>
+          <button class="opt">둘 다 CLK가 1인 동안 D를 따라간다</button>
+          <button class="opt">래치의 Q는 CLK가 0으로 내려갈 때만 바뀐다</button>
+          <button class="opt">FF의 Q는 CLK가 1인 동안 마지막 D 값으로 즉시 바뀐다</button>
+        </div>
+        <div class="quiz-exp">래치는 레벨 감응이라 투명한 동안 D의 모든 변화가 Q에 나타난다. FF는 CLK=1 동안 마스터가 닫혀 있으므로 D가 바뀌어도 Q는 이전 에지에서 받은 값을 유지한다.</div></div>
+      <div class="quiz-q"><p>Q4. FF의 clk→Q가 18 ps, setup이 8 ps, 두 FF 사이 최장 조합 논리가 124 ps다(스큐 0). 최대 클럭 주파수는?</p>
+        <div class="opts">
+          <button class="opt">약 8.1 GHz</button>
+          <button class="opt">약 7.0 GHz</button>
+          <button class="opt">약 7.6 GHz</button>
+          <button class="opt" data-correct>약 6.7 GHz</button>
+        </div>
+        <div class="quiz-exp">\(T_{min} = 18 + 124 + 8 = 150\) ps → \(f_{max} = 1/150\,\text{ps} \approx 6.7\) GHz. FF 오버헤드 26 ps가 주기의 약 17%를 차지한다.</div></div>
+      <div class="quiz-q"><p>Q5. 동기화기의 재생 시정수가 \(\tau\)=10 ps일 때 결정 시간 \(t_r\)을 100 ps 더 주면 MTBF는 대략 몇 배가 되는가?</p>
+        <div class="opts">
+          <button class="opt">10배</button>
+          <button class="opt" data-correct>약 2만 배</button>
+          <button class="opt">100배</button>
+          <button class="opt">2배</button>
+        </div>
+        <div class="quiz-exp">MTBF \(\propto e^{t_r/\tau}\)이므로 \(e^{100/10} = e^{10} \approx 22{,}000\)배다.</div></div>
+      <div class="quiz-q"><p>Q6. 펄스 래치가 일반 마스터-슬레이브 FF에 비해 갖는 특징으로 옳은 것은?</p>
+        <div class="opts">
+          <button class="opt">setup과 hold가 모두 크게 늘어난다</button>
+          <button class="opt">클럭 레벨 전체 동안 투명하므로 경주 문제가 없다</button>
+          <button class="opt" data-correct>오버헤드(clk→Q+setup)는 줄지만 hold 시간이 펄스 폭만큼 늘어난다</button>
+          <button class="opt">펄스 생성기가 필요 없어 면적이 가장 작다</button>
+        </div>
+        <div class="quiz-exp">펄스 래치는 짧은 펄스 동안만 투명한 래치 하나라서 지연이 작고 setup이 0 근처까지 줄 수 있다. 대신 펄스가 끝날 때까지 D가 바뀌면 안 되므로 hold가 펄스 폭만큼 늘어나, 짧은 경로에 지연 버퍼가 필요해진다.</div></div>
+    </div>
+  </section>
+</main>
+<script>/*SCRIPT*/</script>
+</body>
+</html>

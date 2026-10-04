@@ -1,0 +1,414 @@
+<!doctype html>
+<!-- Copyright (c) 2026 geniuskey and DigitalBook contributors.
+     Executable code: MIT (see ../LICENSE-MIT).
+     Text, illustrations, questions and explanations: CC-BY-4.0 (see ../LICENSE.md). -->
+<html lang="ko">
+<head>
+<!--head:start {"desc": "50% 지점 전파 지연과 경사, 트랜지스터를 저항으로 보는 RC 모델과 엘모어 지연, d = gh + p로 요약되는 논리적 노력, 경로 크기 최적화와 버퍼 체인의 최적 단 수, 그리고 표준 셀 라이브러리의 NLDM 표까지 직접 만지며 익힌다."}-->
+<!--head:end-->
+<style>
+  .dl-sum { font-family: var(--mono); font-size: 13px; color: var(--text-dim); padding: 10px 18px; border-top: 1px solid var(--border); line-height: 1.6; overflow-wrap: anywhere; }
+  .dl-sum b { color: var(--accent); font-weight: 600; }
+  .dl-badge { display: inline-block; font-family: var(--mono); font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
+  .dl-badge.good { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+  .dl-badge.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+  #pa-sliders { display: contents; }
+  .sim-view canvas, .play-view canvas { cursor: default; }
+  #cv-el, #cv-nl { cursor: pointer; }
+  td.dl-hl { color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body data-chapter="delay">
+<main class="chapter">
+  <header class="chapter-hero">
+    <div class="eyebrow">Chapter 06</div>
+    <h1>게이트 지연과 논리적 노력</h1>
+    <p class="lead">5장에서 NAND와 NOR를 지었다. 이제 물어볼 차례다. 그 게이트는 <b>얼마나 빠른가?</b> 입력이 바뀐 뒤 출력이 따라오기까지 걸리는 몇 피코초가 쌓여 칩의 클럭을 정한다. 트랜지스터 수십억 개를 일일이 회로 시뮬레이션할 수는 없으니, 설계자는 손으로 계산할 수 있는 단순한 모델이 필요하다. 이 장은 트랜지스터를 저항으로, 게이트 입력을 커패시터로 보는 데서 출발해 엘모어 지연으로 트랜지스터 망의 지연을 어림하고, <b>논리적 노력</b>이라는 놀랍도록 간단한 식 \(d = gh + p\) 하나로 여러 단의 경로를 가장 빠르게 만드는 크기를 찾는다.</p>
+    <ul class="objectives">
+      <li>파형에서 전파 지연(50% 지점)과 상승·하강 시간을 재고, 입력 경사와 부하가 지연을 어떻게 바꾸는지 설명한다.</li>
+      <li>트랜지스터를 유효 저항으로 바꾼 RC 모델과 엘모어 지연으로 게이트·트랜지스터 망의 지연을 손으로 계산한다.</li>
+      <li>논리적 노력 \(g\), 전기적 노력 \(h\), 분기 노력 \(b\), 기생 지연 \(p\)로 경로 지연을 구하고, 각 게이트의 최적 크기를 정한다.</li>
+      <li>큰 부하를 구동하는 버퍼 체인의 최적 단 수(단 노력 약 4)를 유도하고, NLDM 표 기반 지연 모델이 왜 필요한지 안다.</li>
+    </ul>
+    <div class="dg-ladder" data-level="gate" data-caption="게이트 한 개의 지연에서 게이트 여러 개로 된 경로의 지연까지. 이 장의 지연 모델이 10장의 정적 타이밍 분석과 14장의 배선 지연으로 이어진다."></div>
+  </header>
+
+  <!-- ============================================================ 1 -->
+  <section id="measure">
+    <h2>지연은 어디서 어디까지인가</h2>
+    <p>실제 신호는 0에서 1로 순간이동하지 않는다. 입력이 비스듬히 올라가고, 출력은 조금 늦게 비스듬히 내려온다. 그러면 "지연"은 어디서 어디까지를 재야 할까? 업계와 교과서의 약속은 이렇다. <b>입력이 전원 전압의 50%를 지나는 순간부터 출력이 50%를 지나는 순간까지</b>를 <span class="term">전파 지연</span><span class="en">(Propagation delay, \(t_{pd}\))</span>이라 한다. 출력이 떨어지는 경우를 \(t_{pdf}\), 올라가는 경우를 \(t_{pdr}\)이라 부르고, 둘의 평균을 게이트의 대표 지연으로 쓴다.</p>
+    <p>파형이 얼마나 가파른지도 따로 잰다. 출력이 20%에서 80%까지(또는 10%에서 90%까지) 가는 데 걸리는 시간이 <span class="term">상승 시간</span><span class="en">(Rise time, \(t_r\))</span>과 <span class="term">하강 시간</span><span class="en">(Fall time, \(t_f\))</span>이고, 둘을 통틀어 <span class="term">경사</span><span class="en">(Slew, transition time)</span>라 한다. 이 게이트의 출력 경사는 곧 다음 게이트의 입력 경사가 된다. 그래서 경사는 지연과 함께 꼭 따라다니는 두 번째 숫자다.</p>
+    <figure class="play" id="fig-meas">
+      <div class="play-view"><canvas id="cv-meas"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>입력 천이 시간 (0→100%) <output id="ms-tr-out"></output></span><input type="range" id="ms-tr" min="1" max="40" step="0.5" value="6"></label>
+        <label class="ctrl"><span>팬아웃 (같은 인버터 몇 개 구동) <output id="ms-h-out"></output></span><input type="range" id="ms-h" min="1" max="16" step="1" value="4"></label>
+        <div class="ctrl"><span>pMOS 폭 \(W_p/W_n\)</span><div class="seg" id="ms-wp"><button data-value="1">1</button><button data-value="1.6" class="on">1.6 (대칭)</button><button data-value="3.2">3.2</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">\(t_{pdf}\) (출력 하강)</span><span class="v" id="ms-pdf">—</span></div>
+        <div class="stat"><span class="k">\(t_{pdr}\) (출력 상승)</span><span class="v" id="ms-pdr">—</span></div>
+        <div class="stat"><span class="k">\(t_{pd}\) 평균</span><span class="v" id="ms-pd">—</span></div>
+        <div class="stat"><span class="k">\(t_f\) / \(t_r\) (20–80%)</span><span class="v" id="ms-tf">—</span></div>
+      </div>
+      <figcaption><span class="try">해 보기</span>DG-7 인버터 한 개가 같은 인버터 여러 개를 구동하는 회로를 트랜지스터 전류 모델(<code>DG.ids</code>)로 직접 적분한 파형이다. 회색 점선이 입력, 파란 선이 출력, 가로 점선이 50% 문턱이다. 팬아웃을 늘리면 지연과 출력 경사가 함께 늘고, 입력을 느리게 하면 출력도 늦어진다. pMOS를 좁히면 상승(\(t_{pdr}\))만 느려져 파형이 비대칭이 된다. 팬아웃 4, 대칭일 때의 평균 지연이 이 공정의 <b>FO4 지연</b>(약 8 ps)이다.</figcaption>
+    </figure>
+    <div class="formula">$$t_{pd} = \frac{t_{pdr} + t_{pdf}}{2}, \qquad t_r = t_{80\%} - t_{20\%}$$
+      <div class="where">\(t_{pdr}\): 입력 50% → 출력 상승 50%, \(t_{pdf}\): 입력 50% → 출력 하강 50%. 경사는 20–80% 또는 10–90%로 정의하며, 라이브러리마다 기준이 다르니 숫자를 비교할 때 꼭 확인한다.</div>
+    </div>
+    <p>그림에서 세 가지를 확인할 수 있다. 첫째, 지연은 부하에 거의 <b>비례</b>한다. 팬아웃 1에서 16으로 가면 지연이 몇 배로 는다. 둘째, 입력 경사가 느릴수록 지연이 커진다. 입력이 문턱을 천천히 지나는 동안 nMOS가 반쯤만 켜져 있기 때문이다. 셋째, 풀업과 풀다운의 세기가 다르면 \(t_{pdr} \ne t_{pdf}\)이다. 대칭 인버터에서 pMOS를 nMOS보다 \(\mu\)배(DG-7에서 1.6배) 넓히는 이유가 여기에 있다(<a href="inverter.html">4장</a>).</p>
+    <div class="callout tip"><strong>최대 지연과 최소 지연</strong><p>\(t_{pd}\)는 출력이 <b>마지막으로 안정되는</b> 시각을 보증하는 최대 지연이다. 반대로 입력이 바뀐 뒤 출력이 <b>처음 움직이기 시작하는</b> 최소 지연을 <span class="term">오염 지연</span><span class="en">(Contamination delay, \(t_{cd}\))</span>이라 한다. 플립플롭의 setup 검사에는 \(t_{pd}\)가, hold 검사에는 \(t_{cd}\)가 쓰인다. 자세한 이야기는 <a href="timing.html">10장</a>에서 한다.</p></div>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="rc">
+    <h2>RC 모델: 트랜지스터는 저항, 게이트는 커패시터</h2>
+    <p>앞 그림은 트랜지스터의 비선형 전류식을 컴퓨터로 적분해 얻었다. 손으로 하기에는 너무 복잡하다. 그래서 대담하게 단순화한다. <b>켜진 트랜지스터는 저항</b>, <b>꺼진 트랜지스터는 끊어진 스위치</b>, <b>게이트 입력과 배선, 확산 영역은 접지로 가는 커패시터</b>다. 입력이 0→1로 바뀌면 인버터의 pMOS 스위치가 열리고 nMOS 저항 \(R_n\)이 출력 커패시터 \(C_L\)을 방전시킨다.</p>
+    <figure class="diagram" id="fig-rcmodel">
+      <svg viewBox="0 0 640 210" role="img" aria-label="인버터를 스위치와 저항, 커패시터로 바꾼 RC 모델">
+        <!-- 왼쪽: 인버터 트랜지스터 -->
+        <text class="lbl-b" x="20" y="22">CMOS 인버터</text>
+        <path class="s-vdd" d="M110 40H170"/><text class="t-mono" x="176" y="44">VDD</text>
+        <path class="wire" d="M140 40V58"/>
+        <path class="s-pmos" d="M140 58V96"/><path class="wire" d="M128 62V92M100 77H122"/><circle class="gate" cx="125" cy="77" r="3"/>
+        <text class="t-dim" x="148" y="82">pMOS</text>
+        <path class="wire" d="M140 96V120H200"/>
+        <path class="s-nmos" d="M140 120V158"/><path class="wire" d="M128 124V154M100 139H128"/>
+        <text class="t-dim" x="148" y="144">nMOS</text>
+        <path class="wire" d="M100 77V139M70 108H100"/><text class="t-mono" x="40" y="104">in</text>
+        <path class="wire" d="M140 158V176"/><path class="s-gnd" d="M126 176H154M131 181H149M136 186H144"/>
+        <circle class="f-acc" cx="200" cy="120" r="3.5"/><text class="t-mono" x="206" y="116">out</text>
+        <!-- 화살표 -->
+        <path class="s-acc" d="M262 108H318"/><path class="f-acc" d="M318 102L330 108L318 114Z"/>
+        <text class="t-acc" x="250" y="96">입력 0→1</text>
+        <!-- 오른쪽: RC -->
+        <text class="lbl-b" x="380" y="22">스위치 + RC 모델</text>
+        <path class="s-vdd" d="M440 40H500"/><text class="t-mono" x="506" y="44">VDD</text>
+        <path class="wire" d="M470 40V58M470 58L488 90M470 96V96"/>
+        <text class="t-dim" x="496" y="78">꺼짐(열림)</text>
+        <path class="wire" d="M470 96V120H560"/>
+        <rect class="f-acc-soft" x="460" y="128" width="20" height="38" rx="2"/>
+        <path class="wire" d="M470 120V128M470 166V180"/>
+        <text class="t-acc" x="420" y="152">\(R_n\)</text>
+        <text class="t-acc" x="414" y="152" style="display:none">Rn</text>
+        <path class="wire" d="M560 120V140"/><path class="s-acc2" d="M544 140H576M544 148H576"/><path class="wire" d="M560 148V180"/>
+        <text class="lbl-acc2" x="584" y="150">C_L</text>
+        <path class="wire" d="M470 180H560"/><path class="s-gnd" d="M501 180H529M506 185H524M511 190H519"/>
+        <circle class="f-acc" cx="560" cy="120" r="3.5"/><text class="t-mono" x="566" y="116">out</text>
+      </svg>
+      <figcaption><b>그림 6-1.</b> 입력이 올라간 직후의 인버터. 꺼진 pMOS는 열린 스위치가 되고, 켜진 nMOS는 유효 저항 \(R_n\)이 되어 부하 \(C_L\)을 방전시킨다. \(C_L\)에는 다음 게이트들의 입력 커패시턴스, 배선, 그리고 이 게이트 자신의 드레인 확산 커패시턴스가 모두 들어간다.</figcaption>
+    </figure>
+    <p>저항 하나와 커패시터 하나로 된 회로는 고등학교 물리에서 풀었다. 출력은 지수 함수로 움직이고, 시간 상수 \(\tau = RC\)가 속도를 정한다. 50%에 닿는 시각은 \(e^{-t/RC} = 1/2\)에서 \(t = RC\ln 2 \approx 0.69RC\)다.</p>
+    <figure class="play" id="fig-rc">
+      <div class="play-view"><canvas id="cv-rc"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>저항 \(R\) <output id="rc-r-out"></output></span><input type="range" id="rc-r" min="1" max="20" step="0.5" value="10"></label>
+        <label class="ctrl"><span>커패시턴스 \(C\) <output id="rc-c-out"></output></span><input type="range" id="rc-c" min="0.5" max="10" step="0.1" value="2"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">시간 상수 \(RC\)</span><span class="v" id="rc-tau">—</span></div>
+        <div class="stat"><span class="k">50% 지연 \(0.69RC\)</span><span class="v" id="rc-t50">—</span></div>
+        <div class="stat"><span class="k">10–90% 경사 \(2.2RC\)</span><span class="v" id="rc-t90">—</span></div>
+      </div>
+      <figcaption><span class="try">해 보기</span>커패시터가 저항을 통해 충전되는 모습이 반복 재생된다. 왼쪽 커패시터의 채움이 오른쪽 곡선 위 점과 같은 전압이다. \(R\)과 \(C\)를 바꾸면 곡선의 <b>모양은 그대로</b>이고 시간축 눈금만 \(RC\)에 비례해 늘거나 준다. kΩ × fF = ps라는 단위 조합을 기억해 두면 암산이 편하다.</figcaption>
+    </figure>
+    <div class="formula">$$v_{out}(t) = V_{DD}\,e^{-t/RC} \;\Rightarrow\; t_{pd} = RC\ln 2 \approx 0.69\,RC, \qquad t_{f}^{10\text{–}90\%} = RC\ln 9 \approx 2.2\,RC$$
+      <div class="where">\(R\): 구동 트랜지스터의 유효 저항, \(C\): 출력 노드의 전체 커패시턴스. 하강(방전) 기준. 상승(충전)도 같은 식이다.</div>
+    </div>
+    <p>문제는 트랜지스터가 진짜 저항이 아니라는 데 있다. 출력 전압이 내려가면서 nMOS는 포화 영역에서 선형 영역으로 넘어가고 전류도 달라진다. 그래서 "실제 지연과 같은 결과를 내는 저항값"을 거꾸로 정해 쓴다. 이것을 <span class="term">유효 저항</span><span class="en">(Effective resistance, \(R_{eff}\))</span>이라 한다. 유효 저항은 폭에 반비례한다. 폭이 \(k\)배인 트랜지스터는 \(R/k\), 같은 트랜지스터가 직렬로 \(n\)개면 \(nR\)이다. 게이트 커패시턴스는 반대로 폭에 비례한다.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>DG-7 기준 공정 수치</th><th class="num">값</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>단위 nMOS 포화 전류 (W=1)</td><td class="num">약 54 µA</td><td>\(V_{GS}=V_{DS}=0.75\) V</td></tr>
+        <tr><td>단위 nMOS 유효 저항 \(R\)</td><td class="num">약 15 kΩ</td><td>위 그림의 하강 지연에서 역산</td></tr>
+        <tr><td>단위 인버터 입력 커패시턴스 (\(W_n=1, W_p=1.6\))</td><td class="num">약 0.21 fF</td><td>0.08 fF × 2.6</td></tr>
+        <tr><td>단위 인버터 출력 확산 커패시턴스</td><td class="num">약 0.16 fF</td><td>0.06 fF × 2.6 (\(p_{inv}\)의 원인)</td></tr>
+        <tr><td>지연 단위 \(\tau\)</td><td class="num">약 1.5 ps</td><td>FO4 ÷ 5로 보정한 값</td></tr>
+        <tr><td>FO4 인버터 지연</td><td class="num">약 7.5 ps</td><td>\(= 5\tau\). 전류 모델 적분으로는 약 8 ps</td></tr>
+      </tbody>
+    </table></div>
+    <div class="predict"><strong>RC 암산</strong>
+      <p>DG-7 단위 인버터(\(R \approx 15\) kΩ)가 같은 인버터 4개(입력 커패시턴스 4 × 0.21 fF)와 자기 확산 커패시턴스 0.16 fF를 구동한다. RC 모델로 예측한 하강 지연은? 위 표의 FO4 7.5 ps와 비교해 보자.</p>
+      <details><summary>답 보기</summary><p>\(C = 0.84 + 0.16 = 1.0\) fF, \(0.69 \times 15\,\text{k}\Omega \times 1.0\,\text{fF} \approx 10\) ps. 전류 모델 적분값(약 8 ps)이나 기준값 7.5 ps보다 25% 남짓 크다. 유효 저항 하나로 비선형 소자를 대신했으니 이 정도 오차는 감수한다. RC 모델의 진짜 쓸모는 절대값이 아니라 <b>비교</b>다. "부하를 두 배로 하면 지연이 거의 두 배", "폭을 두 배로 하면 저항이 절반" 같은 관계는 정확히 맞는다. 절대값은 한 번 보정(\(\tau\)를 FO4로 맞추기)하면 된다.</p></details>
+    </div>
+    <div class="callout deep"><strong>왜 하필 50%인가</strong><p>50% 지점은 다음 게이트가 "입력이 바뀌었다"고 느끼기 시작하는 문턱(대칭 인버터의 \(V_M \approx V_{DD}/2\))과 대략 겹친다. 그래서 게이트마다 50%→50% 지연을 더하면 경로 전체의 지연이 된다. 이 덧셈 성질 덕분에 경로 지연을 게이트 단위로 쪼개 계산할 수 있고, 이것이 이 장 후반의 논리적 노력과 10장 정적 타이밍 분석의 토대다. 다만 입력 경사가 다음 게이트 지연에 영향을 주는 효과는 덧셈에서 빠지므로, 실제 도구는 경사를 함께 전파한다(<a href="#beyond">8절</a>).</p></div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="elmore">
+    <h2>엘모어 지연: 저항과 커패시터가 여러 개일 때</h2>
+    <p>NAND3의 풀다운은 nMOS 세 개가 직렬이다. 트랜지스터 사이의 내부 노드에도 확산 커패시턴스가 붙어 있다. 그러면 회로는 R–C–R–C–R–C로 이어진 <b>사다리</b>가 되고, 응답은 더 이상 지수 함수 하나가 아니다. 배선도 마찬가지로 잘게 쪼개면 RC 사다리가 된다. 정확한 해는 노드 수만큼의 지수 함수를 더한 꼴이라 손으로 풀기 어렵다.</p>
+    <p>1948년 엘모어<span class="en">(W. C. Elmore)</span>가 내놓은 근사는 놀랍도록 간단하다. 전원에서 출발해 가지를 뻗는 RC 회로(<span class="term">RC 트리</span><span class="en">(RC tree)</span>)에서 노드 \(i\)의 지연은 <b>모든 커패시터 \(C_k\)에 대해, 전원에서 \(i\)로 가는 길과 전원에서 \(k\)로 가는 길이 공유하는 저항의 합 \(R_{ik}\)를 곱해 더한 것</b>이다.</p>
+    <div class="formula">$$\tau_{D,i} = \sum_{k} R_{ik}\, C_k, \qquad t_{pd,i} \approx 0.69\,\tau_{D,i}$$
+      <div class="where">\(R_{ik}\): 전원→\(i\) 경로와 전원→\(k\) 경로에 <b>공통으로</b> 들어 있는 저항의 합. 사다리라면 \(\tau_{D,N} = R_1(C_1+\dots+C_N) + R_2(C_2+\dots+C_N) + \dots + R_N C_N\). 각 저항이 "자기 뒤에 있는 모든 커패시터"를 충전한다고 읽으면 된다.</div>
+    </div>
+    <p>엘모어 지연은 사실 임펄스 응답의 첫 번째 모멘트(평균 시각)다. 단일 RC에서는 정확히 \(RC\)이고, 0.69를 곱하면 50% 지연이 된다. 여러 단에서는 근사이지만 놀랄 만큼 잘 맞는다. 아래 시뮬레이터에서 직접 비교해 보자.</p>
+    <div class="sim" id="sim-elmore">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>RC 트리 편집기: 엘모어 지연 vs 수치 해석</h3></div>
+      <div class="sim-view"><canvas id="cv-el"></canvas></div>
+      <div class="dl-sum" id="el-sum">—</div>
+      <div class="sim-controls">
+        <div class="ctrl"><span>회로</span><div class="seg" id="el-pre"><button data-value="ladder" class="on">RC 사다리</button><button data-value="tree">RC 트리</button><button data-value="nand3">NAND3 풀다운</button><button data-value="wire">배선 8구간</button></div></div>
+        <label class="ctrl"><span>선택한 소자 값 <output id="el-val-out"></output></span><input type="range" id="el-val" min="0" max="100" step="1" value="50"></label>
+        <div class="ctrl"><span>동작</span><div class="ctrl-row"><button class="btn sm" id="el-reset">값 되돌리기</button><button class="btn sm" id="el-next">다음 노드 관측</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">관측 노드</span><span class="v" id="el-node">—</span></div>
+        <div class="stat"><span class="k">엘모어 \(\tau_D\)</span><span class="v" id="el-tau">—</span></div>
+        <div class="stat"><span class="k">추정 \(0.69\tau_D\)</span><span class="v" id="el-est">—</span></div>
+        <div class="stat"><span class="k">수치 해석 50%</span><span class="v" id="el-t50">—</span></div>
+        <div class="stat"><span class="k">추정 오차</span><span class="v" id="el-err">—</span></div>
+      </div>
+      <div class="sim-note">회로의 <b>저항(사각형)이나 커패시터</b>를 누르면 선택되고, 슬라이더로 값을 바꾼다(R 0.5–20 kΩ, C 0.1–5 fF). <b>노드(동그라미)</b>를 누르면 그 노드를 관측한다. 아래 그래프는 왼쪽 전원이 0에서 1로 뛰었을 때 모든 노드의 응답(사다리꼴 적분으로 푼 정확해)이다. 굵은 선이 관측 노드, 주황 점선이 \(0.69\tau_D\), 초록 점선이 실제 50% 시각이다. 방전(1→0)도 대칭이므로 NAND3 풀다운은 "내부 노드가 모두 충전된 최악의 경우"의 방전으로 읽으면 된다.</div>
+    </div>
+    <p>몇 가지를 해 보면 엘모어 지연의 성격이 보인다. <b>RC 사다리</b>에서 첫 번째 저항을 키우면 모든 노드가 느려지지만, 마지막 커패시터를 키우면 앞쪽 노드는 덜 느려진다. 첫 저항은 모든 커패시터를 충전해야 하고 마지막 커패시터는 모든 저항을 거쳐 충전되기 때문이다. <b>RC 트리</b>에서 한 가지의 커패시터를 키우면 다른 가지의 노드도 느려진다. 공유하는 저항(트렁크)을 통해 서로 전류를 나눠 쓰기 때문이다. <b>배선 8구간</b>에서는 0.69배 추정이 실제보다 조금 작게 나온다. 균일한 분산 RC 선의 실제 50% 지연은 약 \(0.38RC\)인데 엘모어는 \(RC/2\), 그 0.69배는 \(0.35RC\)다. 그래서 배선에는 0.69 대신 0.38을 곱하는 관례가 있다(<a href="wire.html">14장</a>).</p>
+    <div class="predict"><strong>늦게 오는 입력은 어디에 꽂을까</strong>
+      <p>NAND3의 세 입력 중 하나가 다른 둘보다 훨씬 늦게 도착한다. 이 입력을 출력에 가장 가까운 nMOS에 연결하는 것과 접지에 가장 가까운 nMOS에 연결하는 것 중 어느 쪽이 빠를까? 시뮬레이터의 NAND3 풀다운에서 엘모어 식을 떠올려 보자.</p>
+      <details><summary>답 보기</summary><p><b>출력에 가까운 nMOS</b>에 꽂아야 빠르다. 일찍 온 두 입력이 아래쪽 두 트랜지스터를 미리 켜 두면 내부 노드 \(n_1, n_2\)는 이미 접지로 방전된 상태다. 마지막 입력이 맨 위 트랜지스터를 켜는 순간 방전해야 할 것은 출력 커패시턴스뿐이고, 내부 노드의 커패시턴스 항(\(R_1C_1 + 2RC_2\) 등)이 지연에서 빠진다. 반대로 늦은 입력을 접지 쪽에 꽂으면 내부 노드들이 충전된 채로 기다리다가 한꺼번에 방전되어야 한다. 이것이 표준 셀 라이브러리의 "빠른 핀"이 정해지는 이유이고, 합성 도구는 임계 신호를 빠른 핀에 연결한다.</p></details>
+    </div>
+    <div class="callout deep"><strong>엘모어 지연은 상한이다</strong><p>계단 입력을 받는 RC 트리에서 엘모어 지연 \(\tau_D\)는 실제 50% 지연보다 항상 크거나 같다는 것이 증명되어 있다(Gupta 등, 1997). 그래서 엘모어로 계산하면 "적어도 이보다는 빠르다"는 보수적인 답을 얻는다. 0.69를 곱한 값은 단일 극점에서는 정확하지만 다단 회로에서는 상한이 아니다. 실무의 정적 타이밍 도구는 엘모어보다 정밀한 모멘트 정합(AWE 등)이나 유효 커패시턴스 모델을 쓰지만, 손 계산과 직관은 여전히 엘모어가 책임진다.</p></div>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="fanout">
+    <h2>팬아웃과 FO4: 지연 = 기생 + 노력</h2>
+    <p>게이트 하나의 지연을 다시 RC로 써 보자. 게이트의 유효 저항을 \(R\), 자기 출력의 확산 커패시턴스를 \(C_{par}\), 구동하는 부하를 \(C_{out}\)이라 하면 \(t_{pd} \approx 0.69R(C_{par} + C_{out})\)이다. 두 부분으로 나뉜다. <b>부하와 무관하게 늘 내는 부분</b> \(RC_{par}\)과 <b>부하에 비례하는 부분</b> \(RC_{out}\). 게이트를 \(k\)배 키우면 \(R\)은 \(1/k\), \(C_{par}\)은 \(k\)배가 되므로 앞부분은 크기와 무관한 상수다. 뒷부분은 부하를 자기 입력 커패시턴스로 나눈 비율 \(C_{out}/C_{in}\)에만 의존한다.</p>
+    <p>이것을 공정과 무관한 단위 \(\tau\)로 나누어 쓰면 <span class="term">논리적 노력</span><span class="en">(Logical effort)</span> 모델의 핵심 식이 나온다.</p>
+    <div class="formula">$$d = \frac{t_{pd}}{\tau} = \underbrace{g\,h}_{\text{노력 지연 } f} + \underbrace{p}_{\text{기생 지연}}, \qquad h = \frac{C_{out}}{C_{in}}$$
+      <div class="where">\(d\): \(\tau\) 단위로 잰 정규화 지연. \(h\): <span class="term">전기적 노력</span><span class="en">(Electrical effort)</span> = 팬아웃, \(g\): 논리적 노력(게이트 종류마다 정해진 상수, 인버터 = 1), \(p\): <span class="term">기생 지연</span><span class="en">(Parasitic delay)</span>(인버터 ≈ 1). \(f = gh\)를 <span class="term">단 노력</span><span class="en">(Stage effort)</span>이라 한다. DG-7에서 \(\tau \approx 1.5\) ps.</div>
+    </div>
+    <figure class="play" id="fig-fo">
+      <div class="play-view"><canvas id="cv-fo"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>구동 게이트</span><div class="seg" id="fo-g"><button data-value="INV" class="on">INV</button><button data-value="NAND2">NAND2</button><button data-value="NOR2">NOR2</button><button data-value="NAND3">NAND3</button></div></div>
+        <label class="ctrl"><span>전기적 노력 \(h\) (팬아웃) <output id="fo-h-out"></output></span><input type="range" id="fo-h" min="1" max="12" step="1" value="4"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">노력 지연 \(gh\)</span><span class="v" id="fo-f">—</span></div>
+        <div class="stat"><span class="k">기생 지연 \(p\)</span><span class="v" id="fo-p">—</span></div>
+        <div class="stat"><span class="k">지연 \(d\)</span><span class="v" id="fo-d">—</span></div>
+        <div class="stat"><span class="k">DG-7 절대 지연</span><span class="v" id="fo-ps">—</span></div>
+      </div>
+      <figcaption><span class="try">해 보기</span>팬아웃을 늘려 보자. 지연은 \(h\)에 대해 <b>직선</b>이다. 직선의 \(y\) 절편이 기생 지연 \(p\), 기울기가 논리적 노력 \(g\)다. NAND2·NOR2로 바꾸면 기울기와 절편이 함께 커진다. 인버터가 4개를 구동할 때(\(d = 4 + 1 = 5\))가 바로 <b>FO4</b>다.</figcaption>
+    </figure>
+    <p>인버터의 \(d = h + 1\)에서 \(h = 4\)를 넣으면 \(d = 5\)다. 즉 \(\tau\)는 FO4 지연의 1/5이다. 이 관계를 거꾸로 쓰면 어떤 공정이든 FO4 인버터 지연을 한 번 측정(또는 시뮬레이션)해 5로 나누는 것으로 \(\tau\)를 보정할 수 있다. DG-7은 FO4 ≈ 7.5 ps, \(\tau \approx 1.5\) ps로 정했다.</p>
+    <div class="callout tip"><strong>FO4는 공정 독립적인 자</strong><p>공정이 바뀌면 절대 지연은 달라져도 "이 경로는 FO4 몇 개 분량인가"라는 비율은 거의 그대로다. 그래서 설계자들은 클럭 주기를 FO4로 말한다. 고성능 프로세서의 한 주기는 대략 FO4 15~25개 정도이고, 그중 몇 개는 플립플롭 오버헤드와 클럭 스큐가 먹는다. DG-7에서 FO4 20개면 150 ps, 약 6.7 GHz에 해당한다. 실제 칩은 배선 지연과 전압·온도 여유 때문에 이보다 느리다.</p></div>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="le">
+    <h2>논리적 노력: 게이트가 인버터보다 얼마나 굼뜬가</h2>
+    <p>NAND2가 인버터와 <b>똑같은 출력 전류</b>를 내도록 크기를 정해 보자. 풀다운에 nMOS 두 개가 직렬이니 각각을 2배 폭으로 해야 직렬 저항이 단위 nMOS 하나와 같아진다. 풀업의 pMOS는 병렬이고 최악의 경우 하나만 켜지므로 인버터와 같은 \(\mu\) 폭이면 된다. 그러면 한 입력이 보는 게이트 커패시턴스는 \(2 + \mu\)로, 인버터의 \(1 + \mu\)보다 크다. 같은 전류를 내려고 입력 쪽에 더 큰 짐을 지우는 셈이다. 이 비율이 <b>논리적 노력</b>이다.</p>
+    <div class="formula">$$g = \frac{C_{in}(\text{게이트})}{C_{in}(\text{같은 출력 전류를 내는 인버터})}, \qquad g_{\text{NAND}n} = \frac{n + \mu}{1 + \mu}, \quad g_{\text{NOR}n} = \frac{1 + n\mu}{1 + \mu}$$
+      <div class="where">\(\mu\): nMOS/pMOS 구동력 비. 교과서(Sutherland·Sproull·Harris, Weste & Harris)의 표준값은 \(\mu = 2\)를 가정한다: NAND2 = 4/3, NOR2 = 5/3. DG-7은 \(\mu = 1.6\).</div>
+    </div>
+    <figure class="play" id="fig-g">
+      <div class="play-view"><canvas id="cv-g"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>게이트</span><div class="seg" id="lg-gate"><button data-value="INV">INV</button><button data-value="NAND2" class="on">NAND2</button><button data-value="NAND3">NAND3</button><button data-value="NOR2">NOR2</button><button data-value="NOR3">NOR3</button></div></div>
+        <div class="ctrl"><span>이동도 비 \(\mu\)</span><div class="seg" id="lg-mu"><button data-value="2" class="on">2 (교과서)</button><button data-value="1.6">1.6 (DG-7)</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">입력 하나의 \(C_{in}\)</span><span class="v" id="lg-cin">—</span></div>
+        <div class="stat"><span class="k">인버터 \(C_{in}\)</span><span class="v" id="lg-cinv">—</span></div>
+        <div class="stat"><span class="k">논리적 노력 \(g\)</span><span class="v" id="lg-g">—</span></div>
+        <div class="stat"><span class="k">기생 지연 \(p\)</span><span class="v" id="lg-p">—</span></div>
+      </div>
+      <figcaption><span class="try">해 보기</span>트랜지스터 옆 숫자가 단위 nMOS 대비 폭이다. 모든 게이트는 최악의 경우 단위 인버터와 같은 전류를 내도록 크기가 정해져 있다. 직렬로 쌓인 쪽(NAND의 nMOS, NOR의 pMOS)이 개수만큼 넓어지는 것을 보라. NOR는 느린 pMOS를 직렬로 쌓아서 NAND보다 \(g\)가 크다. \(\mu\)를 1.6으로 바꾸면 pMOS 부담이 줄어 NOR의 \(g\)는 작아지고 NAND의 \(g\)는 오히려 조금 커진다.</figcaption>
+    </figure>
+    <p>기생 지연도 같은 방식으로 센다. 출력 노드에 붙은 확산 커패시턴스는 출력에 닿은 트랜지스터 폭의 합에 비례한다. NAND\(n\)의 출력에는 폭 \(\mu\)인 pMOS \(n\)개와 폭 \(n\)인 nMOS 하나가 닿아 있으니 \(n\mu + n = n(1+\mu)\), 인버터의 \(n\)배다. NOR도 마찬가지다. 그래서 \(\mu\)와 관계없이 <b>\(n\)입력 NAND·NOR의 \(p \approx n\,p_{inv}\)</b>이다. 실제 공정에서 \(p_{inv}\)는 0.6~1.2 정도이고 교과서는 1로 둔다. 자주 쓰는 값은 아래 표와 같다.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>게이트</th><th class="num">\(g\) (\(\mu=2\), 교과서)</th><th class="num">\(g\) (\(\mu=1.6\), DG-7)</th><th class="num">\(p\) (\(\times p_{inv}\))</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>인버터</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td>정의상 기준</td></tr>
+        <tr><td>NAND2</td><td class="num">4/3 ≈ 1.33</td><td class="num">1.38</td><td class="num">2</td><td></td></tr>
+        <tr><td>NAND3</td><td class="num">5/3 ≈ 1.67</td><td class="num">1.77</td><td class="num">3</td><td></td></tr>
+        <tr><td>NAND4</td><td class="num">6/3 = 2</td><td class="num">2.15</td><td class="num">4</td><td></td></tr>
+        <tr><td>NOR2</td><td class="num">5/3 ≈ 1.67</td><td class="num">1.62</td><td class="num">2</td><td></td></tr>
+        <tr><td>NOR3</td><td class="num">7/3 ≈ 2.33</td><td class="num">2.23</td><td class="num">3</td><td></td></tr>
+        <tr><td>NOR4</td><td class="num">9/3 = 3</td><td class="num">2.85</td><td class="num">4</td><td>보통 피한다</td></tr>
+        <tr><td>AOI21 (A·B 입력 / C 입력)</td><td class="num">2 / 5/3</td><td class="num">2 / 1.62</td><td class="num">7/3</td><td>복합 게이트(<a href="gates.html">5장</a>)</td></tr>
+        <tr><td>MUX2 (삼상태 인버터형), 데이터 입력</td><td class="num">2</td><td class="num">2</td><td class="num">4</td><td>\(n\)입력이면 \(p = 2n\)</td></tr>
+        <tr><td>XOR2 (정적 CMOS)</td><td class="num">4</td><td class="num">4</td><td class="num">4</td><td>입력과 반전 입력 모두 필요</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn"><strong>\(\mu\)가 다르면 \(g\)도 다르다</strong><p>교과서의 4/3, 5/3은 pMOS가 nMOS보다 정확히 2배 약하다는 가정에서 나온 값이다. FinFET 시대에는 정공 이동도가 많이 올라와 \(\mu\)가 1.2~1.6 정도로 줄었다. 그러면 NOR의 불리함이 줄어 NAND와 NOR의 \(g\) 차이가 작아진다. 이 장의 경로 시뮬레이터와 퀴즈는 손 계산 관례를 따라 교과서 값(\(\mu=2\))을 쓰고, DG-7 수치가 필요한 곳에서는 위 표의 오른쪽 열을 쓴다. 어느 값을 쓰든 최적화 절차는 똑같다.</p></div>
+    <p>경로에서 한 게이트의 출력이 경로 밖의 다른 게이트들로도 갈라지면, 그 게이트는 경로 위의 다음 게이트만이 아니라 갈라진 가지 전체를 충전해야 한다. 이 비율을 <span class="term">분기 노력</span><span class="en">(Branching effort, \(b\))</span>이라 한다.</p>
+    <div class="formula">$$b = \frac{C_{\text{경로 위}} + C_{\text{경로 밖}}}{C_{\text{경로 위}}}, \qquad G = \prod g_i,\quad B = \prod b_i,\quad H = \frac{C_{out}(\text{경로 끝})}{C_{in}(\text{경로 처음})}, \qquad F = GBH$$
+      <div class="where">\(F\): <span class="term">경로 노력</span><span class="en">(Path effort)</span>. 각 단 노력의 곱 \(\prod g_i h_i\)와 같다. 단마다 \(h_i\)는 게이트 크기에 따라 바뀌지만, 곱 \(F\)는 크기와 무관하게 경로의 논리 구조와 양 끝 커패시턴스만으로 정해진다. 기생 지연의 합 \(P = \sum p_i\)도 크기와 무관하다.</div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="path">
+    <h2>경로 최적화: 노력을 고르게 나눠라</h2>
+    <p>\(N\)단 경로의 지연은 \(D = \sum (g_i h_i + p_i) = \sum f_i + P\)이다. 곱 \(\prod f_i = F\)가 고정된 채로 합 \(\sum f_i\)를 최소화하는 문제다. 산술–기하 평균 부등식이 답을 준다. 합이 가장 작은 것은 <b>모든 단 노력이 같을 때</b>다.</p>
+    <div class="formula">$$\hat f = g_i h_i = F^{1/N}, \qquad \hat D = N F^{1/N} + P, \qquad C_{in,i} = \frac{g_i\, b_i\, C_{in,i+1}}{\hat f}$$
+      <div class="where">\(\hat f\): 최적 단 노력, \(\hat D\): 최소 경로 지연(\(\tau\) 단위). 크기는 경로 <b>끝에서부터 거꾸로</b> 정한다: 마지막 게이트의 입력 커패시턴스 = \(g_N b_N C_{out}/\hat f\), 그 앞 게이트는 같은 식에 방금 구한 값을 넣는다. 처음으로 돌아오면 \(C_{in,1}\)과 정확히 맞는다.</div>
+    </div>
+    <p>예를 들어 NAND2 → NOR2 → 인버터로 된 경로의 입력 커패시턴스가 4(단위 인버터 입력 기준)이고 부하가 96이라 하자. \(G = \tfrac43 \cdot \tfrac53 \cdot 1 = 2.22\), \(H = 24\), \(B = 1\)이므로 \(F = 53.3\), \(\hat f = 53.3^{1/3} = 3.76\), \(P = 2+2+1 = 5\), \(\hat D = 3 \times 3.76 + 5 = 16.3\tau \approx 24\) ps다. 크기는 거꾸로: 인버터 \(= 1 \cdot 96 / 3.76 = 25.5\), NOR2 \(= \tfrac53 \cdot 25.5 / 3.76 = 11.3\), NAND2 \(= \tfrac43 \cdot 11.3 / 3.76 = 4.0\). 처음 값과 맞아떨어진다. 이 계산을 아래 시뮬레이터에서 손으로 해 보자.</p>
+    <div class="sim" id="sim-path">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>경로 크기 맞추기 게임</h3></div>
+      <div class="sim-view"><canvas id="cv-pa"></canvas></div>
+      <div class="sim-controls">
+        <div class="ctrl"><span>경로</span><div class="seg" id="pa-pre"><button data-value="chain" class="on">인버터 체인</button><button data-value="mixed">NAND–NOR</button><button data-value="branch">분기 경로</button><button data-value="decoder">디코더</button></div></div>
+        <div class="ctrl"><span>동작</span><div class="ctrl-row"><button class="btn sm primary" id="pa-opt">최적화 (LE 해)</button><button class="btn sm" id="pa-min">모두 최소 크기</button><button class="btn sm" id="pa-add">+ 인버터 2개</button><button class="btn sm" id="pa-rem">− 인버터 2개</button></div></div>
+        <div id="pa-sliders"></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">경로 노력 \(F = GBH\)</span><span class="v" id="pa-F">—</span></div>
+        <div class="stat"><span class="k">단 수 \(N\) / 최적 \(\hat f\)</span><span class="v" id="pa-f">—</span></div>
+        <div class="stat"><span class="k">현재 지연 \(D\)</span><span class="v" id="pa-D">—</span></div>
+        <div class="stat"><span class="k">최소 지연 \(\hat D\)</span><span class="v" id="pa-Dh">—</span></div>
+        <div class="stat"><span class="k">최적 대비</span><span class="v" id="pa-sc">—</span></div>
+      </div>
+      <div class="sim-note">경로의 첫 게이트 입력 커패시턴스와 끝 부하는 고정이고, 2단부터의 입력 커패시턴스(단위 인버터 입력 = 1)를 슬라이더로 정한다. 위 그림의 게이트 크기는 커패시턴스에 비례하고, 아래 막대는 단별 지연 \(d_i = g_ih_i + p_i\)(진한 부분 = 노력 지연, 옅은 부분 = 기생 지연)이다. 점선은 최적 단 노력 \(\hat f\). 모든 막대의 진한 부분 높이를 점선에 맞추면 최적이다. "×b"는 그 게이트 출력이 경로 밖으로 b−1개 더 갈라진다는 뜻이다. 인버터 쌍을 덧붙이면 극성은 그대로 두고 단 수만 늘어난다. 교과서 값(\(\mu=2\), \(p_{inv}=1\))을 쓰며 절대 지연은 \(\tau = 1.5\) ps로 환산한다.</div>
+    </div>
+    <p>시뮬레이터에서 해 볼 만한 것들. <b>인버터 체인</b>에서 "모두 최소 크기"를 누르면 마지막 인버터가 부하 64를 혼자 구동하느라 막대 하나가 치솟는다. 크기를 4배씩(\(\hat f = 64^{1/4} = 2.83\)) 키우면 막대가 고르게 된다. <b>분기 경로</b>에서는 분기 노력 \(B\)가 경로 노력에 그대로 곱해지는 것을 확인하자. 분기가 있는 게이트는 같은 단 노력을 내기 위해 더 커야 한다. <b>디코더</b>에서는 주소 버퍼가 NAND4 여덟 개를 구동한다(\(b = 8\)). 3단으로는 \(\hat f \approx 5.4\)로 단 노력이 크다. 인버터 2개를 덧붙여 5단으로 만들면 지연이 오히려 준다. 단 수 자체도 최적화 대상이라는 뜻이고, 다음 절의 주제다.</p>
+    <div class="predict"><strong>최적에서 크기를 조금 틀리면</strong>
+      <p>인버터 체인을 최적화한 뒤 가운데 인버터 하나의 크기를 최적값의 2배(또는 1/2)로 바꾸면 전체 지연은 몇 % 늘어날까? 10%? 30%? 직접 맞혀 본 뒤 슬라이더로 확인하자.</p>
+      <details><summary>답 보기</summary><p>약 3~4%밖에 늘지 않는다. 그 인버터의 단 노력은 \(2\hat f\)가 되고 다음 단은 \(\hat f/2\)가 되어 합이 \(2.5\hat f\)(원래 \(2\hat f\))가 되지만, 이것이 전체 \(N\hat f + P\)에 비하면 작다. \(\hat f = 2.83\)이면 1.4τ, 15.3τ 중 약 9%... 가 아니라, 정확히는 앞뒤 두 단만 바뀌므로 \((2 \times 2.83 + 1.41) - 2 \times 2.83 = 1.41\)τ, 약 9%다. 크기를 \(\sqrt2\)배만 틀리면 약 2%다. 즉 최적점 근처에서 지연 곡선은 매우 평평하다. 그래서 실무에서는 게이트 크기를 라이브러리에 있는 몇 가지(X1, X2, X4 …)로 반올림해도 손해가 거의 없다.</p></details>
+    </div>
+    <div class="callout tip"><strong>손 계산 순서 요약</strong><p>① 경로의 \(G\), \(B\), \(H\)를 구해 \(F = GBH\). ② 단 수 \(N\)을 정한다(\(N \approx \log_4 F\)). ③ \(\hat f = F^{1/N}\), \(\hat D = N\hat f + P\). ④ 끝에서부터 \(C_{in,i} = g_i b_i C_{in,i+1}/\hat f\)로 크기를 정한다. 이 네 단계면 수십 개의 게이트로 된 경로도 몇 분 안에 "대략 최적" 크기를 얻는다. 합성 도구의 크기 조정도 결국 같은 원리를 훨씬 정교하게(경사·배선·실제 셀 크기 포함) 반복하는 것이다.</p></div>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="buffer">
+    <h2>버퍼 체인과 최적 단 수</h2>
+    <p>칩 밖으로 나가는 출력 패드, 수천 개 플립플롭에 퍼지는 클럭 넷, 긴 버스는 단위 인버터보다 수천 배 큰 커패시턴스다. 작은 게이트가 이것을 바로 구동하면 \(h\)가 수천이 되어 지연도 수천 \(\tau\)다. 해법은 인버터를 여러 단 이어 크기를 점점 키우는 <span class="term">버퍼 체인</span><span class="en">(Buffer chain, tapered buffer)</span>이다. 단을 늘리면 단 노력은 줄지만 단마다 기생 지연 \(p_{inv}\)가 붙는다. 그 사이의 균형점이 최적 단 수다.</p>
+    <figure class="play" id="fig-nstage">
+      <div class="play-view"><canvas id="cv-ns"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>부하 비 \(H = C_L / C_{in}\) <output id="ns-h-out"></output></span><input type="range" id="ns-h" min="0.5" max="4" step="0.05" value="2.4"></label>
+        <label class="ctrl"><span>단 수 \(N\) <output id="ns-n-out"></output></span><input type="range" id="ns-n" min="1" max="12" step="1" value="2"></label>
+        <label class="ctrl"><span>인버터 기생 지연 \(p_{inv}\) <output id="ns-p-out"></output></span><input type="range" id="ns-p" min="0" max="3" step="0.1" value="1"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">단 노력 \(f = H^{1/N}\)</span><span class="v" id="ns-f">—</span></div>
+        <div class="stat"><span class="k">지연 \(D = N(f + p_{inv})\)</span><span class="v" id="ns-d">—</span></div>
+        <div class="stat"><span class="k">최적 단 수</span><span class="v" id="ns-nopt">—</span></div>
+        <div class="stat"><span class="k">DG-7 절대 지연</span><span class="v" id="ns-ps">—</span></div>
+      </div>
+      <figcaption><span class="try">해 보기</span>위는 \(N\)단 버퍼 체인(크기가 \(f\)배씩 커진다), 아래는 단 수에 따른 지연이다. \(N\)을 1부터 올려 보자. 처음에는 지연이 급격히 줄다가 바닥을 지나면 천천히 다시 오른다. \(H\)를 키우면 최적 \(N\)도 커지지만 그때의 단 노력은 늘 4 근처에 머문다. \(p_{inv}\)를 0으로 하면 최적 단 노력이 \(e \approx 2.7\)로 내려간다.</figcaption>
+    </figure>
+    <p>\(N\)을 연속 변수로 보고 \(D = N(F^{1/N} + p_{inv})\)를 미분해 0으로 놓으면, 최적 단 노력 \(\rho = F^{1/N}\)가 다음 식을 만족한다.</p>
+    <div class="formula">$$p_{inv} + \rho\,(1 - \ln\rho) = 0, \qquad \hat N = \log_\rho F$$
+      <div class="where">\(p_{inv}=0\)이면 \(\rho = e \approx 2.72\), \(p_{inv}=1\)이면 \(\rho \approx 3.59\), \(p_{inv}=2\)면 \(\rho \approx 4.5\). 실무 기준은 "단 노력 4", 즉 \(\hat N \approx \log_4 F\)다. FO4 지연이 지연의 자로 쓰이는 또 하나의 이유다.</div>
+    </div>
+    <figure class="play" id="fig-flat">
+      <div class="play-view"><canvas id="cv-fl"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>단 노력 \(f\) <output id="fl-f-out"></output></span><input type="range" id="fl-f" min="1.5" max="10" step="0.05" value="6"></label>
+        <label class="ctrl"><span>\(p_{inv}\) <output id="fl-p-out"></output></span><input type="range" id="fl-p" min="0" max="3" step="0.1" value="1"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">최적 단 노력 \(\rho\)</span><span class="v" id="fl-rho">—</span></div>
+        <div class="stat"><span class="k">이 \(f\)의 지연 손해</span><span class="v" id="fl-pen">—</span></div>
+        <div class="stat"><span class="k">손해 10% 이내 범위</span><span class="v" id="fl-rng">—</span></div>
+      </div>
+      <figcaption><span class="try">해 보기</span>경로 노력이 아주 커서 단 수를 자유롭게 고를 수 있을 때, 단 노력 \(f\)를 고르면 지연이 최소값의 몇 배가 되는지 보여 준다. 바닥이 매우 넓다. \(p_{inv}=1\)이면 \(f\)를 2.4에서 6까지 어디로 잡아도 손해가 10% 안쪽이다. 그래서 설계자는 단 수를 정수로 반올림하거나 단 노력을 4~6으로 잡는 데 주저하지 않는다. 단 노력을 너무 작게(2 이하) 잡을 때의 손해가 너무 크게 잡을 때보다 더 빨리 커진다는 점도 확인하자.</figcaption>
+    </figure>
+    <div class="predict"><strong>패드 드라이버</strong>
+      <p>단위 인버터(입력 커패시턴스 0.21 fF)가 2 pF짜리 출력 패드를 구동해야 한다. 인버터 1단으로 바로 구동할 때와 최적 버퍼 체인을 쓸 때의 지연은 각각 대략 얼마일까? (\(p_{inv} = 1\), \(\tau = 1.5\) ps)</p>
+      <details><summary>답 보기</summary><p>\(H = 2000/0.21 \approx 9500\). 1단이면 \(D = 9500 + 1 \approx 9500\tau \approx 14\) ns. 최적 단 수는 \(\log_4 9500 \approx 6.6\)이므로 6~7단, 7단이면 \(f = 9500^{1/7} \approx 3.7\), \(D = 7(3.7 + 1) \approx 33\tau \approx 49\) ps. <b>300배 가까이</b> 빠르다. 다만 마지막 인버터의 크기는 \(9500/3.7 \approx 2600\)배가 되어 면적과 스위칭 전력이 크다. 실제 패드 드라이버는 전력과 동시 스위칭 잡음 때문에 단 노력을 일부러 크게 잡기도 한다.</p></details>
+    </div>
+    <div class="callout deep"><strong>극성과 정수 단 수</strong><p>경로가 반전 논리면 인버터 개수의 홀짝이 정해져 있어 "최적 6.6단"을 6이나 7로 마음대로 반올림할 수 없다. 이때는 홀짝이 맞는 가까운 정수를 고르거나, 경로 안의 게이트 하나를 반전·비반전형으로 바꿔 극성을 맞춘다. 바닥이 평평하므로 한 단 차이의 손해는 보통 몇 % 이내다.</p></div>
+  </section>
+
+  <!-- ============================================================ 8 -->
+  <section id="beyond">
+    <h2>모델의 한계: 비대칭 게이트, 경사, NLDM</h2>
+    <p>논리적 노력은 손 계산용 1차 모델이다. 실제 설계에서는 몇 가지가 더 들어간다.</p>
+    <p><b>비대칭 게이트.</b> 상승과 하강 중 한쪽만 중요할 때가 있다. 예를 들어 도미노 회로(<a href="styles.html">7장</a>) 뒤의 인버터는 출력 상승만 빨라야 한다. 이때 nMOS를 절반으로 줄인 <span class="term">HI-skew</span> 인버터를 쓰면 입력 커패시턴스가 줄어 상승 쪽 논리적 노력 \(g_u\)가 5/6으로 내려가고 하강 쪽 \(g_d\)는 5/3으로 올라간다(\(\mu = 2\)). 중요한 천이만 빠르게 하고 나머지는 희생하는 것이다. 반대로 LO-skew도 있다. 상승과 하강의 노력이 다르면 \(d\)를 천이 방향별로 따로 계산한다.</p>
+    <p><b>입력 경사.</b> 앞 그림에서 보았듯 입력이 느리게 올라오면 지연이 커진다. \(d = gh + p\)에는 입력 경사가 없다. 각 단의 단 노력이 비슷하면(최적 경로가 그렇다) 경사도 비슷해서 이 효과가 \(\tau\) 보정 안에 흡수되지만, 단 노력이 들쭉날쭉한 경로에서는 오차가 커진다. 경사가 너무 느리면 관통 전류로 전력도 샌다. 그래서 설계 규칙은 <b>최대 경사</b><span class="en">(max transition)</span>를 제한한다.</p>
+    <p><b>NLDM 표.</b> 표준 셀 라이브러리(.lib, Liberty 형식)는 셀마다, 입력 핀–출력 핀 쌍마다, 상승·하강마다 <b>2차원 표</b>를 담는다. 행은 입력 경사, 열은 출력 부하 커패시턴스, 칸은 회로 시뮬레이터(SPICE)로 잰 지연과 출력 경사다. 이것을 <span class="term">비선형 지연 모델</span><span class="en">(NLDM, Non-Linear Delay Model)</span>이라 한다. 정적 타이밍 분석 도구는 앞 단에서 받은 경사와 이 단의 부하로 표를 찾아 보간하고, 계산한 출력 경사를 다음 단에 넘긴다.</p>
+    <figure class="play" id="fig-nldm">
+      <div class="play-view"><canvas id="cv-nl"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>표 크기</span><div class="seg" id="nl-size"><button data-value="5" class="on">5 × 5</button><button data-value="3">3 × 3</button></div></div>
+        <div class="ctrl"><span>표 내용</span><div class="seg" id="nl-kind"><button data-value="d" class="on">지연</button><button data-value="s">출력 경사</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">입력 경사 / 부하</span><span class="v" id="nl-pt">—</span></div>
+        <div class="stat"><span class="k">표 보간값</span><span class="v" id="nl-int">—</span></div>
+        <div class="stat"><span class="k">직접 계산 (전류 모델)</span><span class="v" id="nl-true">—</span></div>
+        <div class="stat"><span class="k">보간 오차</span><span class="v" id="nl-err">—</span></div>
+      </div>
+      <figcaption><span class="try">끌어 보기</span>DG-7 단위 인버터의 하강 지연(또는 출력 경사) 표다. 가로축이 부하, 세로축이 입력 경사(둘 다 로그 눈금)이고, 격자점의 숫자가 표에 저장된 값(ps)이다. 십자 표시를 끌어 아무 점이나 고르면 주변 네 격자점으로 쌍선형 보간한 값과, 그 점에서 전류 모델을 직접 적분한 값을 비교한다. 표를 3 × 3으로 성기게 하면 오차가 커진다. 표 범위 밖은 외삽이라 신뢰할 수 없어 끌어도 경계에서 멈춘다.</figcaption>
+    </figure>
+    <p>그림에서 보듯 지연은 부하에 대해서는 거의 직선이지만 입력 경사에 대해서는 휘어 있다. 그래서 "비선형" 지연 모델이다. 최신 공정에서는 출력 파형 자체가 지수 함수에서 멀어지고 배선 저항이 커져 NLDM도 부족해졌다. 그래서 출력 전류 파형을 표로 담는 <b>CCS</b><span class="en">(Composite Current Source)</span>나 <b>ECSM</b> 모델을 쓴다. 공정·전압·온도 코너마다 이런 라이브러리가 따로 있다(<a href="robust.html">16장</a>).</p>
+    <div class="callout warn"><strong>논리적 노력이 놓치는 것</strong><p>① <b>배선</b>: 긴 배선은 커패시턴스뿐 아니라 저항도 있어 \(h\)만으로 표현되지 않는다. 배선이 지배하는 경로는 리피터 삽입으로 다룬다(<a href="wire.html">14장</a>). ② <b>경사와 비대칭</b>: 위에서 본 대로다. ③ <b>면적과 전력</b>: 최소 지연 해는 마지막 단을 매우 크게 만든다. 실제로는 지연 목표를 만족하는 범위에서 면적과 전력을 줄이는 쪽으로 크기를 줄인다. ④ <b>고정된 경로</b>: 한 게이트가 여러 경로에 동시에 속하면 경로별 최적 크기가 충돌한다. 이 모든 것을 반영한 경로 지연 계산과 검사가 <a href="timing.html">10장</a>의 정적 타이밍 분석이다.</p></div>
+  </section>
+
+  <section class="keypoints">
+    <h2>핵심 정리</h2>
+    <ol>
+      <li>전파 지연은 입력 50%에서 출력 50%까지의 시간이다. 상승·하강 지연을 따로 재고 평균을 대표값으로 쓴다. 출력 경사(20–80%)는 다음 단의 입력 경사가 된다.</li>
+      <li>RC 모델: 켜진 트랜지스터는 폭에 반비례하는 유효 저항, 게이트·확산·배선은 커패시터다. 1차 RC의 50% 지연은 \(0.69RC\)다.</li>
+      <li>RC 트리에서 노드 지연은 엘모어 식 \(\tau_D = \sum_k R_{ik}C_k\)로 어림한다. 직렬 스택에서는 출력에 가까운 트랜지스터에 늦은 입력을 꽂는 것이 빠르다.</li>
+      <li>게이트 지연은 \(d = gh + p\)(\(\tau\) 단위)로 정규화된다. 인버터 FO4 = 5τ이고 DG-7에서 \(\tau \approx 1.5\) ps, FO4 ≈ 7.5 ps다.</li>
+      <li>논리적 노력 \(g\)는 같은 출력 전류를 내는 인버터 대비 입력 커패시턴스 비다(NAND2 4/3, NOR2 5/3, \(\mu=2\) 기준). \(n\)입력 NAND·NOR의 기생 지연은 약 \(n\)이다.</li>
+      <li>경로 노력 \(F = GBH\)가 주어지면 단 노력을 모두 \(\hat f = F^{1/N}\)로 같게 할 때 지연이 최소 \(\hat D = NF^{1/N} + P\)이고, 크기는 끝에서부터 거꾸로 정한다.</li>
+      <li>큰 부하를 구동할 때 최적 단 노력은 약 4(\(p_{inv}=1\)이면 3.6)이고 단 수는 \(\log_4 F\)다. 최적점 근처는 평평해 반올림 손해가 작다. 실제 도구는 경사·부하 2차원 NLDM 표로 지연을 계산한다.</li>
+    </ol>
+  </section>
+
+  <section class="quiz-sec">
+    <h2>확인 퀴즈</h2>
+    <div class="quiz">
+      <div class="quiz-q"><p>Q1. 유효 저항 6 kΩ인 게이트가 3 fF 부하를 구동한다. RC 모델로 본 전파 지연은 대략?</p>
+        <div class="opts">
+          <button class="opt">약 6 ps</button>
+          <button class="opt" data-correct>약 12 ps</button>
+          <button class="opt">약 18 ps</button>
+          <button class="opt">약 40 ps</button>
+        </div>
+        <div class="quiz-exp">\(RC = 6\,\text{k}\Omega \times 3\,\text{fF} = 18\) ps, \(t_{pd} \approx 0.69 \times 18 \approx 12\) ps. 18 ps는 시간 상수 자체이고 40 ps는 10–90% 경사(2.2RC)다.</div></div>
+      <div class="quiz-q"><p>Q2. 전원 → R<sub>1</sub>=1 kΩ → 노드 1(C<sub>1</sub>=2 fF) → R<sub>2</sub>=2 kΩ → 노드 2(C<sub>2</sub>=1 fF)인 RC 사다리에서 노드 2의 엘모어 지연 \(\tau_D\)는?</p>
+        <div class="opts">
+          <button class="opt">3 ps</button>
+          <button class="opt">4 ps</button>
+          <button class="opt" data-correct>5 ps</button>
+          <button class="opt">9 ps</button>
+        </div>
+        <div class="quiz-exp">\(\tau_D = R_1(C_1 + C_2) + R_2C_2 = 1 \times 3 + 2 \times 1 = 5\) ps. R<sub>1</sub>은 두 커패시터를 모두 충전하고, R<sub>2</sub>는 C<sub>2</sub>만 충전한다.</div></div>
+      <div class="quiz-q"><p>Q3. 교과서 값(\(\mu=2\))으로 NOR2 게이트가 자기 입력 커패시턴스의 3배인 부하를 구동할 때 정규화 지연 \(d\)는?</p>
+        <div class="opts">
+          <button class="opt">4</button>
+          <button class="opt">5</button>
+          <button class="opt">6</button>
+          <button class="opt" data-correct>7</button>
+        </div>
+        <div class="quiz-exp">\(d = gh + p = \tfrac53 \times 3 + 2 = 5 + 2 = 7\). 같은 조건의 인버터는 \(3 + 1 = 4\)다.</div></div>
+      <div class="quiz-q"><p>Q4. 경로 노력 \(F = 64\), 단 수 3, 기생 지연 합 \(P = 5\)인 경로의 최소 지연 \(\hat D\)은?</p>
+        <div class="opts">
+          <button class="opt" data-correct>17τ</button>
+          <button class="opt">12τ</button>
+          <button class="opt">21τ</button>
+          <button class="opt">69τ</button>
+        </div>
+        <div class="quiz-exp">\(\hat f = 64^{1/3} = 4\), \(\hat D = 3 \times 4 + 5 = 17\tau\). 단 노력이 모두 4로 같을 때 최소다. 69τ는 한 단에 노력을 몰았을 때(64 + 5)다.</div></div>
+      <div class="quiz-q"><p>Q5. 어떤 게이트 출력이 경로 위의 다음 게이트(입력 커패시턴스 C) 하나와 경로 밖의 같은 게이트 2개에 연결되어 있다. 이 단의 분기 노력 \(b\)는?</p>
+        <div class="opts">
+          <button class="opt">1</button>
+          <button class="opt">2</button>
+          <button class="opt" data-correct>3</button>
+          <button class="opt">1/3</button>
+        </div>
+        <div class="quiz-exp">\(b = (C_{\text{경로 위}} + C_{\text{경로 밖}})/C_{\text{경로 위}} = (C + 2C)/C = 3\). 경로 밖 가지도 충전해야 하므로 경로 노력이 3배가 된다.</div></div>
+      <div class="quiz-q"><p>Q6. 기생 지연을 고려한(\(p_{inv} \approx 1\)) 버퍼 체인의 최적 단 노력이 \(e \approx 2.7\)보다 큰 약 3.6인 이유로 가장 알맞은 것은?</p>
+        <div class="opts">
+          <button class="opt">pMOS가 nMOS보다 느리기 때문에</button>
+          <button class="opt">입력 경사가 단마다 나빠지기 때문에</button>
+          <button class="opt">배선 저항이 단 수에 비례하기 때문에</button>
+          <button class="opt" data-correct>단을 하나 더할 때마다 기생 지연이 붙어 단 수를 줄이는 쪽이 유리해지기 때문에</button>
+        </div>
+        <div class="quiz-exp">\(D = N(F^{1/N} + p_{inv})\)에서 \(p_{inv}\)는 단마다 붙는 고정 비용이다. 고정 비용이 있으면 단 수를 조금 줄이고 단 노력을 키우는 쪽으로 최적점이 옮겨 간다. \(p_{inv} = 0\)이면 최적은 정확히 \(e\)다.</div></div>
+    </div>
+  </section>
+</main>
+<script>
+/*__SCRIPT__*/
+</script>
+</body>
+</html>

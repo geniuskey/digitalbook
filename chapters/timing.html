@@ -1,0 +1,446 @@
+<!doctype html>
+<!-- Copyright (c) 2026 geniuskey and DigitalBook contributors.
+     Executable code: MIT (see ../LICENSE-MIT).
+     Text, illustrations, questions and explanations: CC-BY-4.0 (see ../LICENSE.md). -->
+<html lang="ko">
+<head>
+<!--head:start {"desc": "모든 레지스터가 같은 박자에 맞춰 움직인다는 약속을 지키는 법. setup·hold 조건, 정적 타이밍 분석의 도착·요구 시각과 여유, 클럭 스큐와 지터, 파이프라이닝·리타이밍·시간 빌림, 클럭 도메인 건너기까지 직접 만지며 익힌다."}-->
+<!--head:end-->
+<style>
+  .tm-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px 0; font-family: var(--mono); font-size: 12.5px; }
+  .tm-chips span { padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); }
+  .tm-chips span.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--border)); }
+  .tm-chips span.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--border)); }
+  .tm-desc { min-height: 3.2em; }
+  .tm-desc b { color: var(--text); }
+  .sim-view canvas.tm-click { cursor: pointer; }
+  .play-view canvas.tm-drag { cursor: ew-resize; }
+  .tm-num { font-family: var(--mono); }
+</style>
+</head>
+<body data-chapter="timing">
+<main class="chapter">
+  <header class="chapter-hero">
+    <div class="eyebrow">Chapter 10</div>
+    <h1>타이밍과 클럭</h1>
+    <p class="lead">4 GHz로 도는 코어에서 한 박자는 250 ps다. 빛도 그 사이에 7.5 cm밖에 못 간다. 그 짧은 틈에 수억 개의 레지스터가 동시에 값을 내보내고, 신호는 게이트 수십 개를 지나 다음 레지스터에 <b>너무 늦지도, 너무 이르지도 않게</b> 도착해야 한다. 너무 늦으면 setup 위반, 너무 이르면 hold 위반이다. 이 장에서는 그 두 조건을 막대를 늘이고 줄이며 몸으로 익히고, 설계 도구가 수억 개 경로를 한 번에 검사하는 정적 타이밍 분석을 손으로 따라 한다. 그다음 클럭 자체의 흔들림(스큐·지터), 경로를 자르고 옮기는 파이프라이닝·리타이밍, 그리고 박자가 다른 두 세계를 잇는 클럭 도메인 건너기까지 간다.</p>
+    <ul class="objectives">
+      <li>setup·hold 조건을 식으로 쓰고, hold 조건에 클럭 주기가 없는 이유를 설명한다.</li>
+      <li>게이트 그래프에서 도착 시각·요구 시각·여유를 계산해 임계 경로를 찾는다(정적 타이밍 분석).</li>
+      <li>클럭 스큐·지터가 setup과 hold에 반대로 작용함을 알고, 파이프라인 단 수·리타이밍·시간 빌림으로 주기를 줄이는 법을 익힌다.</li>
+      <li>2단 동기화기, 그레이 코드 포인터, 비동기 FIFO로 클럭 도메인을 안전하게 건너는 원리를 이해한다.</li>
+    </ul>
+    <div class="dg-ladder" data-level="seq block" data-caption="플립플롭(순차 회로)의 setup·hold에서 출발해, 수많은 레지스터와 클럭 트리로 이루어진 블록 전체의 타이밍을 다룬다."></div>
+  </header>
+
+  <!-- ============================================================ 1 -->
+  <section id="sync">
+    <h2>동기 설계의 약속</h2>
+    <p><a href="latch.html">8장</a>에서 플립플롭을 만들었고 <a href="fsm.html">9장</a>에서 그것으로 상태 기계를 지었다. 그 모든 회로는 하나의 약속 위에 서 있다. <b>모든 레지스터는 같은 클럭 에지에 한꺼번에 값을 바꾸고, 다음 에지 전까지 그 사이의 조합 논리는 계산을 끝낸다.</b> 이것이 <span class="term">동기 설계</span><span class="en">(Synchronous design)</span>다. 이 약속 덕분에 설계자는 게이트 하나하나의 지연과 글리치를 잊고 "한 박자에 한 걸음"으로 회로를 생각할 수 있다. 수억 개 게이트로 이루어진 칩을 사람이 설계할 수 있는 이유가 바로 이 추상화다.</p>
+    <p>약속을 지키는지 검사하는 단위는 <b>레지스터에서 레지스터까지의 경로</b>다. 출발 레지스터가 클럭 에지에서 값을 내보내면(<span class="term">clk→Q</span> 지연 \(t_{cq}\)), 그 값은 조합 논리를 지나(\(t_{logic}\)) 도착 레지스터의 D 입력에 닿는다. 도착 레지스터는 다음 에지 직전 \(t_{setup}\) 동안, 그리고 에지 직후 \(t_{hold}\) 동안 입력이 가만히 있어야 값을 제대로 잡는다(<a href="latch.html">8장</a>). 경로마다 이 두 창을 지키는지만 보면 된다.</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 640 210" role="img" aria-label="레지스터-조합 논리-레지스터 경로">
+        <rect x="30" y="60" width="70" height="80" rx="6" class="f-elev"/>
+        <text x="65" y="95" text-anchor="middle" class="lbl-b">R1</text>
+        <text x="65" y="118" text-anchor="middle" class="t-mono">출발</text>
+        <path d="M40 140 l8 -8 l8 8" class="s-line"/>
+        <rect x="200" y="50" width="240" height="100" rx="12" class="f-acc-soft"/>
+        <text x="320" y="92" text-anchor="middle" class="lbl-acc">조합 논리</text>
+        <text x="320" y="116" text-anchor="middle" class="t-mono">t_logic,min ~ t_logic,max</text>
+        <rect x="540" y="60" width="70" height="80" rx="6" class="f-elev"/>
+        <text x="575" y="95" text-anchor="middle" class="lbl-b">R2</text>
+        <text x="575" y="118" text-anchor="middle" class="t-mono">도착</text>
+        <path d="M550 140 l8 -8 l8 8" class="s-line"/>
+        <path d="M100 100 H200 M440 100 H540" class="wire-hot"/>
+        <text x="150" y="90" text-anchor="middle" class="t-mono">Q</text>
+        <text x="490" y="90" text-anchor="middle" class="t-mono">D</text>
+        <path d="M10 185 H620" class="wire"/>
+        <path d="M48 185 V140 M558 185 V140" class="wire"/>
+        <text x="12" y="178" class="t-mono">CLK</text>
+        <path d="M480 185 h22" class="s-dash"/>
+        <rect x="503" y="176" width="34" height="18" rx="4" class="f-acc2-soft"/>
+        <text x="520" y="189" text-anchor="middle" class="t-mono">δ</text>
+        <text x="320" y="30" text-anchor="middle" class="t-dim">한 박자 안에: t_cq + t_logic + t_setup ≤ T_clk</text>
+      </svg>
+      <figcaption><b>그림 10-1.</b> 타이밍 검사의 기본 단위. 같은 클럭이 R1과 R2에 가지만, 배선 길이가 달라 R2에는 δ만큼 늦게(또는 이르게) 도착할 수 있다. 이 차이가 <b>클럭 스큐</b>다.</figcaption>
+    </figure>
+    <p>경로 하나가 검사해야 할 것은 두 가지뿐이다. <b>가장 느린 길</b>이 다음 에지에 늦지 않는가(setup), 그리고 <b>가장 빠른 길</b>이 같은 에지에서 도착 레지스터가 잡고 있는 이전 값을 망치지 않는가(hold). 앞의 것은 클럭을 늦추면 고쳐지지만, 뒤의 것은 그렇지 않다. 이 차이가 이 장의 첫 번째 열쇠다.</p>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="setup">
+    <h2>setup 조건: 다음 박자에 늦지 않기</h2>
+    <p>R1이 에지 0에서 내보낸 값은 R2가 <b>다음 에지</b> \(T_{clk}\)에서 잡아야 한다. 값이 출발해 도착하기까지 \(t_{cq} + t_{logic,max}\)가 걸리고, R2는 에지보다 \(t_{setup}\) 먼저 값을 받아야 한다. 여기에 클럭 쪽 사정이 더해진다. R2의 클럭이 R1보다 δ만큼 늦게 오면(양의 스큐) 마감이 δ만큼 늦춰져 도움이 되고, 클럭 에지가 주기마다 흔들리는 <span class="term">지터</span><span class="en">(Jitter)</span> \(t_{jit}\)는 최악의 경우 마감을 앞당긴다.</p>
+    <div class="formula">$$T_{clk} \;\ge\; t_{cq} + t_{logic,\max} + t_{setup} \;-\; \delta \;+\; t_{jit}$$
+      $$\text{setup 여유(slack)} \;=\; \big(T_{clk} + \delta - t_{jit} - t_{setup}\big) \;-\; \big(t_{cq} + t_{logic,\max}\big)$$
+      <div class="where">\(\delta\): 도착 레지스터 클럭이 출발 레지스터 클럭보다 늦게 도착한 정도(스큐, 늦으면 +). \(t_{jit}\): 한 주기 길이가 줄어들 수 있는 최대량(주기 간 지터). 괄호 앞은 <b>요구 시각</b>(데이터가 늦어도 이때까지는 와야 한다), 뒤는 <b>도착 시각</b>이다. 여유가 음수면 위반이다.</div></div>
+    <p>DG-7 공정의 전형적인 플립플롭은 \(t_{cq}\approx 15\) ps, \(t_{setup}\approx 8\) ps다. FO4 지연(7.5 ps)으로 치면 둘을 합쳐 약 3 FO4로, 한 주기를 갉아먹는 고정 <b>통행세</b>다. 아래 그림에서 막대 끝의 동그라미를 끌어 clk→Q와 로직 지연을 늘이고 줄여 보자. 오른쪽 위의 클럭 에지(R2)도 끌 수 있다.</p>
+    <figure class="play" id="fig-setup">
+      <div class="play-view"><canvas id="cv-setup" class="tm-drag"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>클럭 주기 T<sub>clk</sub> <output id="su-T-out"></output></span><input type="range" id="su-T" min="150" max="400" step="1" value="250"></label>
+        <label class="ctrl"><span>setup 시간 <output id="su-su-out"></output></span><input type="range" id="su-su" min="2" max="40" step="1" value="8"></label>
+        <label class="ctrl"><span>스큐 δ (R2가 늦으면 +) <output id="su-sk-out"></output></span><input type="range" id="su-sk" min="-40" max="40" step="1" value="0"></label>
+        <label class="ctrl"><span>지터 t<sub>jit</sub> <output id="su-j-out"></output></span><input type="range" id="su-j" min="0" max="30" step="1" value="5"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">도착 시각</span><span class="v" id="su-arr">—</span></div>
+        <div class="stat"><span class="k">요구 시각</span><span class="v" id="su-req">—</span></div>
+        <div class="stat"><span class="k">setup 여유</span><span class="v" id="su-slack">—</span></div>
+        <div class="stat"><span class="k">이 경로의 f<sub>max</sub></span><span class="v" id="su-fmax">—</span></div>
+      </div>
+      <figcaption><b>그림 10-2.</b> <span class="try">해 보기</span>파란 로직 막대를 오른쪽으로 끌어 빗금 친 setup 창에 닿게 해 보자. 여유가 0이 되는 순간이 이 경로의 최대 주파수다. 스큐를 +로 올리면 마감이 뒤로 밀려 여유가 생기고, 지터를 늘리면 마감이 앞당겨진다. 지터는 설계자가 줄일 수 없는 순수한 손해다.</figcaption>
+    </figure>
+    <div class="predict"><strong>로직이 20 ps 빨라지면 주파수는 몇 % 오를까?</strong>
+      <p>지금 \(t_{cq}=15\), \(t_{logic}=200\), \(t_{setup}=8\), 지터 5 ps, 스큐 0이다. 로직을 180 ps로 줄이면 최대 주파수는 몇 % 오를까? 10%(=20/200)일까?</p>
+      <details><summary>답 보기</summary><p>최소 주기는 15+200+8+5 = 228 ps에서 208 ps로 준다. 주파수는 4.39 GHz → 4.81 GHz로 약 9.6% 오른다. 로직만이 아니라 레지스터 통행세(28 ps)까지 주기에 들어 있으므로, 로직을 줄인 비율보다 주파수 이득이 조금 작다. 로직이 짧은 회로일수록 이 통행세의 비중이 커진다. 이것이 뒤에 나올 파이프라이닝의 한계를 정한다.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="hold">
+    <h2>hold 조건: 같은 박자에 너무 이르지 않기</h2>
+    <p>이번에는 반대 방향의 위험이다. 같은 에지 0에서 R1이 새 값을 내보내는 순간, R2는 R1이 <b>이전 주기에</b> 보낸 값을 잡고 있는 중이다. R2는 자기 에지 뒤로 \(t_{hold}\) 동안 입력이 변하지 않아야 한다. 그런데 R1에서 R2까지 가는 <b>가장 짧은 길</b>이 너무 빠르면, 새 값이 그 창 안에 끼어들어 R2가 이전 값 대신 새 값을(혹은 그 중간의 쓰레기를) 잡는다. 한 박자를 건너뛴 셈이다.</p>
+    <div class="formula">$$t_{cq} + t_{logic,\min} \;\ge\; t_{hold} + \delta \qquad\Longleftrightarrow\qquad \text{hold 여유} = t_{cq} + t_{logic,\min} - t_{hold} - \delta \;\ge\; 0$$
+      <div class="where">경쟁하는 두 사건이 <b>같은 에지</b>에서 출발한다. 하나는 R1의 새 데이터, 다른 하나는 R2의 클럭이다. 그래서 식에 \(T_{clk}\)가 없다. 스큐 δ가 양수(R2 클럭이 늦음)면 setup에는 도움이 되었지만 hold에는 그대로 손해다.</div></div>
+    <p>식에 주기가 없다는 것은 무서운 뜻이다. setup 위반은 클럭을 늦추면 고쳐진다. 칩이 4 GHz에서 틀리면 3.5 GHz로 팔면 된다. 하지만 <b>hold 위반은 어떤 주파수에서도 틀린다.</b> 실리콘이 나온 뒤에 hold 위반이 발견되면 그 칩은 쓸 수 없다. 그래서 설계 도구는 hold를 가장 빠른 공정 코너에서 더 엄격하게 검사하고, 짧은 경로에 일부러 <b>지연 버퍼</b>를 넣어 늦춘다.</p>
+    <figure class="play" id="fig-hold">
+      <div class="play-view"><canvas id="cv-hold"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>스큐 δ (R2 클럭이 늦으면 +) <output id="ho-sk-out"></output></span><input type="range" id="ho-sk" min="-10" max="40" step="1" value="25"></label>
+        <label class="ctrl"><span>클럭 주기 T<sub>clk</sub> <output id="ho-T-out"></output></span><input type="range" id="ho-T" min="150" max="1000" step="10" value="250"></label>
+        <div class="ctrl"><span>짧은 경로의 지연 버퍼 (하나에 약 6 ps)</span><div class="ctrl-row"><button class="btn sm" id="ho-add">버퍼 추가</button><button class="btn sm" id="ho-rm">버퍼 빼기</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">새 데이터 도착</span><span class="v" id="ho-arr">—</span></div>
+        <div class="stat"><span class="k">hold 창 끝</span><span class="v" id="ho-win">—</span></div>
+        <div class="stat"><span class="k">hold 여유</span><span class="v" id="ho-slack">—</span></div>
+        <div class="stat"><span class="k">setup 여유 (이 경로)</span><span class="v" id="ho-sslack">—</span></div>
+      </div>
+      <figcaption><b>그림 10-3.</b> <span class="try">해 보기</span>처음 상태는 R2의 클럭이 25 ps 늦게 도착해 새 데이터가 hold 창(빗금)을 침범한다. 클럭 주기 슬라이더를 끝까지 움직여도 hold 여유는 한 자리도 바뀌지 않는다. 버퍼를 넣어 새 데이터를 창 밖으로 밀어내자. 이 경로는 짧으므로 버퍼를 몇 개 넣어도 setup 여유는 넉넉하다.</figcaption>
+    </figure>
+    <div class="callout tip"><strong>hold는 왜 보통 잘 지켜지는가</strong><p>잘 만든 플립플롭은 \(t_{cq} > t_{hold}\)이다. 그래서 두 레지스터를 선 하나로 바로 이어도(시프트 레지스터처럼 \(t_{logic,min}=0\)), 스큐만 작으면 hold가 저절로 지켜진다. 문제는 스큐가 큰 곳, 그리고 <a href="robust.html">16장</a>의 빠른 공정 코너(FF, 높은 전압, 낮은 온도)에서 \(t_{cq}\)가 짧아질 때다. 실제 칩에는 hold를 고치려고 넣은 지연 셀이 수십만 개 들어 있기도 하다.</p></div>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="sta">
+    <h2>정적 타이밍 분석</h2>
+    <p>칩 하나에는 레지스터 사이 경로가 수십억 개 있다. 이것을 하나씩 시뮬레이션해 확인할 수는 없다. 입력 패턴마다 활성화되는 경로가 다르니 모든 패턴을 넣어야 하기 때문이다. 대신 설계 도구는 <span class="term">정적 타이밍 분석</span><span class="en">(STA, Static Timing Analysis)</span>을 한다. 값은 보지 않고, <b>"어떤 입력이든 신호가 이 길을 지날 수 있다"</b>고 비관적으로 가정한 채 그래프 위에서 시간만 더하고 비교한다. 계산은 두 번의 훑기로 끝난다.</p>
+    <ol>
+      <li><b>앞으로 훑기 — 도착 시각</b><span class="en">(Arrival time)</span>: 출발 레지스터의 출력에서 \(t_{cq}\)로 시작해, 위상 순서대로 각 게이트의 출력에 \(A = \max(\text{입력 도착}) + d\)를 적는다. 가장 늦은 입력이 게이트를 기다리게 하니 최댓값이다.</li>
+      <li><b>뒤로 훑기 — 요구 시각</b><span class="en">(Required time)</span>: 도착 레지스터의 입력에 \(R = T_{clk} - t_{setup}\)을 적고, 거꾸로 \(R = \min(\text{팬아웃의 } R - d_{\text{팬아웃}})\)을 적는다. 가장 급한 후속 경로가 마감을 정하니 최솟값이다.</li>
+      <li><b>여유</b><span class="en">(Slack)</span> \(= R - A\). 음수인 노드가 하나라도 있으면 그 주파수에서는 칩이 틀린다. 여유가 가장 작은 노드를 이은 길이 <span class="term">임계 경로</span><span class="en">(Critical path)</span>다.</li>
+    </ol>
+    <div class="formula">$$A(g) = \max_{i \in \text{fanin}(g)} A(i) + d_g, \qquad R(g) = \min_{j \in \text{fanout}(g)} \big(R(j) - d_j\big), \qquad \text{slack}(g) = R(g) - A(g)$$
+      <div class="where">\(A(\text{R}_k) = t_{cq}\)(출발 레지스터), 도착 레지스터 입력의 \(R = T_{clk} - t_{setup}\). 그래프가 방향성 비순환 그래프(DAG)이므로 노드 수에 비례하는 시간에 끝난다. 이것이 수십억 경로를 몇 시간 안에 검사하는 비결이다.</div></div>
+    <div class="sim" id="sim-sta">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>STA를 손으로: 도착·요구·여유</h3></div>
+      <div class="sim-view"><canvas id="cv-sta" class="tm-click"></canvas></div>
+      <div class="sim-note tm-desc" id="st-desc">—</div>
+      <div class="sim-controls">
+        <label class="ctrl"><span>목표 클럭 주파수 <output id="st-f-out"></output></span><input type="range" id="st-f" min="3" max="7" step="0.05" value="4.5"></label>
+        <div class="ctrl"><span>노드 아래 숫자</span><div class="seg" id="st-show"><button data-value="arr">도착 A</button><button data-value="req">요구 R</button><button data-value="slack" class="on">여유 S</button><button data-value="d">지연 d</button></div></div>
+        <div class="ctrl"><span>계산 단계</span><div class="ctrl-row"><button class="btn sm" id="st-reset">처음부터</button><button class="btn sm" id="st-step">한 단계 ›</button><button class="btn sm" id="st-all">모두 계산</button><button class="btn sm primary" id="st-auto">자동 재생</button></div></div>
+        <div class="ctrl"><span>설계 수정</span><div class="ctrl-row"><button class="btn sm" id="st-false">g4→g7 거짓 경로 지정</button><button class="btn sm" id="st-unsize">크기 모두 1×</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">최악 여유 WNS</span><span class="v" id="st-wns">—</span></div>
+        <div class="stat"><span class="k">음수 여유 합 TNS</span><span class="v" id="st-tns">—</span></div>
+        <div class="stat"><span class="k">f<sub>max</sub></span><span class="v" id="st-fmax">—</span></div>
+        <div class="stat"><span class="k">면적 (1× 대비)</span><span class="v" id="st-area">—</span></div>
+      </div>
+      <div class="sim-note">왼쪽 R1~R4는 출발 레지스터(\(t_{cq}\) = 15 ps), 오른쪽 C1~C3는 도착 레지스터(\(t_{setup}\) = 8 ps)다. <b>게이트를 누르면</b> 크기가 1× → 2× → 4× → 1×로 바뀐다. 크게 만든 게이트는 자기 지연이 줄지만, 입력 커패시턴스가 커져 <b>앞 게이트의 지연이 늘고</b> 면적이 커진다(<a href="delay.html">6장</a>의 논리적 노력). 붉은 노드는 여유가 음수, 주황 굵은 선은 임계 경로다. "한 단계"를 누르면 앞으로 훑기(도착)와 뒤로 훑기(요구)를 노드 하나씩 진행한다.</div>
+    </div>
+    <p>시뮬레이터에서 목표 주파수를 5 GHz 넘게 올려 보자. 임계 경로의 노드들이 붉게 변한다. 이때 할 수 있는 일은 세 가지다. (1) 임계 경로 위의 게이트를 키운다. 단, 앞 게이트에 짐을 지우므로 무작정 키우면 오히려 느려진다. (2) 논리를 다시 짜서 단 수를 줄인다(합성 도구의 재구성). (3) 경로를 레지스터로 잘라 버린다(파이프라이닝, 6절). 실제 STA 결과에서 설계자가 가장 먼저 보는 두 숫자가 <b>WNS</b><span class="en">(Worst Negative Slack)</span>와 <b>TNS</b><span class="en">(Total Negative Slack)</span>다. WNS는 주파수를, TNS는 고쳐야 할 일의 양을 말해 준다.</p>
+    <div class="callout deep"><strong>거짓 경로와 다중 사이클 경로</strong><p>STA는 값을 보지 않으므로 <b>실제로는 결코 활성화되지 않는 길</b>까지 검사한다. 예를 들어 두 MUX가 같은 선택 신호의 반대 극성으로 제어된다면, 첫 MUX의 0번 입력과 둘째 MUX의 1번 입력을 잇는 길은 신호가 지나갈 수 없다. 이런 길이 <span class="term">거짓 경로</span><span class="en">(False path)</span>다. 시뮬레이터의 "g4→g7 거짓 경로 지정"을 누르면 그 구간을 지나는 경로가 분석에서 빠지고 임계 경로가 옮겨 간다. 비슷하게, 결과를 두 주기 뒤에야 쓰는 경로는 <span class="term">다중 사이클 경로</span><span class="en">(Multicycle path)</span>로 지정해 마감을 늘려 준다. 두 지정 모두 설계자가 SDC 제약 파일(<code>set_false_path</code>, <code>set_multicycle_path</code>)에 손으로 적는다. 틀리게 적으면 STA는 깨끗한데 실리콘은 틀리는 최악의 버그가 된다. 그래서 이 제약들은 따로 검증한다.</p></div>
+    <div class="predict"><strong>임계 경로의 게이트를 4×로 키웠는데 오히려 WNS가 나빠졌다. 왜일까?</strong>
+      <p>시뮬레이터에서 g4(XOR)를 4×로 만들어 보자. 자기 지연은 줄었는데 g1과 g2의 지연이 늘어난다.</p>
+      <details><summary>답 보기</summary><p>게이트를 키우면 구동력과 함께 입력 커패시턴스도 커진다. 앞단 게이트 입장에서는 짐(팬아웃 h)이 무거워진 것이다. 앞단도 임계 경로 위에 있으면 줄어든 지연과 늘어난 지연이 상쇄되거나 역전된다. 논리적 노력 이론이 말하듯, 경로 지연은 각 단의 노력 \(gh\)가 고를 때 최소가 된다(<a href="delay.html">6장</a>). 실제 합성 도구는 한 게이트만이 아니라 경로 전체의 크기를 함께 조정한다.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="skew">
+    <h2>클럭 스큐와 지터</h2>
+    <p>지금까지 클럭이 모든 레지스터에 "동시에" 도착한다고 가정했다. 실제로 클럭은 PLL에서 한 점으로 나와 칩 전체의 수십만~수백만 개 플립플롭까지 배선과 버퍼의 나무, 즉 <span class="term">클럭 트리</span><span class="en">(Clock tree)</span>를 타고 퍼진다. 리프마다 경로 길이와 버퍼 부하가 조금씩 다르면 도착 시각이 어긋난다. 이 공간적인 어긋남이 <span class="term">스큐</span><span class="en">(Skew)</span>이고, 같은 리프에서 주기마다 에지가 흔들리는 시간적인 어긋남이 <span class="term">지터</span>다. 스큐는 설계로 다룰 수 있지만, 지터는 PLL 잡음과 전원 잡음에서 오므로 여유로 남겨 둘 수밖에 없다.</p>
+    <p>스큐를 줄이는 가장 고전적인 방법은 모양이다. <b>H-트리</b>는 다이 중앙에서 출발해 H자를 반복해 그리며 갈라진다. 어느 리프로 가든 지나는 배선 길이와 버퍼 수가 똑같다. 반대로 한쪽 끝에서 들어와 줄기를 따라 가지를 치는 트리는 만들기 쉽지만, 줄기 끝 쪽 리프일수록 늦다.</p>
+    <figure class="play" id="fig-tree">
+      <div class="play-view"><canvas id="cv-tree"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>트리 모양</span><div class="seg" id="tr-mode"><button data-value="h" class="on">H-트리</button><button data-value="spine">한쪽에서 가지치기</button></div></div>
+        <label class="ctrl"><span>배선·버퍼 변동 σ <output id="tr-sig-out"></output></span><input type="range" id="tr-sig" min="0" max="15" step="0.5" value="4"></label>
+        <div class="ctrl"><span>변동 표본</span><div class="ctrl-row"><button class="btn sm" id="tr-new">다시 뽑기</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">삽입 지연 (평균)</span><span class="v" id="tr-ins">—</span></div>
+        <div class="stat"><span class="k">최대 스큐</span><span class="v" id="tr-skew">—</span></div>
+        <div class="stat"><span class="k">250 ps 주기 대비</span><span class="v" id="tr-pct">—</span></div>
+      </div>
+      <figcaption><b>그림 10-4.</b> <span class="try">해 보기</span>1 mm × 1 mm 영역에 16개의 리프(플립플롭 묶음)가 있다. 색은 클럭이 도착하는 시각(파랑 = 이름, 빨강 = 늦음)이다. H-트리에서는 변동 σ를 0으로 두면 스큐가 정확히 0이고, σ를 키워도 스큐는 변동만큼만 생긴다. 한쪽에서 가지치기 트리는 변동이 없어도 기하학적으로 수십 ps의 스큐가 난다.</figcaption>
+    </figure>
+    <p>실제 칩에서는 H-트리를 위쪽 몇 단에만 쓰고, 아래쪽은 <span class="term">클럭 트리 합성</span><span class="en">(CTS, Clock Tree Synthesis)</span> 도구가 리프 위치에 맞춰 버퍼와 배선을 깔며 길이를 맞춘다. 고성능 CPU는 여기에 더해 트리의 끝을 그물처럼 서로 묶는 <b>클럭 메시</b>를 깔아, 변동을 평균 내어 스큐를 수 ps까지 줄인다. 대가는 전력이다. 클럭 배선은 매 주기 두 번 충전·방전되므로(활동도 1), 칩 동적 전력의 30% 안팎을 클럭 망이 먹기도 한다(<a href="power.html">15장</a>). 배선 지연 자체는 <a href="wire.html">14장</a>에서 다룬다.</p>
+    <h3>스큐를 일부러 만들기: 유용한 스큐</h3>
+    <p>스큐가 늘 나쁜 것은 아니다. setup 식에서 δ가 +이면 마감이 늦춰진다고 했다. 어떤 레지스터 앞의 로직은 길고 뒤의 로직은 짧다면, 그 레지스터의 클럭만 살짝 늦추면 앞 단은 시간을 더 얻고 뒤 단은 남는 시간을 내준다. 이것이 <span class="term">유용한 스큐</span><span class="en">(Useful skew)</span>다. 공짜는 아니다. 늦춘 레지스터로 들어오는 짧은 경로의 hold 여유가 그만큼 준다.</p>
+    <figure class="play" id="fig-useful">
+      <div class="play-view"><canvas id="cv-useful"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>R2의 클럭 지연 δ<sub>2</sub> <output id="us-d-out"></output></span><input type="range" id="us-d" min="-40" max="100" step="1" value="0"></label>
+        <label class="ctrl"><span>클럭 주기 <output id="us-T-out"></output></span><input type="range" id="us-T" min="180" max="320" step="1" value="250"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">단 1 setup (R1→R2)</span><span class="v" id="us-s1">—</span></div>
+        <div class="stat"><span class="k">단 2 setup (R2→R3)</span><span class="v" id="us-s2">—</span></div>
+        <div class="stat"><span class="k">R2 hold (짧은 경로)</span><span class="v" id="us-h">—</span></div>
+        <div class="stat"><span class="k">가능한 f<sub>max</sub></span><span class="v" id="us-f">—</span></div>
+      </div>
+      <figcaption><b>그림 10-5.</b> <span class="try">해 보기</span>단 1의 최장 로직은 270 ps, 단 2는 150 ps다. 스큐 0에서는 단 1이 4 GHz(250 ps)에 맞지 않는다. R2의 클럭을 늦추면 단 1에는 시간이 생기고 단 2의 시간은 준다. 두 단의 여유가 같아지는 점(약 60 ps)이 최적이다. δ<sub>2</sub>를 80 ps 넘게 올리면 R2로 들어오는 짧은 경로(70 ps)의 hold가 깨진다.</figcaption>
+    </figure>
+    <div class="formula">$$T_{\min} = \max\!\big(t_{cq}+t_{1}+t_{su}-\delta_2,\;\; t_{cq}+t_{2}+t_{su}+\delta_2\big) \;\xrightarrow{\;\delta_2^{*} = (t_1 - t_2)/2\;}\; t_{cq} + \tfrac{t_1+t_2}{2} + t_{su}$$
+      <div class="where">유용한 스큐의 최적점에서는 두 단의 로직이 평균 낸 것처럼 보인다. 다음 절의 리타이밍이 레지스터를 <b>옮겨서</b> 하는 일을, 유용한 스큐는 레지스터의 <b>클럭을 옮겨서</b> 한다.</div></div>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="pipeline">
+    <h2>파이프라이닝: 경로를 잘라 박자를 올리기</h2>
+    <p>임계 경로가 너무 길면 가장 확실한 해법은 중간에 레지스터를 끼워 경로를 자르는 것이다. 한 덩어리의 일을 N단으로 나누는 <span class="term">파이프라이닝</span><span class="en">(Pipelining)</span>이다. 로직이 \(t_L\)이고 단마다 레지스터 통행세 \(t_o = t_{cq} + t_{setup} + t_{skew} + t_{jit}\)를 낸다면,</p>
+    <div class="formula">$$T_{clk}(N) = \frac{t_L}{N} + t_o, \qquad \text{지연(latency)} = N\,T_{clk} = t_L + N t_o, \qquad \text{오버헤드 비율} = \frac{t_o}{T_{clk}}$$
+      <div class="where">처리량(초당 결과 수)은 \(1/T_{clk}\)로 N에 따라 늘지만, \(N\to\infty\)에서 \(1/t_o\)에 막힌다. 반면 일 하나가 들어가서 나오기까지의 지연은 N에 비례해 오히려 는다.</div></div>
+    <p>여기까지만 보면 단을 늘릴수록 좋다. 그런데 실제 프로세서에서는 <b>최적 단 수</b>가 생긴다. 앞 명령의 결과를 다음 명령이 바로 써야 하거나 분기 예측이 틀리면 파이프라인을 비우고 기다려야 하는데, 그 손해(버블)가 <b>단 수에 비례해</b> 커지기 때문이다. 단 수 N에서 명령 하나당 평균 사이클을 \(\text{CPI} = 1 + \gamma (N-1)\)로 두면 성능은 \(1/(T_{clk}\cdot\text{CPI})\)이고, 이 곡선은 어떤 N에서 꼭짓점을 가진다.</p>
+    <div class="sim" id="sim-pipe">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>몇 단으로 자를까</h3></div>
+      <div class="sim-view"><canvas id="cv-pipe"></canvas></div>
+      <div class="sim-controls">
+        <label class="ctrl"><span>파이프라인 단 수 N <output id="pp-N-out"></output></span><input type="range" id="pp-N" min="1" max="24" step="1" value="5"></label>
+        <label class="ctrl"><span>전체 로직 t<sub>L</sub> <output id="pp-L-out"></output></span><input type="range" id="pp-L" min="20" max="200" step="2" value="120"></label>
+        <label class="ctrl"><span>단마다 오버헤드 t<sub>o</sub> <output id="pp-o-out"></output></span><input type="range" id="pp-o" min="1" max="8" step="0.25" value="3"></label>
+        <label class="ctrl"><span>단마다 버블 손해 γ <output id="pp-g-out"></output></span><input type="range" id="pp-g" min="0" max="0.2" step="0.005" value="0.04"></label>
+        <div class="ctrl"><span>바로 가기</span><div class="ctrl-row"><button class="btn sm" id="pp-opt">최적 단 수로</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">클럭 f</span><span class="v" id="pp-f">—</span></div>
+        <div class="stat"><span class="k">지연 (일 하나)</span><span class="v" id="pp-lat">—</span></div>
+        <div class="stat"><span class="k">오버헤드 비율</span><span class="v" id="pp-ov">—</span></div>
+        <div class="stat"><span class="k">실효 성능 (N=1 대비)</span><span class="v" id="pp-perf">—</span></div>
+        <div class="stat"><span class="k">최적 N / 단당 로직</span><span class="v" id="pp-nopt">—</span></div>
+      </div>
+      <div class="sim-note">시간은 FO4 단위(DG-7에서 1 FO4 ≈ 7.5 ps)다. 기본값은 로직 120 FO4(약 900 ps), 오버헤드 3 FO4(약 22 ps). 맨 위 막대는 일 하나가 파이프라인을 지나는 모습(파랑 = 로직, 주황 = 레지스터 통행세)이다. 왼쪽 아래 그래프의 점선은 버블이 없을 때(γ = 0)의 성능, 실선이 실효 성능이다. 오른쪽 아래는 오버헤드 비율(실선)과 지연(점선, N=1 대비 배수)이다. 단을 나누는 위치가 고르지 않은 현실 문제는 다음의 리타이밍에서 다룬다.</div>
+    </div>
+    <p>γ를 0으로 두면 성능 곡선은 끝없이 오르며 \(1+t_L/t_o\)에 다가간다. γ를 조금만 키워도 꼭짓점이 생긴다. 오버헤드를 키우면(느린 플립플롭, 큰 스큐) 최적점이 왼쪽으로 옮겨 가고, 단당 로직은 늘어난다. 2000년대 초 연구들은 당시 프로세서의 최적점을 <b>단당 로직 약 6~8 FO4</b>(오버헤드 포함 약 9~11 FO4)로 추정했다. 31단 파이프라인을 쓴 펜티엄 4(2004년경)는 이 한계 근처까지 갔다가 전력과 분기 손해에 막혔고, 이후 고성능 코어는 15~20단 안팎으로 물러섰다. 마이크로아키텍처 쪽 이야기는 <a href="https://socbook.euiyun.com/">SoCBook</a>의 CPU 장에 있다.</p>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="retime">
+    <h2>리타이밍과 시간 빌림</h2>
+    <p>파이프라인 식은 로직을 \(N\)등분할 수 있다고 가정했다. 실제로는 게이트 경계에서만 자를 수 있고, 처음 RTL을 쓴 사람이 넣은 레지스터 위치는 대개 고르지 않다. <span class="term">리타이밍</span><span class="en">(Retiming)</span>은 회로의 기능과 지연 사이클 수를 그대로 둔 채 <b>레지스터를 게이트 너머로 옮겨</b> 단의 길이를 고르게 만든다. 게이트 앞의 레지스터를 게이트 뒤로 옮겨도 출력은 같은 박자에 같은 값이 나오기 때문이다(단, 팬인이 둘인 게이트를 거꾸로 넘으면 레지스터가 둘로 늘어난다).</p>
+    <figure class="play" id="fig-retime">
+      <div class="play-view"><canvas id="cv-retime" class="tm-drag"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>배치</span><div class="ctrl-row"><button class="btn sm" id="rt-init">처음 배치</button><button class="btn sm" id="rt-opt">최적 리타이밍</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">단별 로직 지연</span><span class="v" id="rt-st">—</span></div>
+        <div class="stat"><span class="k">클럭 주기 (+오버헤드 23 ps)</span><span class="v" id="rt-T">—</span></div>
+        <div class="stat"><span class="k">주파수</span><span class="v" id="rt-f">—</span></div>
+      </div>
+      <figcaption><b>그림 10-6.</b> <span class="try">해 보기</span>가운데 두 레지스터(주황)를 좌우로 끌어 게이트 경계에 놓아 보자. 입출력 레지스터는 고정이다. 처음 배치는 마지막 단에 로직이 몰려 있다. 가장 긴 단이 주기를 정하므로, 세 단을 최대한 고르게 만드는 위치를 찾으면 된다. 레지스터 수와 지연 사이클(3)은 바뀌지 않는다.</figcaption>
+    </figure>
+    <p>리타이밍은 합성 도구가 자동으로 한다(<a href="hdl.html">17장</a>). 다만 레지스터가 옮겨지면 RTL의 신호 이름과 실제 레지스터가 일대일로 맞지 않아 디버깅과 형식 검증이 어려워진다. 그래서 데이터패스에서 주로 켜고, 제어 로직에서는 꺼 두는 경우가 많다.</p>
+    <h3>래치로 시간 빌리기</h3>
+    <p>플립플롭은 에지 한 점에서만 값을 받는 <b>단단한 벽</b>이다. 단 1이 조금 길고 단 2가 짧아도, 단 1은 벽에 막혀 위반이 된다. 반면 <span class="term">래치</span>는 클럭이 높은 동안 투명한 <b>열린 문</b>이다. 데이터가 문이 열린 뒤에 도착해도 그대로 통과해 다음 단으로 간다. 앞 단이 다음 단의 시간을 빌려 쓰는 셈이고, 이것을 <span class="term">시간 빌림</span><span class="en">(Time borrowing)</span>이라 한다. 빌릴 수 있는 한도는 문이 닫히기 직전, 즉 반 주기에서 setup을 뺀 만큼이다.</p>
+    <figure class="play" id="fig-borrow">
+      <div class="play-view"><canvas id="cv-borrow"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>가운데 소자</span><div class="seg" id="bo-mode"><button data-value="ff" class="on">플립플롭</button><button data-value="latch">래치 (클럭 high에 투명)</button></div></div>
+        <label class="ctrl"><span>단 1 로직 <output id="bo-a-out"></output></span><input type="range" id="bo-a" min="80" max="400" step="2" value="280"></label>
+        <label class="ctrl"><span>단 2 로직 <output id="bo-b-out"></output></span><input type="range" id="bo-b" min="40" max="360" step="2" value="160"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">단 1 도착</span><span class="v" id="bo-arr">—</span></div>
+        <div class="stat"><span class="k">빌린 시간</span><span class="v" id="bo-bor">—</span></div>
+        <div class="stat"><span class="k">단 2 setup 여유</span><span class="v" id="bo-s2">—</span></div>
+        <div class="stat"><span class="k">판정</span><span class="v" id="bo-ok">—</span></div>
+      </div>
+      <figcaption><b>그림 10-7.</b> <span class="try">해 보기</span>주기는 250 ps, 두 단의 합 280+160 = 440 ps는 두 주기(500 ps)에서 통행세를 빼도 들어간다. 플립플롭으로는 단 1이 벽에 걸려 실패한다. 래치로 바꾸면 단 1이 문이 열린 구간(연한 띠) 안에 도착해 그대로 흘러간다. 단 1을 더 늘려 문이 닫히는 시각을 넘기면 래치도 실패한다.</figcaption>
+    </figure>
+    <div class="callout warn"><strong>래치 설계의 대가</strong><p>시간 빌림은 고성능 CPU의 일부 경로와 2상 클럭 설계에서 쓰이지만, 타이밍 분석이 단마다 끊기지 않고 여러 단에 걸쳐 이어진다. 루프가 생기면 STA 도구가 반복 계산을 해야 하고, hold도 래치가 투명한 반 주기만큼 더 까다로워진다. 그래서 대부분의 ASIC은 플립플롭만 쓰고, 시간 빌림이 꼭 필요한 곳에 한정해 래치를 쓰거나, 펄스 래치처럼 투명 구간이 아주 짧은 소자를 쓴다.</p></div>
+  </section>
+
+  <!-- ============================================================ 8 -->
+  <section id="cdc">
+    <h2>클럭 도메인 건너기</h2>
+    <p>지금까지는 칩 전체가 하나의 클럭을 쓴다고 생각했다. 실제 SoC에는 CPU, GPU, 메모리 컨트롤러, USB, 카메라 인터페이스마다 다른 클럭이 수십 개 돈다. 서로 주파수도 위상도 관계가 없는 두 클럭 사이를 신호가 건너는 것을 <span class="term">클럭 도메인 건너기</span><span class="en">(CDC, Clock Domain Crossing)</span>라 한다. 받는 쪽 입장에서 보낸 쪽 신호는 언제든 바뀔 수 있다. setup·hold를 지킬 방법이 원천적으로 없다. 그래서 언젠가는 반드시 <span class="term">메타안정</span><span class="en">(Metastability)</span>이 생긴다(<a href="latch.html">8장</a>).</p>
+    <h3>한 비트: 2단 동기화기</h3>
+    <p>해법은 메타안정을 없애는 게 아니라 <b>풀릴 시간을 주는 것</b>이다. 받는 쪽 플립플롭 두 개를 직렬로 잇는 <span class="term">2단 동기화기</span><span class="en">(Two-flop synchronizer)</span>에서, 첫 플립플롭이 메타안정에 빠져도 다음 에지까지 한 주기 동안 0이나 1로 풀릴 기회를 얻는다. 메타안정이 풀리지 않을 확률은 시간에 따라 지수적으로 줄기 때문에, 한 주기면 대개 충분하다.</p>
+    <div class="formula">$$\text{MTBF} = \frac{e^{\,t_r/\tau_s}}{T_0\, f_{clk}\, f_{data}}, \qquad t_r \approx T_{clk} - t_{cq} - t_{setup}$$
+      <div class="where">\(t_r\): 메타안정이 풀릴 수 있는 시간, \(\tau_s\): 쌍안정 루프의 재생 시정수(DG-7에서 수 ps), \(T_0\): 위험 창의 폭. 예를 들어 \(\tau_s = 5\) ps, \(t_r = 200\) ps면 \(e^{40}\approx 2\times10^{17}\)이 되어, 1 GHz·100 MHz 조건에서도 MTBF가 수천 년을 넘는다. 단을 하나 더 넣으면 지수가 또 한 주기만큼 커진다.</div></div>
+    <h3>펄스는 놓친다</h3>
+    <p>2단 동기화기는 <b>오래 머무는 레벨</b> 신호에만 통한다. 빠른 도메인에서 한 주기짜리 펄스를 보내면, 느린 도메인의 에지가 그 펄스 사이에 하나도 떨어지지 않을 수 있다. 흔한 해법은 펄스를 <b>토글</b>(펄스마다 레벨을 뒤집기)로 바꿔 보내고, 받는 쪽에서 동기화한 뒤 앞뒤 값을 XOR해 다시 펄스로 만드는 것이다. 하지만 토글도 받는 쪽이 알아채기 전에 두 번 뒤집히면 둘 다 사라진다.</p>
+    <figure class="play" id="fig-pulse">
+      <div class="play-view"><canvas id="cv-pulse"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>보내는 방식</span><div class="seg" id="pu-mode"><button data-value="pulse" class="on">펄스 그대로</button><button data-value="toggle">토글 + 2단 동기화</button></div></div>
+        <label class="ctrl"><span>받는 클럭 주기 / 보내는 클럭 주기 <output id="pu-r-out"></output></span><input type="range" id="pu-r" min="0.5" max="4" step="0.05" value="2.3"></label>
+        <label class="ctrl"><span>펄스 빈도 <output id="pu-p-out"></output></span><input type="range" id="pu-p" min="0.05" max="0.5" step="0.01" value="0.18"></label>
+        <div class="ctrl"><span>패턴</span><div class="ctrl-row"><button class="btn sm" id="pu-new">새 패턴</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">보낸 펄스</span><span class="v" id="pu-sent">—</span></div>
+        <div class="stat"><span class="k">받은 펄스</span><span class="v" id="pu-got">—</span></div>
+        <div class="stat"><span class="k">잃어버린 펄스</span><span class="v" id="pu-lost">—</span></div>
+      </div>
+      <figcaption><b>그림 10-8.</b> <span class="try">해 보기</span>"펄스 그대로"에서 받는 클럭이 보내는 클럭보다 느리면(비율 &gt; 1) 펄스를 자주 놓친다. 토글로 바꾸면 펄스 사이가 받는 클럭 두 주기 이상 벌어져 있는 한 모두 전달된다(대신 받는 쪽에서 약 2주기 늦게 나온다). 빈도를 올리면 토글도 겹쳐 사라진다. 이때는 받았다는 확인을 돌려받는 <b>핸드셰이크</b>나 FIFO가 필요하다.</figcaption>
+    </figure>
+    <h3>여러 비트: 버스를 그냥 샘플링하면 안 되는 이유</h3>
+    <p>여러 비트짜리 값(예: 카운터)을 비트마다 동기화기를 달아 넘기면 어떻게 될까? 비트마다 배선 지연이 조금씩 다르므로, 값이 바뀌는 순간 근처에서 샘플링하면 <b>어떤 비트는 새 값, 어떤 비트는 옛 값</b>을 잡는다. 이진수 0111 → 1000처럼 네 비트가 동시에 바뀌는 순간이라면, 1111도 0000도 0101도 잡힐 수 있다. 옛 값도 새 값도 아닌, 존재한 적 없는 값이다.</p>
+    <figure class="play" id="fig-bus">
+      <div class="play-view"><canvas id="cv-bus"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>카운터 부호화</span><div class="seg" id="bu-code"><button data-value="bin" class="on">이진</button><button data-value="gray">그레이 코드</button></div></div>
+        <label class="ctrl"><span>비트 사이 지연 차이 <output id="bu-sk-out"></output></span><input type="range" id="bu-sk" min="0" max="40" step="1" value="20"></label>
+        <div class="ctrl"><span>샘플링</span><div class="ctrl-row"><button class="btn sm" id="bu-one">한 번 샘플</button><button class="btn sm" id="bu-many">200번 샘플</button><button class="btn sm" id="bu-clr">지우기</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">샘플 수</span><span class="v" id="bu-n">—</span></div>
+        <div class="stat"><span class="k">옛 값 / 새 값</span><span class="v" id="bu-ok">—</span></div>
+        <div class="stat"><span class="k">존재하지 않던 값</span><span class="v" id="bu-bad">—</span></div>
+        <div class="stat"><span class="k">최대 오차</span><span class="v" id="bu-err">—</span></div>
+      </div>
+      <figcaption><b>그림 10-9.</b> <span class="try">해 보기</span>4비트 카운터가 한 칸 증가하는 순간 근처(±40 ps)에서 받는 쪽이 샘플링한다. 비트마다 바뀌는 시각이 조금씩 다르다(지연 차이 슬라이더). 이진 카운터에서는 7→8, 15→0 같은 순간에 엉뚱한 값이 자주 잡힌다. 그레이 코드는 한 번에 한 비트만 바뀌므로 무엇을 잡든 옛 값 아니면 새 값이다.</figcaption>
+    </figure>
+    <div class="formula">$$g = b \oplus (b \gg 1), \qquad b_{i} = g_{i} \oplus b_{i+1}\;(\text{위 비트부터})$$
+      <div class="where">이진 → 그레이 변환은 XOR 한 단, 그레이 → 이진은 위 비트부터 XOR을 누적한다. 0,1,2,3,…은 그레이로 0000, 0001, 0011, 0010, 0110, …이 된다. 15 → 0으로 돌아갈 때도 한 비트만 바뀐다.</div></div>
+    <h3>비동기 FIFO</h3>
+    <p>여러 비트의 데이터를 계속 넘겨야 하면 <span class="term">비동기 FIFO</span><span class="en">(Asynchronous FIFO)</span>를 쓴다. 듀얼 포트 메모리를 가운데 두고, 쓰는 쪽은 자기 클럭으로 쓰기 포인터를, 읽는 쪽은 자기 클럭으로 읽기 포인터를 올린다. 비었는지·찼는지 판단하려면 상대방 포인터를 알아야 하는데, 이 포인터만 <b>그레이 코드로 바꿔 2단 동기화기로 건넨다.</b> 데이터 자체는 동기화하지 않는다. 포인터가 "여기까지는 써 두었다"고 알려 준 칸만 읽으므로, 그 칸의 데이터는 이미 안정되어 있기 때문이다.</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 640 230" role="img" aria-label="비동기 FIFO 구조">
+        <rect x="8" y="8" width="230" height="214" rx="10" class="f-acc-soft"/>
+        <text x="20" y="30" class="lbl-acc">쓰기 도메인 (wclk)</text>
+        <rect x="402" y="8" width="230" height="214" rx="10" class="f-acc2-soft"/>
+        <text x="620" y="30" text-anchor="end" class="lbl-acc2">읽기 도메인 (rclk)</text>
+        <rect x="250" y="44" width="140" height="80" rx="6" class="f-elev"/>
+        <text x="320" y="78" text-anchor="middle" class="lbl-b">듀얼 포트 RAM</text>
+        <text x="320" y="100" text-anchor="middle" class="t-mono">2^n 칸</text>
+        <path d="M150 84 H250" class="wire-hot"/><path d="M390 84 H490" class="wire-hot"/>
+        <text x="200" y="76" text-anchor="middle" class="t-mono">wdata</text>
+        <text x="440" y="76" text-anchor="middle" class="t-mono">rdata</text>
+        <rect x="30" y="60" width="120" height="44" rx="6" class="f-elev"/>
+        <text x="90" y="87" text-anchor="middle" class="t">wptr (그레이)</text>
+        <rect x="490" y="60" width="120" height="44" rx="6" class="f-elev"/>
+        <text x="550" y="87" text-anchor="middle" class="t">rptr (그레이)</text>
+        <rect x="30" y="160" width="120" height="40" rx="6" class="f-elev"/>
+        <text x="90" y="185" text-anchor="middle" class="t">full 판정</text>
+        <rect x="490" y="160" width="120" height="40" rx="6" class="f-elev"/>
+        <text x="550" y="185" text-anchor="middle" class="t">empty 판정</text>
+        <rect x="290" y="136" width="60" height="26" rx="5" class="f-surface"/>
+        <text x="320" y="154" text-anchor="middle" class="t-mono">2FF</text>
+        <rect x="290" y="178" width="60" height="26" rx="5" class="f-surface"/>
+        <text x="320" y="196" text-anchor="middle" class="t-mono">2FF</text>
+        <path d="M150 96 C210 96 230 149 290 149" class="s-line"/><path d="M350 149 C420 149 440 180 490 180" class="s-line"/>
+        <path d="M490 96 C430 96 410 191 350 191" class="s-line"/><path d="M290 191 C230 191 210 180 150 180" class="s-line"/>
+        <text x="236" y="140" text-anchor="middle" class="t-mono">wptr→</text>
+        <text x="404" y="208" text-anchor="middle" class="t-mono">←rptr</text>
+      </svg>
+      <figcaption><b>그림 10-10.</b> 비동기 FIFO. 데이터는 RAM을 통해 건너고, 도메인 경계를 넘는 것은 그레이 코드 포인터 두 개뿐이다. 동기화된 포인터는 몇 주기 늦은 값이므로 full·empty 판정은 항상 <b>보수적</b>이다(실제보다 조금 더 찼다고, 조금 더 비었다고 본다). 그래서 넘치거나 빈 칸을 읽는 일은 없다.</figcaption>
+    </figure>
+    <div class="callout warn"><strong>CDC 버그는 시뮬레이션으로 잘 안 잡힌다</strong><p>RTL 시뮬레이션에는 메타안정도 비트 사이 지연 차이도 없다. 이진 카운터를 그냥 건넨 회로도 시뮬레이션에서는 완벽하게 동작한다. 실리콘에서 몇 시간에 한 번씩, 그것도 온도와 전압에 따라 다르게 틀린다. 그래서 STA와 별도로 <b>CDC 검사 도구</b>가 회로의 구조를 보고 "동기화기 없이 건너는 신호", "동기화기를 따로 지난 뒤 다시 합쳐지는 신호(재수렴)" 같은 패턴을 찾아낸다. 도메인 사이 경로는 STA에서 거짓 경로로 빠지므로, 이 검사가 유일한 안전망이다.</p></div>
+  </section>
+
+  <!-- ============================================================ 9 -->
+  <section id="numbers">
+    <h2>코너와 실제 숫자</h2>
+    <p>지금까지는 게이트 지연을 하나의 숫자로 다뤘다. 실제 지연은 공정 편차(P), 전압(V), 온도(T)에 따라 수십 %씩 달라진다(<a href="robust.html">16장</a>). STA는 그래서 여러 <b>코너</b>에서 반복된다. setup은 모든 것이 가장 느린 코너에서, hold는 가장 빠른 코너에서 검사하는 것이 기본이다. 같은 칩 안에서도 위치마다 조금씩 다른 변동(OCV, On-Chip Variation)을 반영해 출발 경로와 도착 클럭 경로에 서로 다른 감쇠율(derate)을 곱한다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>코너</th><th>공정</th><th class="num">전압 (DG-7)</th><th class="num">온도</th><th class="num">FO4 (약)</th><th>주로 검사하는 것</th></tr></thead>
+        <tbody>
+          <tr><td>SS 저전압 고온</td><td>느린 n·느린 p</td><td class="num">0.675 V (−10%)</td><td class="num">125 °C</td><td class="num">~10 ps</td><td>setup (최장 경로)</td></tr>
+          <tr><td>SS 저전압 저온</td><td>느린 n·느린 p</td><td class="num">0.675 V</td><td class="num">−40 °C</td><td class="num">~10~11 ps</td><td>setup (온도 역전이 있는 저전압 공정)</td></tr>
+          <tr><td>TT 기준</td><td>전형</td><td class="num">0.75 V</td><td class="num">25 °C</td><td class="num">7.5 ps</td><td>성능 보고, 전력</td></tr>
+          <tr><td>FF 고전압 저온</td><td>빠른 n·빠른 p</td><td class="num">0.825 V (+10%)</td><td class="num">−40 °C</td><td class="num">~5.5 ps</td><td>hold (최단 경로)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:14px;color:var(--text-dim)">FO4 값은 DG-7 교육용 공정의 대략값이다. 첨단 저전압 공정에서는 온도가 낮을수록 문턱 전압이 올라 오히려 느려지는 <b>온도 역전</b>이 나타나므로, 저온 코너도 setup 검사에 넣는다.</p>
+    <p>마지막으로 감을 잡을 숫자다. 한 주기에 FO4 몇 개분의 로직이 들어가는지가 설계의 "깊이"를 말해 준다. 공정이 달라도 이 숫자는 비교할 수 있다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>설계 (대략 연도)</th><th class="num">클럭 (약)</th><th class="num">FO4 (약)</th><th class="num">주기당 FO4 (약)</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>최신 데스크톱 CPU 코어 (2024)</td><td class="num">4~6 GHz</td><td class="num">~6~8 ps</td><td class="num">~20~30</td><td>깊은 파이프라인, 클럭 메시, 커스텀 설계</td></tr>
+          <tr><td>모바일 SoC 고성능 코어 (2024)</td><td class="num">3~4 GHz</td><td class="num">~6~8 ps</td><td class="num">~35~45</td><td>전력 때문에 단 수를 덜 늘림</td></tr>
+          <tr><td>펜티엄 4 (2004, 90 nm)</td><td class="num">~3.8 GHz</td><td class="num">~25~30 ps</td><td class="num">~10</td><td>31단 파이프라인, 일부 ALU는 반 주기로 동작</td></tr>
+          <tr><td>GPU 셰이더 코어 (2024)</td><td class="num">~2~2.5 GHz</td><td class="num">~6~8 ps</td><td class="num">~60~80</td><td>병렬성으로 처리량을 얻고 클럭은 낮춤</td></tr>
+          <tr><td>표준 셀 ASIC 블록 (7 nm급)</td><td class="num">~1~2 GHz</td><td class="num">~7.5 ps</td><td class="num">~65~130</td><td>자동 배치·배선, CTS 클럭 트리</td></tr>
+          <tr><td>저전력 MCU (40 nm급)</td><td class="num">~0.1~0.3 GHz</td><td class="num">~20 ps</td><td class="num">~170~500</td><td>짧은 파이프라인, 전력 우선</td></tr>
+          <tr><td>이 장의 예 (DG-7)</td><td class="num">4 GHz</td><td class="num">7.5 ps</td><td class="num">~33</td><td>250 ps 중 약 23 ps가 플립플롭 통행세</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:14px;color:var(--text-dim)">공개 발표와 교과서(Weste &amp; Harris, Rabaey)의 수치에 기반한 대략값이다. 실제 FO4는 배선 부하·문턱 전압 선택·동작 전압에 따라 크게 달라지므로 자릿수 감각으로만 쓰자.</p>
+    <div class="callout tip"><strong>설계 흐름에서 이 장의 위치</strong><p>여기서 손으로 한 계산은 실제 흐름에서 합성 후, 배치 후, CTS 후, 배선 후마다 반복된다. 단계가 진행될수록 배선 RC가 정확해져 숫자가 바뀌고, 마지막에는 수십 개 코너·모드 조합을 동시에 검사하는 사인오프 STA를 통과해야 테이프아웃한다. 도구와 제약 파일(SDC) 이야기는 <a href="https://designbook.euiyun.com/">DesignBook</a>에, PLL과 칩 전체 클럭 구조는 <a href="https://socbook.euiyun.com/">SoCBook</a>에 있다.</p></div>
+  </section>
+
+  <section class="keypoints">
+    <h2>핵심 정리</h2>
+    <ol>
+      <li><b>setup</b>: \(T_{clk} \ge t_{cq} + t_{logic,max} + t_{setup} - \delta + t_{jit}\). 가장 느린 경로가 최대 주파수를 정하고, 위반은 클럭을 늦추면 고쳐진다.</li>
+      <li><b>hold</b>: \(t_{cq} + t_{logic,min} \ge t_{hold} + \delta\). 주기가 없으므로 어떤 주파수에서도 틀린다. 짧은 경로에 버퍼를 넣어 고친다.</li>
+      <li><b>STA</b>는 값을 보지 않고 DAG에서 도착 시각(max, 앞으로)과 요구 시각(min, 뒤로)을 계산해 여유 = R − A를 구한다. 거짓 경로·다중 사이클 경로는 설계자가 제약으로 알려 준다.</li>
+      <li><b>스큐</b>는 setup과 hold에 반대로 작용한다. H-트리·CTS·클럭 메시로 줄이고, 유용한 스큐로 단 사이 시간을 옮길 수도 있다. <b>지터</b>는 순수한 손해다.</li>
+      <li><b>파이프라이닝</b>은 \(T = t_L/N + t_o\)로 주기를 줄이지만 지연과 오버헤드 비율이 늘고, 버블 손해 때문에 최적 단 수가 생긴다. <b>리타이밍</b>은 레지스터를 옮겨, <b>래치</b>는 시간을 빌려 단을 고르게 한다.</li>
+      <li><b>CDC</b>: 한 비트는 2단 동기화기, 펄스는 토글·핸드셰이크, 여러 비트는 그레이 코드 포인터와 비동기 FIFO로 건넌다. 이진 버스를 그냥 샘플링하면 존재하지 않던 값이 잡힌다.</li>
+      <li>STA는 SS 코너에서 setup, FF 코너에서 hold를 검사한다. 최신 CPU는 한 주기에 FO4 약 20~30단을 넣는다.</li>
+    </ol>
+  </section>
+
+  <section class="quiz-sec">
+    <h2>확인 퀴즈</h2>
+    <div class="quiz">
+      <div class="quiz-q"><p>Q1. \(t_{cq}=15\) ps, \(t_{logic,max}=180\) ps, \(t_{setup}=8\) ps, 지터 7 ps, 스큐 δ = +10 ps(도착 쪽이 늦음)일 때 최소 클럭 주기는?</p>
+        <div class="opts">
+          <button class="opt">220 ps</button><button class="opt" data-correct>200 ps</button><button class="opt">210 ps</button><button class="opt">193 ps</button>
+        </div>
+        <div class="quiz-exp">\(T \ge 15 + 180 + 8 - 10 + 7 = 200\) ps(5 GHz). 양의 스큐는 setup 마감을 늦춰 도움이 되고, 지터는 마감을 앞당긴다.</div></div>
+      <div class="quiz-q"><p>Q2. 테이프아웃 후 칩에서 hold 위반이 발견되었다. 칩을 살리는 데 효과가 있을 가능성이 가장 높은 것은?</p>
+        <div class="opts">
+          <button class="opt">클럭 주파수를 절반으로 낮춘다</button>
+          <button class="opt">setup 여유가 큰 경로의 게이트를 키운다</button>
+          <button class="opt" data-correct>공급 전압·온도를 바꿔 해당 경로와 클럭의 지연 관계가 달라지게 한다(근본 해결은 다음 리비전의 버퍼 삽입)</button>
+          <button class="opt">파이프라인 단 수를 늘린다</button>
+        </div>
+        <div class="quiz-exp">hold 식 \(t_{cq}+t_{min} \ge t_{hold}+\delta\)에는 주기가 없어 클럭을 낮춰도 소용없다. 이미 만든 칩에서는 전압·온도처럼 지연 비율을 바꾸는 조건 조정이 그나마 남은 수단이고, 근본 해결은 마스크를 고쳐 짧은 경로에 버퍼를 넣는 것이다.</div></div>
+      <div class="quiz-q"><p>Q3. STA에서 어떤 게이트 출력의 도착 시각이 140 ps, 요구 시각이 128 ps다. 옳은 설명은?</p>
+        <div class="opts">
+          <button class="opt" data-correct>여유가 −12 ps로, 이 노드를 지나는 경로 중 적어도 하나가 setup을 위반한다</button>
+          <button class="opt">여유가 +12 ps로 안전하다</button>
+          <button class="opt">hold 위반이다</button>
+          <button class="opt">요구 시각은 앞으로 훑기에서 max로 구한다</button>
+        </div>
+        <div class="quiz-exp">slack = R − A = 128 − 140 = −12 ps. 요구 시각은 도착 레지스터에서 거꾸로(min) 전파하고, 도착 시각은 출발 레지스터에서 앞으로(max) 전파한다.</div></div>
+      <div class="quiz-q"><p>Q4. 로직 900 ps, 단마다 오버헤드 30 ps인 회로를 6단 파이프라인으로 만들었다. 클럭 주기와 지연(latency)은?</p>
+        <div class="opts">
+          <button class="opt">150 ps, 900 ps</button><button class="opt">180 ps, 930 ps</button><button class="opt">155 ps, 930 ps</button><button class="opt" data-correct>180 ps, 1080 ps</button>
+        </div>
+        <div class="quiz-exp">\(T = 900/6 + 30 = 180\) ps, 지연 = \(6 \times 180 = 1080\) ps. 단을 나누지 않으면 930 ps였으므로 일 하나의 지연은 오히려 150 ps 늘었다. 대신 처리량은 약 5.2배다.</div></div>
+      <div class="quiz-q"><p>Q5. 비동기 FIFO에서 쓰기 포인터를 읽기 도메인으로 넘길 때 그레이 코드를 쓰는 이유는?</p>
+        <div class="opts">
+          <button class="opt">그레이 코드는 메타안정이 생기지 않는다</button>
+          <button class="opt" data-correct>한 번에 한 비트만 바뀌어, 바뀌는 순간에 샘플링해도 옛 값 아니면 새 값만 잡힌다</button>
+          <button class="opt">비트 수가 줄어 배선이 짧아진다</button>
+          <button class="opt">덧셈이 이진수보다 빠르다</button>
+        </div>
+        <div class="quiz-exp">메타안정은 여전히 생길 수 있고 동기화기가 그것을 풀어 준다. 그레이 코드의 핵심은 바뀌는 비트가 하나뿐이라, 그 비트가 어느 쪽으로 풀리든 결과가 유효한 포인터(옛 값 또는 새 값)라는 점이다.</div></div>
+      <div class="quiz-q"><p>Q6. 레지스터 R2 앞의 로직이 길고 뒤의 로직이 짧다. R2의 클럭만 일부러 늦추면 생기는 일로 옳지 <u>않은</u> 것은?</p>
+        <div class="opts">
+          <button class="opt">R1→R2 경로의 setup 여유가 는다</button>
+          <button class="opt">R2→R3 경로의 setup 여유가 준다</button>
+          <button class="opt">R1→R2의 짧은 경로에서 hold 여유가 준다</button>
+          <button class="opt" data-correct>R2→R3의 짧은 경로에서 hold 여유가 준다</button>
+        </div>
+        <div class="quiz-exp">R2의 클럭을 늦추면 R2가 출발 레지스터인 경로(R2→R3)는 늦게 출발하므로 hold에는 오히려 유리하다. hold가 나빠지는 쪽은 R2가 도착 레지스터인 R1→R2의 짧은 경로다.</div></div>
+    </div>
+  </section>
+</main>
+<!--SCRIPT-->
+</body>
+</html>

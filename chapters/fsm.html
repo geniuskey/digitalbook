@@ -1,0 +1,435 @@
+<!doctype html>
+<!-- Copyright (c) 2026 geniuskey and DigitalBook contributors.
+     Executable code: MIT (see ../LICENSE-MIT).
+     Text, illustrations, questions and explanations: CC-BY-4.0 (see ../LICENSE.md). -->
+<html lang="ko">
+<head>
+<!--head:start {"desc": "상태 레지스터와 다음 상태 논리로 이루어진 동기 순차 회로의 일반형에서 출발해 카운터·시프트 레지스터·LFSR, 상태도에서 게이트까지의 설계 절차, 무어와 밀리 기계의 타이밍 차이, 상태 인코딩과 최소화, 불법 상태 복구와 Verilog 코딩까지 직접 클럭을 넣어 가며 익힌다."}-->
+<!--head:end-->
+<style>
+  .fsm-io { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .fsm-io .btn b { font-family: var(--mono); }
+  .fsm-io .btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .fsm-ed { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13.5px; }
+  .fsm-ed select { font: inherit; font-size: 13px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text); max-width: 120px; }
+  .fsm-eq { font-family: var(--mono); font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-all; padding: 10px 18px 14px; border-top: 1px solid var(--border); background: var(--surface); color: var(--text-dim); }
+  .fsm-eq b { color: var(--accent); }
+  .fsm-tbl td, .fsm-tbl th { white-space: nowrap; }
+  .fsm-tbl tr.best td { color: var(--ok); font-weight: 700; }
+  .fsm-tbl tr.cur td { background: var(--accent-soft); }
+  table.tt td.hl { background: var(--accent-soft); }
+</style>
+</head>
+<body data-chapter="fsm">
+<main class="chapter">
+  <header class="chapter-hero">
+    <div class="eyebrow">Chapter 09</div>
+    <h1>유한 상태 기계</h1>
+    <p class="lead">엘리베이터는 지금 몇 층에 있고 어느 방향으로 가던 중인지 기억한다. 자판기는 지금까지 들어온 동전이 얼마인지, 신호등은 지금이 어느 방향 녹색인지 기억한다. 이처럼 "지금까지의 사연"을 몇 비트로 요약해 들고 다니며, 새 입력이 올 때마다 그 요약을 고쳐 쓰는 회로가 <span class="term">유한 상태 기계</span><span class="en">(FSM, Finite State Machine)</span>다. <a href="latch.html">8장</a>에서 만든 플립플롭이 기억을 맡고, 앞 장들의 조합 논리가 판단을 맡는다. 이 장에서는 둘을 엮는 단 하나의 틀을 익힌 다음, 그 틀로 카운터와 LFSR, 시퀀스 검출기, 자판기와 신호등을 직접 만들고 클럭을 한 번씩 넣어 가며 움직여 본다.</p>
+    <ul class="objectives">
+      <li>모든 동기 순차 회로를 상태 레지스터 + 다음 상태 논리 + 출력 논리의 일반형으로 읽는다.</li>
+      <li>이진 카운터·시프트 레지스터·LFSR의 동작과, 리플 카운터가 잠깐 틀린 값을 내는 이유를 설명한다.</li>
+      <li>상태도 → 상태표 → 인코딩 → 다음 상태 식 → 게이트의 절차로 FSM을 설계하고, 무어와 밀리의 타이밍 차이를 안다.</li>
+      <li>이진·원핫·그레이 인코딩의 비용을 비교하고, 상태 최소화와 리셋·불법 상태 복구를 설계에 반영한다.</li>
+    </ul>
+    <div class="dg-ladder" data-level="seq" data-caption="플립플롭(8장)을 묶어 상태 레지스터를 만들고, 그 앞뒤에 조합 논리를 붙이면 순차 회로의 모든 것이 된다. CPU의 제어 장치도 거대한 FSM이다."></div>
+  </header>
+
+  <!-- ============================================================ 1 -->
+  <section id="general">
+    <h2>동기 순차 회로의 일반형</h2>
+    <p>조합 회로의 출력은 <b>지금의 입력</b>만으로 정해진다. 순차 회로의 출력은 <b>지금까지 들어온 입력 전체</b>에 달려 있다. 그러나 과거 전체를 다 기억할 수는 없으니, 앞으로의 동작에 필요한 만큼만 요약해 둔다. 이 요약이 <span class="term">상태</span><span class="en">(State)</span>다. 상태를 \(k\)비트 플립플롭에 담으면 가능한 상태는 많아야 \(2^k\)개, 즉 <b>유한</b>하다. 이름의 "유한"이 바로 이 뜻이다.</p>
+    <p>클럭 하나로 모든 플립플롭을 함께 움직이는 <span class="term">동기 순차 회로</span><span class="en">(Synchronous sequential circuit)</span>는 예외 없이 아래 세 덩어리로 나눌 수 있다. 카운터도, 시프트 레지스터도, CPU의 제어 장치도 마찬가지다.</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 640 236" role="img" aria-label="상태 레지스터, 다음 상태 논리, 출력 논리로 이루어진 동기 순차 회로 블록도">
+        <defs><marker id="fsm-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--text-dim)"/></marker></defs>
+        <text class="lbl-b" x="14" y="90">입력 x</text>
+        <path class="s-line" d="M62 98H128" marker-end="url(#fsm-ar)"/>
+        <rect class="f-acc-soft" x="130" y="58" width="140" height="80" rx="10"/>
+        <text class="lbl-b" x="200" y="92" text-anchor="middle">다음 상태 논리</text>
+        <text class="t-mono" x="200" y="114" text-anchor="middle">s′ = δ(s, x)</text>
+        <path class="s-line" d="M270 98H328" marker-end="url(#fsm-ar)"/>
+        <text class="t-mono" x="299" y="90" text-anchor="middle">s′</text>
+        <rect class="f-acc2-soft" x="330" y="58" width="110" height="80" rx="10"/>
+        <text class="lbl-b" x="385" y="92" text-anchor="middle">상태 레지스터</text>
+        <text class="t-mono" x="385" y="114" text-anchor="middle">D 플립플롭 × k</text>
+        <path class="s-line" d="M374 138L385 127L396 138"/>
+        <path class="s-line" d="M385 138V172"/>
+        <text class="t-mono" x="385" y="186" text-anchor="middle">CLK</text>
+        <path class="s-line" d="M440 98H498" marker-end="url(#fsm-ar)"/>
+        <text class="t-mono" x="478" y="90" text-anchor="middle">s</text>
+        <circle cx="462" cy="98" r="3.5" style="fill:var(--text-dim)"/>
+        <path class="s-line" d="M462 98V30H104V122H128" marker-end="url(#fsm-ar)"/>
+        <text class="t-dim" x="283" y="24" text-anchor="middle">현재 상태를 되먹임</text>
+        <rect class="f-elev" x="500" y="58" width="110" height="80" rx="10"/>
+        <text class="lbl-b" x="555" y="92" text-anchor="middle">출력 논리</text>
+        <text class="t-mono" x="555" y="114" text-anchor="middle">y = λ(s) | λ(s,x)</text>
+        <path class="s-line" d="M610 98H636" marker-end="url(#fsm-ar)"/>
+        <text class="lbl-b" x="626" y="88" text-anchor="middle">y</text>
+        <circle cx="84" cy="98" r="3.5" style="fill:var(--text-dim)"/>
+        <path class="s-dash" d="M84 98V206H555V140" marker-end="url(#fsm-ar)"/>
+        <text class="lbl-acc2" x="320" y="226" text-anchor="middle">밀리 기계만: 입력이 출력 논리로 곧장 들어간다</text>
+      </svg>
+      <figcaption><b>그림 9-1.</b> 동기 순차 회로의 일반형. 상태 레지스터만 클럭을 받는다. 클럭 에지 사이에 다음 상태 논리가 \(s'\)을 계산해 두면, 에지 순간 레지스터가 그것을 받아 새 \(s\)가 된다. 출력이 상태만 보면 <b>무어 기계</b>, 입력도 보면(점선) <b>밀리 기계</b>다.</figcaption>
+    </figure>
+    <div class="formula">$$s_{n+1} = \delta(s_n,\ x_n), \qquad y_n = \begin{cases} \lambda(s_n) & \text{무어(Moore)} \\ \lambda(s_n,\ x_n) & \text{밀리(Mealy)} \end{cases}$$
+      <div class="where">\(s_n\): \(n\)번째 클럭 주기의 상태(레지스터 값), \(x_n\): 그 주기의 입력, \(\delta\): 다음 상태 함수(조합 논리), \(\lambda\): 출력 함수(조합 논리). 시간은 클럭 에지마다 한 칸씩, 정수로 흐른다.</div></div>
+    <p>이 틀의 핵심은 <b>되먹임 고리가 반드시 플립플롭을 지난다</b>는 것이다. 조합 논리만으로 고리를 만들면 <a href="latch.html">8장</a>의 래치처럼 값이 언제 자리 잡을지 알 수 없지만, 고리 중간에 에지 트리거 플립플롭을 두면 "한 클럭에 한 걸음"이라는 규칙이 생긴다. 그 덕에 우리는 지연이 몇 피코초인지 잊고, 상태가 클럭마다 하나씩 바뀌는 이산 시간 기계로 회로를 생각할 수 있다. 대가는 하나다. 다음 상태 논리가 한 클럭 안에 계산을 마쳐야 한다(<a href="timing.html">10장</a>).</p>
+    <p>아래 그림에서 2비트 업/다운 카운터를 이 틀로 돌려 보자. 다음 상태 논리는 "UP이면 +1, 아니면 −1"을 계산하고, 출력 논리는 무어 모드에서 "상태가 3인가", 밀리 모드에서 "이번 클럭에 한 바퀴를 넘어가는가(자리올림·자리내림)"를 계산한다.</p>
+    <figure class="play" id="fig-block">
+      <div class="play-view"><canvas id="cv-block"></canvas></div>
+      <div class="play-ctrl">
+        <div class="fsm-io"><button class="btn sm" id="bk-up">UP = <b>1</b></button><button class="btn sm primary" id="bk-clk">클럭 ↑</button><button class="btn sm" id="bk-rst">리셋</button></div>
+        <div class="seg" id="bk-mode"><button data-value="moore" class="on">무어 출력</button><button data-value="mealy">밀리 출력</button></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">현재 상태 s</span><span class="v" id="bk-s">—</span></div>
+        <div class="stat"><span class="k">다음 상태 s′</span><span class="v" id="bk-n">—</span></div>
+        <div class="stat"><span class="k">출력 y</span><span class="v" id="bk-y">—</span></div>
+      </div>
+      <figcaption><b>그림 9-2.</b> <span class="try">눌러 보기</span>UP을 바꾸면 다음 상태 논리의 출력 \(s'\)은 즉시 바뀌지만 레지스터의 \(s\)는 그대로다. "클럭 ↑"을 눌러야 비로소 \(s'\)이 \(s\)로 넘어간다. 밀리 출력은 UP을 바꾸는 순간에도 바뀌고, 무어 출력은 클럭을 넣어야만 바뀐다는 점도 확인하자.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="counter">
+    <h2>카운터: 가장 단순한 상태 기계</h2>
+    <p>입력이 없거나(클럭만 받는다) 허용 신호 하나뿐인 FSM의 대표가 <span class="term">카운터</span><span class="en">(Counter)</span>다. \(n\)비트 이진 카운터의 상태는 \(2^n\)개이고, 다음 상태 함수는 \(\delta(s) = s+1 \bmod 2^n\)이다. 덧셈기를 붙여 구현할 수도 있지만, 비트 단위로 보면 훨씬 단순한 규칙이 보인다. <b>비트 \(i\)는 그보다 아래 비트가 모두 1일 때만 뒤집힌다.</b></p>
+    <div class="formula">$$T_i = q_0\, q_1 \cdots q_{i-1} = \prod_{j<i} q_j, \qquad q_i^{+} = q_i \oplus T_i$$
+      <div class="where">\(T_i\): 비트 \(i\)의 토글 조건(\(T_0 = 1\)), \(q_i^{+}\): 다음 클럭 뒤의 값. 가장 아래 비트는 매 클럭, 그다음 비트는 두 클럭마다, 비트 \(i\)는 \(2^i\) 클럭마다 한 번 뒤집힌다.</div></div>
+    <figure class="play" id="fig-cnt">
+      <div class="play-view"><canvas id="cv-cnt"></canvas></div>
+      <div class="play-ctrl">
+        <div class="fsm-io"><button class="btn sm primary" id="ct-clk">클럭 ↑</button><button class="btn sm" id="ct-rst">리셋</button></div>
+        <div class="seg" id="ct-run"><button data-value="stop" class="on">정지</button><button data-value="run">자동 재생</button></div>
+        <label class="ctrl"><span>자동 재생 속도 <output id="ct-spd-out"></output></span><input type="range" id="ct-spd" min="1" max="12" step="1" value="4"></label>
+      </div>
+      <figcaption><b>그림 9-3.</b> <span class="try">눌러 보기</span>4비트 동기 카운터. 위쪽 플립플롭에서 주황 테두리는 "다음 클럭에 뒤집힐 비트"(\(T_i=1\))다. 아래 파형에서 \(Q_0\)은 클럭의 절반 주파수, \(Q_1\)은 1/4, \(Q_3\)은 1/16이 된다. 카운터가 <b>분주기</b><span class="en">(Clock divider)</span>로도 쓰이는 이유다.</figcaption>
+    </figure>
+    <div class="predict"><strong>0111 다음에는 몇 비트가 뒤집힐까?</strong>
+      <p>4비트 카운터가 0111(7)에서 1000(8)으로 넘어갈 때 뒤집히는 비트 수는? 모든 비트가 정확히 같은 순간에 뒤집히지 않고 아래 비트부터 차례로 뒤집힌다면, 중간에 어떤 값들이 잠깐 보일까?</p>
+      <details><summary>답 보기</summary><p>네 비트가 모두 뒤집힌다. 아래 비트부터 차례로 바뀌면 0111 → 0110 → 0100 → 0000 → 1000을 거친다. 6, 4, 0이라는 엉뚱한 값이 잠깐 나타나는 것이다. 이것이 바로 다음에 볼 <b>리플 카운터</b>의 모습이다.</p></details>
+    </div>
+    <p>토글 조건을 만드는 방법은 둘이다. <span class="term">동기 카운터</span><span class="en">(Synchronous counter)</span>는 모든 플립플롭이 같은 클럭을 받고, AND 사슬로 \(T_i\)를 만들어 XOR로 다음 값을 계산한다. 모든 비트가 같은 에지에서 \(t_{cq}\)만큼 뒤에 함께 바뀐다. <span class="term">리플 카운터</span><span class="en">(Ripple counter, 비동기 카운터)</span>는 더 교묘하다. 비트 \(i\)가 1→0으로 떨어지는 순간이 곧 비트 \(i+1\)이 뒤집혀야 하는 순간이므로, 각 비트의 출력을 다음 비트의 클럭으로 쓴다. 게이트가 하나도 없지만, 바뀜이 물결처럼 한 비트씩 번져 가므로 비트마다 \(t_{cq}\)가 쌓인다.</p>
+    <div class="formula">$$t_{\text{settle,ripple}} \approx n\, t_{cq}, \qquad T_{\min,\text{sync}} = t_{cq} + t_{\text{AND}}(n) + t_{\text{XOR}} + t_{\text{setup}}$$
+      <div class="where">\(t_{\text{AND}}(n)\): 토글 조건을 만드는 AND의 지연. 사슬로 이으면 \((n-2)\,t_{\text{AND2}}\), 트리로 묶으면 \(\lceil\log_2(n-1)\rceil\,t_{\text{AND2}}\)에 비례한다.</div></div>
+    <div class="sim" id="sim-ripple">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>리플 카운터 vs 동기 카운터: 게이트 수준 시뮬레이션</h3></div>
+      <div class="sim-view"><canvas id="cv-ripple"></canvas></div>
+      <div class="sim-controls">
+        <div class="ctrl"><span>카운터 구조</span><div class="seg" id="rp-mode"><button data-value="ripple" class="on">리플</button><button data-value="sync">동기</button><button data-value="both">둘 다 (값만)</button></div></div>
+        <label class="ctrl"><span>비트 수 n <output id="rp-n-out"></output></span><input type="range" id="rp-n" min="3" max="6" step="1" value="4"></label>
+        <label class="ctrl"><span>플립플롭 \(t_{cq}\) <output id="rp-tcq-out"></output></span><input type="range" id="rp-tcq" min="10" max="40" step="1" value="25"></label>
+        <label class="ctrl"><span>게이트 지연 (AND·XOR) <output id="rp-tg-out"></output></span><input type="range" id="rp-tg" min="4" max="20" step="1" value="10"></label>
+        <label class="ctrl"><span>클럭 주기 <output id="rp-T-out"></output></span><input type="range" id="rp-T" min="30" max="250" step="5" value="150"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">최대 정착 시간</span><span class="v" id="rp-settle">—</span></div>
+        <div class="stat"><span class="k">잘못된 값이 보인 구간</span><span class="v" id="rp-wrong">—</span></div>
+        <div class="stat"><span class="k">값을 믿을 수 있는 최소 주기</span><span class="v" id="rp-tmin">—</span></div>
+        <div class="stat"><span class="k">판정</span><span class="v" id="rp-ok">—</span></div>
+      </div>
+      <div class="sim-note">DG.Circuit 이벤트 구동 시뮬레이터로 실제 게이트와 D 플립플롭을 연결해 돌린다. 리플: \(D_i=\overline{Q_i}\), 비트 \(i\)의 클럭은 \(\overline{Q_{i-1}}\)(인버터 1 ps). 동기: \(D_i = Q_i \oplus (Q_0\cdots Q_{i-1})\), AND 사슬. 빨간 띠는 "이전 값도 새 값도 아닌" 잘못된 값이 보인 구간이다. setup 시간은 10 ps로 가정했다. 시작 값은 큰 자리올림이 일어나도록 \(2^{n-1}-3\)으로 두었다.</div>
+    </div>
+    <p>시뮬레이터에서 리플 카운터를 \(n=6\)으로 늘려 보자. 011111 → 100000에서 여섯 비트가 \(t_{cq}\) 간격으로 차례로 넘어지며 31 → 30 → 28 → 24 → 16 → 0 → 32를 지나간다. 동기 카운터는 같은 순간에 모든 비트가 바뀌므로(빨간 띠 없음) 값을 읽는 쪽이 안심할 수 있다. 대신 클럭 주기를 줄이다 보면 동기 카운터는 AND 사슬이 끝나기 전에 다음 에지가 와서 <b>세는 값 자체가 틀리기</b> 시작한다. 리플 카운터는 첫 비트만 \(t_{cq}\) 안에 뒤집히면 되므로 아주 빠른 클럭도 셀 수는 있지만, 그 값을 다른 동기 회로가 읽을 수는 없다.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>비트 수 n</th><th class="num">리플: 정착 \(n\,t_{cq}\)</th><th class="num">동기(AND 사슬) 최소 주기</th><th class="num">동기(AND 트리) 최소 주기</th><th class="num">동기(트리) 최대 클럭</th></tr></thead>
+      <tbody>
+        <tr><td>4</td><td class="num">100 ps</td><td class="num">67 ps</td><td class="num">67 ps</td><td class="num">약 15 GHz</td></tr>
+        <tr><td>8</td><td class="num">200 ps</td><td class="num">107 ps</td><td class="num">77 ps</td><td class="num">약 13 GHz</td></tr>
+        <tr><td>16</td><td class="num">400 ps</td><td class="num">187 ps</td><td class="num">87 ps</td><td class="num">약 11 GHz</td></tr>
+        <tr><td>32</td><td class="num">800 ps</td><td class="num">347 ps</td><td class="num">97 ps</td><td class="num">약 10 GHz</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sim-note" style="padding:0;margin-top:-8px">DG-7 기준 공정의 교육용 추정값: \(t_{cq}\)=25 ps(약 3.3 FO4), \(t_{\text{setup}}\)=10 ps, AND2 10 ps, XOR 12 ps. 실제 칩의 카운터는 배선과 클럭 스큐 여유까지 더해 이보다 느리게 잡는다.</p>
+    <div class="callout warn"><strong>리플 카운터의 출력을 클럭으로 쓰지 말 것</strong><p>리플 카운터는 게이트가 없어 전력이 적고 작다. 그래서 저속 분주기나 실시간 시계처럼 값을 "가끔만" 읽는 곳에 아직 쓰인다. 그러나 각 비트가 서로 다른 클럭 도메인이 되므로 정적 타이밍 분석이 어렵고, 출력을 조합 논리로 해독하면 위의 잘못된 값이 <b>글리치</b>로 새어 나간다. 동기 설계 규칙은 단순하다. 플립플롭의 클럭 핀에는 클럭만, 나머지는 모두 D 입력(또는 허용 신호)으로.</p></div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="shift">
+    <h2>시프트 레지스터와 LFSR</h2>
+    <p>플립플롭을 줄지어 놓고 각 출력을 다음 플립플롭의 입력에 이으면 <span class="term">시프트 레지스터</span><span class="en">(Shift register)</span>가 된다. 클럭마다 모든 비트가 한 칸씩 옆으로 옮겨 간다. 직렬로 들어온 비트를 병렬로 펼치거나(SIPO, 직렬→병렬), 반대로 병렬 데이터를 한 줄로 내보내는(PISO) 직렬 통신의 기본 부품이고, 신호를 정확히 \(k\)클럭 늦추는 지연선이기도 하다. 끝을 처음으로 다시 이으면 1 하나가 빙빙 도는 <b>링 카운터</b>가 되는데, 이것이 곧 뒤에 나올 원핫 상태 레지스터다.</p>
+    <figure class="play" id="fig-shift">
+      <div class="play-view"><canvas id="cv-shift"></canvas></div>
+      <div class="play-ctrl">
+        <div class="fsm-io"><button class="btn sm" id="sh-si">SI = <b>1</b></button><button class="btn sm primary" id="sh-clk">클럭 ↑</button><button class="btn sm" id="sh-rst">리셋</button></div>
+        <div class="seg" id="sh-mode"><button data-value="sipo" class="on">직렬 입력</button><button data-value="ring">링 카운터</button><button data-value="johnson">존슨 카운터</button></div>
+      </div>
+      <figcaption><b>그림 9-4.</b> <span class="try">눌러 보기</span>SI 값을 바꿔 가며 클럭을 넣으면 비트가 오른쪽으로 흘러간다. "링 카운터"는 \(Q_3\)을 SI로 되먹여 1000 → 0100 → 0010 → 0001을 돌고(상태 4개에 플립플롭 4개), "존슨 카운터"는 \(\overline{Q_3}\)을 되먹여 상태 8개를 만든다. 어느 쪽이든 한 클럭에 한두 비트만 바뀐다.</figcaption>
+    </figure>
+    <p>되먹임에 XOR을 넣으면 놀라운 일이 생긴다. 몇 개의 비트 위치(<span class="term">탭</span><span class="en">(Tap)</span>)를 골라 XOR한 값을 맨 앞에 넣는 <span class="term">선형 되먹임 시프트 레지스터</span><span class="en">(LFSR, Linear Feedback Shift Register)</span>는, 탭을 잘 고르면 0을 뺀 모든 \(2^n-1\)개 상태를 한 번씩 다 거친 다음에야 처음으로 돌아온다. 이것을 <b>최대 길이 수열</b><span class="en">(m-sequence)</span>이라 한다.</p>
+    <div class="formula">$$q_1^{+} = \bigoplus_{t\,\in\,\text{taps}} q_t, \qquad q_i^{+} = q_{i-1}\ (i \ge 2), \qquad \text{주기}_{\max} = 2^n - 1$$
+      <div class="where">탭 집합은 GF(2) 위의 되먹임 다항식 \(x^n + \cdots + 1\)에 대응하고, 그 다항식이 <b>원시 다항식</b>(Primitive polynomial)일 때만 주기가 \(2^n-1\)이 된다. 모두 0인 상태는 XOR을 해도 0이므로 갇혀 버리는 "금지 상태"다.</div></div>
+    <figure class="play" id="fig-lfsr">
+      <div class="play-view"><canvas id="cv-lfsr"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>비트 수 n <output id="lf-n-out"></output></span><input type="range" id="lf-n" min="3" max="10" step="1" value="4"></label>
+        <div class="fsm-io"><button class="btn sm primary" id="lf-clk">클럭 ↑</button><button class="btn sm" id="lf-x16">클럭 ×16</button><button class="btn sm" id="lf-best">최대 길이 탭</button><button class="btn sm" id="lf-rst">시드 1로 리셋</button></div>
+        <div class="seg" id="lf-run"><button data-value="stop" class="on">정지</button><button data-value="run">자동 재생</button></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">현재 상태</span><span class="v" id="lf-st">—</span></div>
+        <div class="stat"><span class="k">이 탭의 주기</span><span class="v" id="lf-per">—</span></div>
+        <div class="stat"><span class="k">최대 \(2^n-1\)</span><span class="v" id="lf-max">—</span></div>
+        <div class="stat"><span class="k">판정</span><span class="v" id="lf-ok">—</span></div>
+      </div>
+      <figcaption><b>그림 9-5.</b> <span class="try">눌러 보기</span>각 플립플롭 아래의 동그라미(또는 플립플롭 자체)를 누르면 탭이 켜지고 꺼진다. 오른쪽 격자는 \(2^n\)개 상태 각각을 칸 하나로 나타내고, 지금까지 지나간 상태를 칠한다. 최대 길이 탭이면 0번 칸(왼쪽 위)만 빼고 모든 칸이 칠해진다. 탭을 아무렇게나 고르면 주기가 짧아지거나, \(q_n\) 탭을 빼면 레지스터가 사실상 짧아진다.</figcaption>
+    </figure>
+    <div class="table-wrap"><table>
+      <thead><tr><th>n</th><th>탭 (XOR 피보나치형)</th><th>되먹임 다항식</th><th class="num">주기 \(2^n-1\)</th><th class="num">1 GHz로 한 바퀴</th></tr></thead>
+      <tbody>
+        <tr><td>4</td><td>4, 3</td><td>\(x^4+x^3+1\)</td><td class="num">15</td><td class="num">15 ns</td></tr>
+        <tr><td>8</td><td>8, 6, 5, 4</td><td>\(x^8+x^6+x^5+x^4+1\)</td><td class="num">255</td><td class="num">255 ns</td></tr>
+        <tr><td>16</td><td>16, 15, 13, 4</td><td>\(x^{16}+x^{15}+x^{13}+x^4+1\)</td><td class="num">65 535</td><td class="num">약 66 µs</td></tr>
+        <tr><td>32</td><td>32, 22, 2, 1</td><td>\(x^{32}+x^{22}+x^2+x+1\)</td><td class="num">약 4.3×10⁹</td><td class="num">약 4.3 s</td></tr>
+        <tr><td>64</td><td>64, 63, 61, 60</td><td>\(x^{64}+x^{63}+x^{61}+x^{60}+1\)</td><td class="num">약 1.8×10¹⁹</td><td class="num">약 585년</td></tr>
+      </tbody>
+    </table></div>
+    <p>LFSR이 사랑받는 이유는 값싸기 때문이다. \(n\)비트에 플립플롭 \(n\)개와 XOR 몇 개면 끝나고, 되먹임 경로에 XOR 한두 단만 있으므로 같은 비트 수의 이진 카운터보다 훨씬 빠르다. 쓰임새는 넓다.</p>
+    <ul>
+      <li><b>의사 난수</b><span class="en">(Pseudo-random)</span>: 출력 비트열은 0과 1의 개수가 거의 같고(\(2^{n-1}\)개 대 \(2^{n-1}-1\)개) 자기상관이 작다. 통신의 스크램블러, 확산 스펙트럼 코드, 디더링에 쓴다. 단, 암호용으로는 안전하지 않다.</li>
+      <li><b>CRC</b><span class="en">(Cyclic Redundancy Check)</span>: 데이터 비트를 XOR 되먹임에 섞어 넣으면 LFSR이 다항식 나눗셈의 나머지를 계산한다. 이더넷의 CRC-32가 바로 32비트 LFSR이다.</li>
+      <li><b>내장 자체 테스트</b><span class="en">(BIST)</span>: 칩 안에서 LFSR로 테스트 패턴을 만들고, 다른 LFSR(MISR)로 응답을 압축해 서명 하나와 비교한다(<a href="robust.html">16장</a>).</li>
+      <li><b>값싼 카운터</b>: 정확한 이진값이 필요 없고 "\(N\)클럭이 지났는가"만 알면 되는 타이머는 LFSR로 만들고 끝 상태 하나만 비교한다.</li>
+    </ul>
+    <div class="callout deep"><strong>피보나치형과 갈루아형</strong><p>위 그림처럼 탭들을 모아 XOR한 뒤 맨 앞에 넣는 구조를 <b>피보나치형</b>, 반대로 맨 끝 비트를 여러 탭 위치에 XOR로 뿌려 넣는 구조를 <b>갈루아형</b>이라 한다. 같은 다항식이면 같은 주기를 내지만, 갈루아형은 되먹임 경로에 XOR이 딱 한 단이라 탭이 많아도 빠르다. CRC 하드웨어는 보통 갈루아형이다. 한편 XNOR로 되먹이면 금지 상태가 "모두 0" 대신 "모두 1"이 되어, 리셋 직후 0인 레지스터에서 바로 출발할 수 있다.</p></div>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="design">
+    <h2>상태도에서 회로로: "101" 검출기</h2>
+    <p>카운터는 다음 상태 함수가 뻔했다. 일반적인 FSM은 요구 사항에서 출발해 다섯 단계를 거친다. 예제로 입력 비트열에서 "101"이 나타날 때마다 1을 내는 <span class="term">시퀀스 검출기</span><span class="en">(Sequence detector)</span>를 만들자. "10101"처럼 겹치는 경우도 두 번 세는 <b>겹침 허용</b> 방식이다.</p>
+    <p><b>① 상태도.</b> 상태는 "지금까지 본 꼬리가 목표의 앞부분과 얼마나 맞는가"로 정한다. S0: 아무것도 못 맞춤, S1: "1"까지 맞춤, S2: "10"까지 맞춤, S3: "101" 완성(출력 1). S3에서 1이 오면 "1"부터 다시(S1), 0이 오면 "10"까지 맞은 셈이므로 S2로 간다. 이 겹침 처리가 검출기 설계의 핵심이다.</p>
+    <p><b>② 상태표와 ③ 인코딩.</b> 상태도를 표로 옮기고, 각 상태에 2비트 코드를 준다. 여기서는 가장 단순한 이진 인코딩 S0=00, S1=01, S2=10, S3=11을 쓴다.</p>
+    <div class="table-wrap"><table class="tt">
+      <thead><tr><th>현재 상태</th><th>\(q_1 q_0\)</th><th class="sep">x</th><th class="sep">다음 상태</th><th>\(q_1^{+} q_0^{+}\)</th><th class="sep">출력 y</th></tr></thead>
+      <tbody>
+        <tr><td>S0</td><td>00</td><td class="sep zero">0</td><td class="sep">S0</td><td>00</td><td class="sep zero" rowspan="2">0</td></tr>
+        <tr><td>S0</td><td>00</td><td class="sep one">1</td><td class="sep">S1</td><td>01</td></tr>
+        <tr><td>S1</td><td>01</td><td class="sep zero">0</td><td class="sep">S2</td><td>10</td><td class="sep zero" rowspan="2">0</td></tr>
+        <tr><td>S1</td><td>01</td><td class="sep one">1</td><td class="sep">S1</td><td>01</td></tr>
+        <tr><td>S2</td><td>10</td><td class="sep zero">0</td><td class="sep">S0</td><td>00</td><td class="sep zero" rowspan="2">0</td></tr>
+        <tr><td>S2</td><td>10</td><td class="sep one">1</td><td class="sep">S3</td><td>11</td></tr>
+        <tr><td>S3</td><td>11</td><td class="sep zero">0</td><td class="sep">S2</td><td>10</td><td class="sep one" rowspan="2">1</td></tr>
+        <tr><td>S3</td><td>11</td><td class="sep one">1</td><td class="sep">S1</td><td>01</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>④ 다음 상태 식.</b> 표의 \(q_0^{+}\) 열을 보면 x 열과 똑같다. \(q_1^{+}\)은 세 행에서 1이고, 카르노 맵(<a href="boolean.html">2장</a>)으로 묶으면 두 항이 된다. 출력은 상태가 S3일 때만 1이다.</p>
+    <div class="formula">$$q_0^{+} = x, \qquad q_1^{+} = q_0\,\bar{x} + q_1\,\bar{q}_0\,x, \qquad y = q_1\, q_0$$
+      <div class="where">리터럴 수: 다음 상태 1 + 5 = 6, 출력 2. 플립플롭 2개, 인버터 2개, AND 3개, OR 1개면 된다.</div></div>
+    <p><b>⑤ 게이트.</b> 식을 그대로 게이트로 옮기면 아래 회로가 된다. 선을 일일이 그리는 대신 같은 이름의 핀은 연결된 것으로 보고, 각 핀 이름의 색으로 지금 그 선의 논리값(<span class="lv hi">1</span> <span class="lv lo">0</span>)을 표시했다.</p>
+    <figure class="play" id="fig-gates101">
+      <div class="play-view"><canvas id="cv-g101"></canvas></div>
+      <div class="play-ctrl">
+        <div class="fsm-io"><button class="btn sm" id="g1-x">x = <b>0</b></button><button class="btn sm primary" id="g1-clk">클럭 ↑</button><button class="btn sm" id="g1-rst">리셋</button><button class="btn sm" id="g1-seq">101101 넣기</button></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">상태 \(q_1q_0\)</span><span class="v" id="g1-s">—</span></div>
+        <div class="stat"><span class="k">다음 상태 \(D_1D_0\)</span><span class="v" id="g1-n">—</span></div>
+        <div class="stat"><span class="k">출력 y</span><span class="v" id="g1-y">—</span></div>
+        <div class="stat"><span class="k">지나온 입력 / 출력</span><span class="v" id="g1-h" style="font-size:14px">—</span></div>
+      </div>
+      <figcaption><b>그림 9-6.</b> <span class="try">눌러 보기</span>x를 정하고 "클럭 ↑"을 누르면 플립플롭이 \(D\)값을 받아 \(Q\)로 내보낸다. "101101 넣기"는 여섯 비트를 한 클럭씩 차례로 넣는다. 세 번째와 여섯 번째 클럭 뒤에 y가 1이 되는지(겹침 허용) 확인하자.</figcaption>
+    </figure>
+    <div class="callout tip"><strong>상태를 정하는 요령</strong><p>시퀀스 검출기의 상태는 "목표 문자열의 접두사 중 지금의 꼬리와 맞는 가장 긴 것"이다. 길이 \(m\)인 목표면 무어는 상태 \(m+1\)개, 밀리는 \(m\)개면 충분하다. 문자열 검색 알고리즘 KMP의 실패 함수와 같은 생각이다. 상태 이름을 의미 있게 붙여 두면(S_none, S_1, S_10, S_101) 상태도와 Verilog 코드를 함께 읽기가 훨씬 쉽다.</p></div>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="moore-mealy">
+    <h2>무어 기계와 밀리 기계</h2>
+    <p>출력을 상태만으로 정하면 <span class="term">무어 기계</span><span class="en">(Moore machine)</span>, 상태와 현재 입력으로 정하면 <span class="term">밀리 기계</span><span class="en">(Mealy machine)</span>다. 같은 "101" 검출기를 밀리로 만들면 S3가 필요 없다. S2("10"까지 맞춤)에 있는데 입력이 1이면 <b>그 자리에서</b> 출력 1을 내면 되기 때문이다. 상태도에서 무어는 출력을 상태 동그라미 안에, 밀리는 화살표에 "입력/출력"으로 적는다.</p>
+    <div class="predict"><strong>어느 쪽이 먼저 알려 줄까?</strong>
+      <p>"…1 0 1"의 마지막 1이 들어온 클럭 주기를 생각하자. 무어 검출기와 밀리 검출기 중 어느 쪽이 그 주기 안에 출력을 1로 올릴까? 다른 쪽은 언제 올릴까?</p>
+      <details><summary>답 보기</summary><p>밀리는 마지막 1이 입력에 나타나는 즉시(같은 주기 안에서, 조합 논리 지연만큼 뒤에) 출력이 1이 된다. 무어는 그 1을 클럭 에지에서 받아 S3로 넘어간 <b>다음 주기</b>에 출력이 1이 된다. 즉 밀리가 한 클럭 빠르다. 대신 밀리의 출력은 입력이 흔들리면 같이 흔들린다. 아래 그림에서 직접 보자.</p></details>
+    </div>
+    <figure class="play" id="fig-mm">
+      <div class="play-view"><canvas id="cv-mm"></canvas></div>
+      <div class="play-ctrl">
+        <div class="seg" id="mm-glitch"><button data-value="0" class="on">깨끗한 입력</button><button data-value="1">입력에 글리치</button></div>
+        <div class="seg" id="mm-reg"><button data-value="0" class="on">밀리 출력 그대로</button><button data-value="1">밀리 출력에 FF</button></div>
+        <div class="fsm-io"><button class="btn sm" id="mm-rand">무작위 입력</button><button class="btn sm" id="mm-def">101 예제</button></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">무어 검출</span><span class="v" id="mm-mo">—</span></div>
+        <div class="stat"><span class="k">밀리 검출</span><span class="v" id="mm-me">—</span></div>
+        <div class="stat"><span class="k">밀리 출력의 가짜 펄스</span><span class="v" id="mm-gl">—</span></div>
+      </div>
+      <figcaption><b>그림 9-7.</b> <span class="try">눌러 보기</span>X 줄의 칸을 누르면 그 주기의 입력 비트가 뒤집힌다. 입력은 클럭 에지 뒤 조금 있다가 바뀐다(앞단 플립플롭의 \(t_{cq}\)). 밀리의 Z는 마지막 1이 들어온 그 주기에, 무어의 Y는 다음 주기에 올라간다. "입력에 글리치"를 켜면 주기 한가운데 짧은 잡음이 섞이는데, 상태는 에지에서만 입력을 보므로 무어 출력은 멀쩡하지만 밀리 출력에는 잡음이 그대로 새어 나온다. "밀리 출력에 FF"를 켜면 글리치는 사라지지만 한 클럭 늦어져 무어와 같은 타이밍이 된다.</figcaption>
+    </figure>
+    <div class="table-wrap"><table>
+      <thead><tr><th></th><th>무어 기계</th><th>밀리 기계</th></tr></thead>
+      <tbody>
+        <tr><td>출력 함수</td><td>\(y=\lambda(s)\)</td><td>\(y=\lambda(s,x)\)</td></tr>
+        <tr><td>"101" 검출기 상태 수</td><td>4개 (플립플롭 2개)</td><td>3개 (플립플롭 2개)</td></tr>
+        <tr><td>입력 → 출력 반응</td><td>다음 클럭 (1주기 지연)</td><td>같은 주기 (조합 지연만)</td></tr>
+        <tr><td>출력의 깨끗함</td><td>클럭 직후 한 번만 바뀜</td><td>입력 글리치가 출력으로 샘</td></tr>
+        <tr><td>타이밍 경로</td><td>입력과 출력이 레지스터로 끊김</td><td>입력 → 출력 조합 경로가 생겨 앞뒤 블록과 이어짐</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn"><strong>밀리 출력이 만드는 긴 조합 경로</strong><p>밀리 기계 둘을 이어 붙이면 앞 기계의 입력 → 출력 조합 경로가 뒤 기계의 입력 → 출력 경로와 이어져, 한 클럭 주기 안에 두 기계를 모두 통과해야 한다. 서로의 출력을 입력으로 받으면 아예 <b>조합 루프</b>가 생길 수도 있다. 그래서 큰 설계에서는 블록 경계의 출력을 레지스터로 끊는(무어 또는 "등록된 밀리") 규칙을 많이 쓴다. 반응이 한 클럭 늦어지는 대신 타이밍 분석이 블록 단위로 끝난다.</p></div>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="playground">
+    <h2>FSM 놀이터</h2>
+    <p>이제 여러 FSM을 직접 돌려 보자. 프리셋을 고른 뒤 입력 버튼으로 이번 주기의 입력을 정하고 "클럭 ↑"을 누르면 상태가 한 칸 움직인다. 지금 상태는 진하게, 방금 지난 전이는 굵은 화살표로 보인다. 아래쪽 파형에는 지난 클럭들의 입력·상태·레지스터 비트·출력이 쌓인다. 편집 줄에서 전이 하나를 바꿔 나만의 기계를 만들어 볼 수도 있다.</p>
+    <div class="sim" id="sim-fsm">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>FSM 놀이터: 상태도 · 상태 레지스터 · 파형</h3></div>
+      <div class="sim-view"><canvas id="cv-fsm"></canvas></div>
+      <div class="sim-controls">
+        <label class="ctrl"><span>프리셋</span><select id="fs-preset"></select></label>
+        <div class="ctrl"><span>이번 주기의 입력</span><div class="fsm-io" id="fs-ins"></div></div>
+        <div class="ctrl"><span>동작</span><div class="fsm-io"><button class="btn sm primary" id="fs-clk">클럭 ↑</button><button class="btn sm" id="fs-rand">무작위 입력 ×6</button><button class="btn sm" id="fs-rst">리셋</button></div></div>
+        <div class="ctrl"><span>상태 인코딩</span><div class="seg" id="fs-enc"><button data-value="bin" class="on">이진</button><button data-value="onehot">원핫</button><button data-value="gray">그레이</button></div></div>
+        <div class="ctrl"><span>전이 편집: 상태 · 입력 → 다음 상태</span><div class="fsm-ed"><select id="fs-ed-s" aria-label="상태"></select><select id="fs-ed-i" aria-label="입력"></select><span>→</span><select id="fs-ed-t" aria-label="다음 상태"></select><button class="btn sm" id="fs-ed-go">바꾸기</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">현재 상태</span><span class="v" id="fs-st">—</span></div>
+        <div class="stat"><span class="k">상태 레지스터</span><span class="v" id="fs-reg">—</span></div>
+        <div class="stat"><span class="k">출력</span><span class="v" id="fs-out">—</span></div>
+        <div class="stat"><span class="k">클럭 수</span><span class="v" id="fs-n">—</span></div>
+      </div>
+      <div class="sim-note" id="fs-desc">—</div>
+    </div>
+    <p>프리셋마다 생각해 볼 거리가 있다. <b>자판기</b>는 무어 기계라 "배출" 상태에 한 클럭 머문 뒤 다음 동전을 받는다. 밀리로 만들면 상태가 줄지만 출력이 동전 입력 신호의 잡음에 노출된다. <b>신호등</b>은 입력(차량 감지)을 보는 상태와 무조건 넘어가는 상태(황색)가 섞여 있다. 실제 신호등이라면 황색 상태에 머무는 시간을 세는 타이머 카운터가 하나 더 붙는다. 큰 FSM은 이렇게 작은 FSM(카운터)과 짝을 이루는 경우가 많다. <b>홀짝 검사기</b>는 상태 2개, 플립플롭 하나, XOR 하나짜리 가장 작은 쓸모 있는 FSM이다.</p>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="encoding">
+    <h2>상태 인코딩: 이진 · 원핫 · 그레이</h2>
+    <p>상태도에는 이름만 있고 비트가 없다. 상태 \(N\)개에 어떤 코드를 줄지가 <span class="term">상태 인코딩</span><span class="en">(State encoding / assignment)</span>이고, 이 선택이 플립플롭 수와 다음 상태 논리의 크기, 속도, 전력을 함께 바꾼다.</p>
+    <ul>
+      <li><b>이진</b><span class="en">(Binary)</span>: 상태 번호를 그대로 2진수로. 플립플롭이 \(\lceil\log_2 N\rceil\)개로 가장 적다. 대신 다음 상태 식이 모든 상태 비트를 봐야 해서 식이 크고 깊어지기 쉽다.</li>
+      <li><b>원핫</b><span class="en">(One-hot)</span>: 상태마다 플립플롭 하나, 늘 정확히 하나만 1. 플립플롭이 \(N\)개로 많지만, "지금 S2인가?"가 플립플롭 하나를 보면 끝나므로 다음 상태 식이 "들어오는 화살표의 OR"로 짧고 얕다.</li>
+      <li><b>그레이</b><span class="en">(Gray)</span>: 이웃한 번호끼리 한 비트만 다른 코드. 상태가 주로 순서대로 흘러가는 기계(카운터, 순차 제어)에서 전이마다 한 비트만 바뀌어 스위칭 전력이 줄고, 비동기로 읽어도 중간값이 튀지 않는다. 클럭 도메인을 건너는 FIFO 포인터가 대표적인 예다(<a href="timing.html">10장</a>).</li>
+    </ul>
+    <div class="formula">$$\text{FF}_{\text{binary}} = \text{FF}_{\text{Gray}} = \lceil \log_2 N \rceil, \qquad \text{FF}_{\text{one-hot}} = N, \qquad q_j^{+}\big|_{\text{one-hot}} = \sum_{s \to j} q_s \cdot c_{s\to j}(x)$$
+      <div class="where">\(c_{s\to j}(x)\): 상태 \(s\)에서 \(j\)로 가는 입력 조건. 원핫의 다음 상태 식은 상태 \(j\)로 들어오는 화살표마다 항이 하나씩 생긴다.</div></div>
+    <div class="sim" id="sim-enc">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>인코딩별 비용 비교: 플립플롭 · 리터럴 · LUT</h3></div>
+      <div class="sim-view"><canvas id="cv-enc"></canvas></div>
+      <div class="sim-controls">
+        <label class="ctrl"><span>FSM</span><select id="en-preset"></select></label>
+        <div class="ctrl"><span>식을 볼 인코딩</span><div class="seg" id="en-show"><button data-value="bin" class="on">이진</button><button data-value="onehot">원핫</button><button data-value="gray">그레이</button></div></div>
+      </div>
+      <div class="table-wrap" style="margin:0;padding:0 18px"><table class="fsm-tbl">
+        <thead><tr><th>인코딩</th><th class="num">플립플롭</th><th class="num">다음 상태 리터럴</th><th class="num">출력 리터럴</th><th class="num">최대 팬인</th><th class="num">LUT4 추정</th></tr></thead>
+        <tbody id="en-body"></tbody>
+      </table></div>
+      <div class="fsm-eq" id="en-eq">—</div>
+      <div class="sim-note">각 다음 상태 비트와 출력 비트를 퀸–매클러스키 방식으로 최소화한 곱의 합(SOP) 리터럴 수다. 이진·그레이에서는 쓰지 않는 코드와 쓰지 않는 입력 조합을 무관항(don't care)으로 쓴다. 원핫은 "늘 하나만 1"이라는 가정 아래 각 항이 상태 비트 하나와 입력 조건만 보도록 만든 표준 형태다. 최대 팬인은 한 식이 보는 변수 수, LUT4 추정은 식마다 4입력 LUT 몇 개가 필요한지(변수 ≤ 4이면 1개, 넘으면 \(\lceil (v-1)/3 \rceil\)개)를 더한 값이다. 그레이는 상태 번호 순서대로 그레이 코드를 준다.</div>
+    </div>
+    <p>결과를 보면 원핫은 플립플롭을 가장 많이 쓰지만 식 하나가 보는 변수(팬인)가 가장 적다. 이것이 <b>FPGA에서 원핫을 선호하는 이유</b>다. FPGA의 논리 칸은 "4~6입력 LUT 하나 + 플립플롭 하나"로 짝지어져 있어 플립플롭은 사실상 공짜이고, 비용은 LUT 개수와 LUT를 몇 단 거치느냐로 정해진다. 팬인이 LUT 입력 수 안에 들면 다음 상태 논리가 LUT 한 단으로 끝나 빠르다. 반대로 ASIC에서는 플립플롭이 게이트 대여섯 개 면적이고 클럭 전력도 먹으므로, 상태가 많으면 이진(또는 그 변형)이 유리한 경우가 많다.</p>
+    <div class="callout tip"><strong>합성 도구에게 맡기기</strong><p>FPGA·ASIC 합성 도구는 Verilog 코드에서 FSM 패턴(상태 레지스터 + case 문)을 알아보고 인코딩을 다시 고르기도 한다. FPGA 도구는 상태가 많지 않으면 기본으로 원핫을 고르는 경우가 많고, 속성(예: <code>fsm_encoding</code>)으로 직접 지정할 수 있다. 그러니 코드에서는 상태를 <code>localparam</code> 이름으로 쓰고 숫자에 의미를 싣지 않는 습관이 좋다. 반대로 상태 비트를 칩 밖으로 내보내거나 다른 블록이 비트 패턴을 직접 해석한다면, 도구가 바꾸지 못하게 인코딩을 고정해야 한다.</p></div>
+  </section>
+
+  <!-- ============================================================ 8 -->
+  <section id="minimize">
+    <h2>상태 최소화와 불법 상태 복구</h2>
+    <p>요구 사항을 따라 상태도를 그리다 보면 하는 일이 똑같은 상태가 둘 생기기 쉽다. 두 상태가 <b>모든 입력 열에 대해 같은 출력 열</b>을 낸다면 바깥에서는 구별할 수 없으므로 하나로 합쳐도 된다. 이런 상태를 <span class="term">동치 상태</span><span class="en">(Equivalent states)</span>라 한다. 찾는 방법은 <b>분할 정제</b><span class="en">(Partition refinement)</span>다. 처음에는 출력이 같은 상태끼리 한 묶음으로 두고, 같은 묶음 안에서 어떤 입력에 대해 "다음 상태가 다른 묶음으로 가는" 상태를 떼어 낸다. 더는 쪼개지지 않을 때 남은 묶음 하나하나가 최소 기계의 상태가 된다.</p>
+    <figure class="play" id="fig-min">
+      <div class="play-view"><canvas id="cv-min"></canvas></div>
+      <div class="play-ctrl">
+        <div class="fsm-io"><button class="btn sm" id="mn-prev">이전 단계</button><button class="btn sm primary" id="mn-next">다음 단계</button><button class="btn sm" id="mn-first">처음으로</button></div>
+      </div>
+      <div class="step-desc" id="mn-desc" style="margin:0 18px 12px">—</div>
+      <figcaption><b>그림 9-8.</b> <span class="try">단계별로 보기</span>"11" 두 번 연속을 검출하는 무어 기계를 일부러 상태 6개로 그렸다. 같은 색은 같은 묶음이다. 출력으로 처음 나눈 뒤, 묶음마다 입력 0과 1에 대해 다음 상태가 어느 묶음으로 가는지 비교해 다시 나눈다. 마지막 단계는 합친 결과다.</figcaption>
+    </figure>
+    <p>상태를 합치면 플립플롭이 줄 수도 있고(6개 → 3개면 3비트 → 2비트), 줄지 않더라도 다음 상태 논리가 단순해진다. 다만 상태 수가 \(\lceil\log_2 N\rceil\)의 경계를 넘지 않으면 플립플롭 수는 그대로라는 점도 기억하자.</p>
+    <p>상태를 \(k\)비트로 인코딩하면 \(2^k\)개 코드 중 \(N\)개만 쓰이고 나머지는 <span class="term">불법 상태</span><span class="en">(Illegal / unreachable state)</span>다. 정상 동작에서는 절대 들어가지 않지만, 전원 투입 직후의 무작위 초기값, 우주선·알파 입자가 일으키는 <b>소프트 에러</b>(<a href="robust.html">16장</a>), setup 위반으로 생긴 준안정이 레지스터를 불법 코드에 떨어뜨릴 수 있다. 그때 기계가 스스로 빠져나오지 못하면 시스템이 멈춘다.</p>
+    <figure class="play" id="fig-illegal">
+      <div class="play-view"><canvas id="cv-ill"></canvas></div>
+      <div class="play-ctrl">
+        <div class="seg" id="il-mode"><button data-value="plain" class="on">단순 회전 \(D_i=Q_{i-1}\)</button><button data-value="safe">복구 포함 \(D_0=\overline{Q_0+Q_1+Q_2}\)</button></div>
+        <div class="fsm-io"><button class="btn sm primary" id="il-clk">클럭 ↑</button><button class="btn sm" id="il-hit">방사선: 무작위 비트 뒤집기</button><button class="btn sm" id="il-rst">리셋</button></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">상태 레지스터</span><span class="v" id="il-reg">—</span></div>
+        <div class="stat"><span class="k">판정</span><span class="v" id="il-ok">—</span></div>
+        <div class="stat"><span class="k">불법 상태에 머문 클럭</span><span class="v" id="il-cnt">—</span></div>
+      </div>
+      <figcaption><b>그림 9-9.</b> <span class="try">눌러 보기</span>4상태 원핫 링(S0→S1→S2→S3→S0). 플립플롭을 직접 누르거나 "방사선" 버튼으로 비트 하나를 뒤집은 뒤 클럭을 넣어 보자. 단순 회전에서는 1이 두 개(또는 0개)인 불법 상태가 영원히 돈다. 복구 포함 논리는 정상 상태에서는 똑같이 동작하면서, 불법 상태에서 몇 클럭 안에 원핫으로 돌아온다.</figcaption>
+    </figure>
+    <ul>
+      <li><b>리셋은 반드시</b>: 모든 상태 레지스터에 리셋을 달아 알려진 상태(보통 IDLE)에서 출발한다. 비동기 리셋은 클럭 없이도 즉시 걸리지만, 풀릴 때는 클럭에 동기화해서 풀어야 플립플롭마다 다른 클럭에서 출발하는 사고를 막는다(리셋 동기화기).</li>
+      <li><b>default 가지</b>: Verilog의 <code>case</code>에 <code>default: next = IDLE;</code>를 두면 쓰지 않는 코드에서 IDLE로 돌아오는 논리가 생긴다. 단, 합성 도구가 "도달 불가능"을 이유로 이 논리를 지울 수 있으므로 안전이 중요하면 "safe FSM" 옵션을 켠다.</li>
+      <li><b>원핫의 함정</b>: 원핫은 불법 코드가 \(2^N - N\)개로 압도적으로 많다. 위 그림처럼 복구 항을 넣거나, "1의 개수가 1이 아니면 리셋"하는 검사기를 단다. 우주·차량용 칩은 상태 레지스터를 세 벌 두고 다수결로 고치는 <b>TMR</b>까지 쓴다.</li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ 9 -->
+  <section id="verilog">
+    <h2>Verilog로 쓰는 FSM 맛보기</h2>
+    <p>실제 설계에서는 상태도를 손으로 게이트까지 옮기지 않고 하드웨어 기술 언어로 적는다. 합성 도구가 ③~⑤단계(인코딩, 식 최소화, 게이트 매핑)를 대신한다. 코드 구조는 그림 9-1의 세 덩어리를 그대로 따르는 것이 정석이다. 상태 레지스터는 <code>always @(posedge clk)</code> 블록 하나, 다음 상태 논리는 <code>always @(*)</code> 조합 블록 하나, 출력 논리는 <code>assign</code>이나 또 하나의 조합 블록이다. 자세한 코딩 패턴과 합성 과정은 <a href="hdl.html">17장</a>에서 다룬다.</p>
+<pre class="code"><span class="kw">module</span> det101 (
+  <span class="kw">input</span>  <span class="kw">wire</span> clk, rst_n, x,
+  <span class="kw">output</span> <span class="kw">wire</span> y,       <span class="cm">// 무어 출력</span>
+  <span class="kw">output</span> <span class="kw">wire</span> z        <span class="cm">// 밀리 출력 (비교용)</span>
+);
+  <span class="cm">// 상태 이름. 숫자에 의미를 싣지 않는다 → 도구가 인코딩을 바꿔도 안전</span>
+  <span class="kw">localparam</span> [1:0] S0 = <span class="nb">2'b00</span>, S1 = <span class="nb">2'b01</span>, S2 = <span class="nb">2'b10</span>, S3 = <span class="nb">2'b11</span>;
+  <span class="kw">reg</span> [1:0] state, next;
+
+  <span class="cm">// ① 상태 레지스터: 비동기 리셋(풀림은 바깥의 리셋 동기화기가 맞춘다)</span>
+  <span class="kw">always</span> @(<span class="kw">posedge</span> clk <span class="kw">or negedge</span> rst_n)
+    <span class="kw">if</span> (!rst_n) state &lt;= S0;
+    <span class="kw">else</span>        state &lt;= next;
+
+  <span class="cm">// ② 다음 상태 논리: 순수 조합 회로</span>
+  <span class="kw">always</span> @(*) <span class="kw">begin</span>
+    next = S0;                  <span class="cm">// 기본값: 래치 추론 방지</span>
+    <span class="kw">case</span> (state)
+      S0: next = x ? S1 : S0;
+      S1: next = x ? S1 : S2;
+      S2: next = x ? S3 : S0;
+      S3: next = x ? S1 : S2;   <span class="cm">// 겹침 허용: "101" 뒤의 0은 "10"</span>
+      <span class="kw">default</span>: next = S0;       <span class="cm">// 불법 상태 → 복구</span>
+    <span class="kw">endcase</span>
+  <span class="kw">end</span>
+
+  <span class="cm">// ③ 출력 논리</span>
+  <span class="kw">assign</span> y = (state == S3);         <span class="cm">// 무어: 상태만 본다</span>
+  <span class="kw">assign</span> z = (state == S2) &amp; x;     <span class="cm">// 밀리: 입력도 본다 (S3 없이도 검출)</span>
+<span class="kw">endmodule</span></pre>
+    <p>몇 가지 습관이 버그를 크게 줄인다. 상태 레지스터 블록에서만 논블로킹 대입(<code>&lt;=</code>)을 쓰고, 조합 블록은 블로킹 대입(<code>=</code>)과 <b>맨 앞의 기본값</b>으로 시작한다. 기본값을 빼먹고 어떤 가지에서 <code>next</code>를 대입하지 않으면, 합성 도구는 "이전 값을 기억하라"는 뜻으로 읽어 원치 않는 <b>래치</b>를 만든다. 출력도 조합 블록에서 만든다면 같은 규칙을 따른다.</p>
+    <div class="callout deep"><strong>세 블록, 두 블록, 한 블록</strong><p>위처럼 세 덩어리를 나누어 쓰는 방식을 흔히 "3-프로세스 스타일"이라 부른다. 다음 상태와 출력을 한 조합 블록에 합친 2-프로세스, 모두를 클럭 블록 하나에 넣은 1-프로세스도 쓰인다. 1-프로세스에서는 출력도 레지스터를 거치므로 글리치가 없지만, 출력이 한 클럭 늦어진다는 것을 잊고 쓰면 무어·밀리 타이밍이 꼬인다. 어느 스타일이든 결국 합성된 회로는 그림 9-1의 일반형이다.</p></div>
+  </section>
+
+  <section class="keypoints">
+    <h2>핵심 정리</h2>
+    <ol>
+      <li>모든 동기 순차 회로는 <b>상태 레지스터 + 다음 상태 논리 \(\delta(s,x)\) + 출력 논리</b>로 나뉜다. 되먹임은 반드시 플립플롭을 지나고, 상태는 클럭마다 한 걸음씩 바뀐다.</li>
+      <li>이진 카운터에서 비트 \(i\)는 아래 비트가 모두 1일 때 뒤집힌다. 리플 카운터는 게이트 없이 비트마다 \(t_{cq}\)가 쌓여 \(n\,t_{cq}\) 동안 잘못된 중간값을 내고, 동기 카운터는 모든 비트가 함께 바뀌지만 토글 조건 논리가 클럭 주기를 정한다.</li>
+      <li>LFSR은 시프트 레지스터에 XOR 되먹임을 단 것으로, 원시 다항식의 탭이면 \(2^n-1\)개 상태를 모두 도는 최대 길이 수열을 낸다. 의사 난수, CRC, BIST에 쓴다.</li>
+      <li>FSM 설계 절차는 상태도 → 상태표 → 인코딩 → 다음 상태·출력 식 → 게이트다. 시퀀스 검출기의 상태는 "목표의 접두사 중 지금 맞은 가장 긴 것"이다.</li>
+      <li>무어는 출력이 상태만 보고 한 클럭 늦지만 깨끗하다. 밀리는 상태가 적고 같은 주기에 반응하지만 입력 글리치와 긴 조합 경로를 출력으로 넘긴다.</li>
+      <li>이진 인코딩은 플립플롭이 \(\lceil\log_2N\rceil\)개로 적고, 원핫은 \(N\)개지만 식이 얕아 FPGA에 맞으며, 그레이는 순차적 전이에서 한 비트만 바꾼다.</li>
+      <li>동치 상태는 분할 정제로 합친다. 리셋, <code>default</code> 복구, 원핫 검사로 불법 상태에서 빠져나오는 길을 반드시 만든다.</li>
+    </ol>
+  </section>
+
+  <section class="quiz-sec">
+    <h2>확인 퀴즈</h2>
+    <div class="quiz-q"><p>Q1. 상태가 11개인 FSM을 이진 인코딩과 원핫 인코딩으로 만들 때 필요한 플립플롭 수는 각각?</p>
+      <div class="opts"><button class="opt">3개, 11개</button><button class="opt" data-correct>4개, 11개</button><button class="opt">4개, 4개</button><button class="opt">11개, 4개</button></div>
+      <div class="quiz-exp">이진은 \(\lceil\log_2 11\rceil = 4\)개(2³=8 < 11 ≤ 16), 원핫은 상태마다 하나씩 11개다.</div></div>
+    <div class="quiz-q"><p>Q2. 6비트 리플 카운터의 \(t_{cq}\)가 25 ps일 때, 011111 → 100000 전이에서 최종 값이 자리 잡기까지 걸리는 시간에 가장 가까운 것은?</p>
+      <div class="opts"><button class="opt">25 ps</button><button class="opt">50 ps</button><button class="opt" data-correct>150 ps</button><button class="opt">1.6 ns</button></div>
+      <div class="quiz-exp">여섯 비트가 모두 뒤집히고, 각 비트는 앞 비트가 떨어진 뒤 \(t_{cq}\)만큼 지나서 뒤집히므로 약 \(6 \times 25 = 150\) ps(인버터 지연 몇 ps 추가)다. 그동안 31, 30, 28, 24, 16, 0 같은 잘못된 값이 차례로 보인다.</div></div>
+    <div class="quiz-q"><p>Q3. 무어 기계와 밀리 기계에 대한 설명으로 옳은 것은?</p>
+      <div class="opts"><button class="opt" data-correct>밀리 기계의 출력은 클럭 에지 사이에도 입력을 따라 바뀔 수 있다.</button><button class="opt">무어 기계는 같은 일을 하는 밀리 기계보다 항상 상태 수가 적다.</button><button class="opt">무어 기계의 출력은 현재 입력에 조합적으로 의존한다.</button><button class="opt">밀리 기계는 플립플롭 없이 만들 수 있다.</button></div>
+      <div class="quiz-exp">밀리 출력 \(\lambda(s,x)\)는 입력의 조합 함수이므로 입력이 바뀌면(글리치 포함) 즉시 바뀐다. 무어는 같거나 더 많은 상태가 필요하고, 출력은 상태만 본다.</div></div>
+    <div class="quiz-q"><p>Q4. 4비트 XOR 되먹임 LFSR이 최대 길이 탭으로 동작한다. 리셋 직후 레지스터가 0000이라면 어떻게 될까?</p>
+      <div class="opts"><button class="opt">15클럭 뒤 0000으로 돌아온다.</button><button class="opt">16개 상태를 모두 돈다.</button><button class="opt">주기 7의 짧은 수열에 들어간다.</button><button class="opt" data-correct>영원히 0000에 머문다.</button></div>
+      <div class="quiz-exp">0을 아무리 XOR해도 0이므로 모두 0인 상태는 자기 자신으로만 간다. 그래서 XOR형 LFSR은 0이 아닌 시드로 초기화하거나, XNOR형으로 만들어 금지 상태를 모두 1로 옮긴다.</div></div>
+    <div class="quiz-q"><p>Q5. FPGA에서 원핫 인코딩이 자주 선호되는 가장 큰 이유는?</p>
+      <div class="opts"><button class="opt">플립플롭 수가 가장 적어서</button><button class="opt">불법 상태가 생기지 않아서</button><button class="opt" data-correct>각 LUT 옆에 플립플롭이 있어 플립플롭은 싸고, 다음 상태 식의 팬인이 작아 LUT 한 단에 들어가기 쉬워서</button><button class="opt">상태 전이 때 언제나 한 비트만 바뀌어서</button></div>
+      <div class="quiz-exp">FPGA 논리 칸은 LUT와 플립플롭이 짝이라 플립플롭 추가 비용이 거의 없다. 원핫 식은 상태 비트 하나와 입력 몇 개만 보므로 빠르다. 불법 상태는 오히려 원핫에 가장 많고, 한 비트만 바뀌는 것은 그레이의 성질이다(원핫은 전이마다 두 비트가 바뀐다).</div></div>
+    <div class="quiz-q"><p>Q6. Verilog의 다음 상태 조합 블록 <code>always @(*)</code>에서 <code>case</code>의 일부 가지가 <code>next</code>에 값을 대입하지 않고, 블록 앞에 기본값도 없다. 합성 결과로 생기기 쉬운 문제는?</p>
+      <div class="opts"><button class="opt">상태 레지스터가 사라진다.</button><button class="opt" data-correct>이전 값을 유지하려는 원치 않는 래치가 생긴다.</button><button class="opt">출력이 무어에서 밀리로 바뀐다.</button><button class="opt">클럭 주파수가 두 배가 된다.</button></div>
+      <div class="quiz-exp">조합 블록에서 어떤 경로에 대입이 없으면 "값을 기억하라"는 의미가 되어 래치가 추론된다. 블록 맨 앞에 <code>next = S0;</code>(또는 <code>next = state;</code>) 같은 기본값을 두어 막는다.</div></div>
+  </section>
+</main>
+<!--SCRIPT-->
+</body>
+</html>

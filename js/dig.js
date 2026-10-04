@@ -469,7 +469,7 @@
    * C.toggles[net] — 0↔1 천이 횟수 (전력 계산용)
    */
   class Circuit {
-    constructor() { this.nets = {}; this.gates = []; this.ffs = []; this.inputs = {}; this.fan = {}; this.reset(); }
+    constructor() { this.nets = {}; this.gates = []; this.ffs = []; this.inputs = {}; this.fan = {}; this._seq = 0; this.reset(); }
     _net(n) { if (!(n in this.nets)) { this.nets[n] = "x"; this.fan[n] = this.fan[n] || []; } return n; }
     input(name, v = 0) { this._net(name); this.inputs[name] = v; this.nets[name] = v; this.traces[name] = [[0, v]]; return this; }
     gate(type, ins, out, delay = 1) { ins.forEach((n) => this._net(n)); this._net(out); const g = { type, ins, out, delay }; this.gates.push(g); ins.forEach((n) => this.fan[n].push(g)); return this; }

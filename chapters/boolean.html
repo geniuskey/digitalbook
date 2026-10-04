@@ -736,7 +736,7 @@
           var G = r.geo[id], Gy = r.geo.y, lead = G.w * 0.18;
           ctx.beginPath(); ctx.arc(G.out[0] - lead - 3, G.out[1], 9, 0, Math.PI * 2); ctx.stroke();
           var p = Gy.pins[i], gl = Gy.w * 0.18, body = Gy.w - 2 * gl, t = (p[1] - Gy.y) / Gy.h - 0.5;
-          var le = Gy.x + gl + (/OR/.test(Gy.type || "OR") ? body * 0.18 * Math.cos(t * Math.PI) : 0);
+          var le = Gy.x + gl + (kind === "nand" ? body * 0.18 * Math.cos(t * Math.PI) : 0);
           ctx.beginPath(); ctx.arc(le - 4, p[1], 9, 0, Math.PI * 2); ctx.stroke();
         });
         ctx.restore();
@@ -804,7 +804,6 @@
         DG.wire(ctx, [[rx(k), 30], [rx(k), yEnd + 6]], railV(k));
         exprDraw(ctx, (k & 1 ? "!" : "") + "ABC"[k >> 1], rx(k), 18, { size: 12, weight: 800, align: "center", color: railV(k) ? P.hi : P.dim });
       }
-      T(ctx, "인버터로 만든 보수 레일", rx(0) - 8, 44, { size: 10, color: P.faint });
       if (!m) {
         T(ctx, "1인 행이 없다 → Y는 언제나 0 (GND에 연결)", ax, y0 + 8, { size: 12.5, color: P.dim });
         DG.wire(ctx, [[ax, y0 + 34], [w - 60, y0 + 34]], 0);
@@ -1268,13 +1267,13 @@
       var names = mode === "sop" ? ["A", "Ā", "P=AB", "Q=ĀC", "R=BC", "Y"] : ["A", "Ā", "P=A+B", "Q=Ā+C", "R=B+C", "Y"];
       var nets = ["a", "an", "p", "q", "r", "y"], sigs = [];
       nets.forEach(function (n, i) { if (n === "r" && !cons) return; sigs.push({ name: names[i], type: "bit", v: CIR.sample(n, T0, DT, NS), fill: n === "y" }); });
-      var box = { x: 6, y: ch + 4, w: w - 12, h: h - ch - 22 }, nameW = w < 480 ? 58 : 70;
+      var box = { x: 6, y: ch + 4, w: w - 12, h: h - ch - 36 }, nameW = w < 480 ? 58 : 70;
       var shade = AN.gl.map(function (g) { return { c0: (g.t0 - T0) / DT, c1: (g.t1 - T0) / DT, color: DG.alpha(P.bad, 0.18) }; });
       var Wv = DG.wave(ctx, box, { cycles: NS, signals: sigs, nameW: nameW, gridStep: 8, skew: 0, shade: shade,
         marks: [{ c: (TS1 - T0) / DT, label: "A↓", color: P.accent2 }, { c: (TS2 - T0) / DT, label: "A↑", color: P.accent2 }] });
       var cx = Wv.X((tcur - T0) / DT);
       ctx.strokeStyle = P.accent; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(cx, box.y); ctx.lineTo(cx, box.y + box.h); ctx.stroke();
-      T(ctx, "t=" + tcur.toFixed(1), Math.min(cx + 4, w - 46), box.y + box.h + 9, { size: 10.5, mono: true, color: P.accent, weight: 700 });
+      T(ctx, "t=" + tcur.toFixed(1), SB.clamp(cx, 30, w - 30), box.y + box.h + 24, { size: 10.5, mono: true, color: P.accent, weight: 700, align: "center" });
       for (var t = T0; t <= T1; t += 4) T(ctx, String(t), Wv.X((t - T0) / DT), box.y + box.h + 9, { size: 9.5, mono: true, color: P.faint, align: "center" });
     }
     function report() {

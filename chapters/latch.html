@@ -65,7 +65,7 @@
         <div class="stat"><span class="k">수렴한 상태</span><span class="v" id="bs-q">—</span></div>
         <div class="stat"><span class="k">\(V_M\)에서 고리 이득</span><span class="v" id="bs-g">—</span></div>
       </div>
-      <figcaption><b>그림 8-2.</b> <span class="try">해 보기</span>나비 모양 그래프 아래쪽(\(V_1\) 축)을 좌우로 끌어 초기 전압을 놓으면, 신호가 인버터 1(파란 곡선, 세로 이동)과 인버터 2(분홍 곡선, 가로 이동)를 번갈아 지나며 계단을 그린다. 실제 DG-7 인버터 VTC로 계산한다. 가운데 교점 근처에서 시작해도 몇 바퀴 만에 양 끝 중 한쪽으로 빨려 간다. 오른쪽(좁은 화면에선 아래) 언덕 위의 공이 같은 이야기를 한다. \(W_p\)를 바꾸면 가운데 교점, 곧 언덕 꼭대기가 옮겨 간다.</figcaption>
+      <figcaption><b>그림 8-2.</b> <span class="try">해 보기</span>나비 모양 그래프 아래쪽(\(V_1\) 축)을 좌우로 끌어 초기 전압을 놓으면, 신호가 인버터 1(파란 곡선, 세로 이동)과 인버터 2(주황 곡선, 가로 이동)를 번갈아 지나며 계단을 그린다. 실제 DG-7 인버터 VTC로 계산한다. 가운데 교점 근처에서 시작해도 몇 바퀴 만에 양 끝 중 한쪽으로 빨려 간다. 오른쪽(좁은 화면에선 아래) 언덕 위의 공이 같은 이야기를 한다. \(W_p\)를 바꾸면 가운데 교점, 곧 언덕 꼭대기가 옮겨 간다.</figcaption>
     </figure>
     <p>가운데 점이 불안정한 이유는 VTC의 기울기에 있다. \(V_M\) 근처에서 인버터의 이득은 \(|A| \gg 1\)이다. \(V_1\)이 \(V_M\)에서 \(\delta\)만큼 벗어나면 인버터 1을 지나며 \(A\delta\), 인버터 2를 지나며 \(A^2\delta\)로 커진다. 고리를 한 바퀴 돌 때마다 어긋남이 \(A^2\)배씩 불어나니 결국 전원 끝까지 밀려난다. 반대로 양 끝 점에서는 VTC가 거의 평평해서(\(|A| \ll 1\)) 작은 교란이 고리를 돌며 줄어든다. 언덕 꼭대기에 놓인 공과 골짜기 바닥에 놓인 공의 차이다.</p>
     <div class="formula">$$\text{안정 조건:}\quad |A_1 A_2| < 1 \ \ (\text{양 끝 교점}), \qquad \text{불안정:}\quad |A_1 A_2| > 1 \ \ (V_M)$$
@@ -202,7 +202,7 @@
       <div class="sim-view"><canvas id="cv-setup"></canvas></div>
       <div class="sim-controls">
         <div class="ctrl"><span>쓸어 볼 조건</span><div class="seg" id="su-mode"><button data-value="setup" class="on">setup (D가 에지 전에 바뀜)</button><button data-value="hold">hold (D가 에지 뒤에 다시 바뀜)</button></div></div>
-        <label class="ctrl"><span id="su-t-lbl">에지 전 D 천이 시각 \(t_{DC}\) <output id="su-t-out"></output></span><input type="range" id="su-t" min="-4" max="40" step="0.05" value="20"></label>
+        <label class="ctrl"><span><b id="su-t-name" style="font-weight:400">에지 전 D 천이 시각 t_DC</b> <output id="su-t-out"></output></span><input type="range" id="su-t" min="-4" max="40" step="0.05" value="20"></label>
         <label class="ctrl"><span>재생 시정수 \(\tau\) <output id="su-tau-out"></output></span><input type="range" id="su-tau" min="1.2" max="6" step="0.1" value="2.5"></label>
         <div class="ctrl"><span>동작</span><div class="lt-row"><button class="btn sm" id="su-sweep">자동 쓸기</button><button class="btn sm" id="su-def">setup 정의점으로</button></div></div>
       </div>
@@ -243,7 +243,7 @@
         <div class="stat"><span class="k">이론 \(\propto e^{-t_r/\tau}\)</span><span class="v" id="mt-th">—</span></div>
         <div class="stat"><span class="k">\(\tau\)만큼 더 기다리면</span><span class="v" id="mt-gain">—</span></div>
       </div>
-      <figcaption><b>그림 8-5.</b> <span class="try">해 보기</span>왼쪽(좁은 화면에서는 위)은 에지 순간 서로 다른 \(\Delta V_0\)에서 출발한 고리 전압 궤적들이다. 꼭대기(가운데 점선) 가까이에서 출발한 궤적일수록 늦게 갈라진다. 오른쪽은 2만 번의 표본에서 \(t_r\)이 지나도 아직 결정되지 못한 비율로, 세로축이 로그 눈금이다. 직선이 된다는 것은 지수 분포라는 뜻이다. \(\tau\)를 키우면 기울기가 완만해진다. 표본은 데이터 천이가 에지 앞뒤 ±4 ps 창에 고르게 떨어진다고 가정했다.</figcaption>
+      <figcaption><b>그림 8-5.</b> <span class="try">해 보기</span>왼쪽(좁은 화면에서는 위)은 에지 순간 서로 다른 \(\Delta V_0\)에서 출발한 고리 전압 궤적들이다. 꼭대기(가운데 점선) 가까이에서 출발한 궤적일수록 늦게 갈라진다. 오른쪽은 2만 번의 표본에서 \(t_r\)이 지나도 아직 결정되지 못한 비율로, 세로축이 로그 눈금이다. 직선이 된다는 것은 지수 분포라는 뜻이다. \(\tau\)를 키우면 기울기가 완만해진다. 표본은 에지 순간의 어긋남 \(\Delta V_0\)가 0 근처에 고르게 퍼진다고 가정했다(데이터 천이가 에지 근처에 고르게 떨어지는 경우).</figcaption>
     </figure>
     <p>결정 시간의 꼬리는 지수적으로 줄어든다. \(\tau\)만큼 더 기다릴 때마다 실패 확률이 \(e\)배(약 2.7배) 줄어든다. 줄어들 뿐 0이 되지는 않는다. 그래서 설계자는 "실패하지 않게"가 아니라 "평균 몇 년에 한 번 실패하게"를 목표로 삼고, 그 척도가 <span class="term">MTBF</span><span class="en">(Mean Time Between Failures)</span>다.</p>
     <div class="formula">$$\text{MTBF} = \frac{e^{\,t_r/\tau}}{T_0\, f_{clk}\, f_{data}}$$

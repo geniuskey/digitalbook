@@ -104,7 +104,7 @@
         <div class="stat"><span class="k">디지털 오류 (3000비트)</span><span class="v" id="ch-ed">—</span></div>
         <div class="stat"><span class="k">디지털 이론값</span><span class="v" id="ch-td">—</span></div>
       </div>
-      <div class="sim-note">각 선은 비트 하나가 단을 지나며 겪는 전압이다(초록: 1로 출발, 회색: 0으로 출발). 끝에서 \(V_{DD}/2\)로 판정해 틀린 경로는 빨간 점으로 표시하고, 오른쪽 막대는 3000비트의 최종 전압 분포다. 디지털 단은 DG-7 인버터 모델(<code>DG.invOut</code>)을 두 번 거친 실제 전달 곡선을 쓴다. 아날로그 단은 출력이 레일을 넘어도 자르지 않는 이상 증폭기다.</div>
+      <div class="sim-note">각 선은 비트 하나가 단을 지나며 겪는 전압이다(초록: 1로 출발, 회색: 0으로 출발). 끝에서 \(V_{DD}/2\)로 판정해 틀린 경로는 빨간 점으로 표시하고, 오른쪽 막대는 3000비트의 최종 전압 분포다. 디지털 경로의 뾰족한 튐은 각 버퍼 입력에 섞인 잡음이며, 버퍼가 곧바로 레일로 되돌려 다음 단에 넘기지 않는다. 디지털 단은 DG-7 인버터 모델(<code>DG.invOut</code>)을 두 번 거친 실제 전달 곡선을 쓴다. 아날로그 단은 출력이 레일을 넘어도 자르지 않는 이상 증폭기다.</div>
     </div>
     <p>잡음 σ = 60 mV, 12단에서 아날로그 사슬은 수 %의 비트를 틀린다. 누적 잡음이 \(60\sqrt{12} \approx 208\) mV로 자라 문턱까지의 거리 375 mV의 절반을 넘기 때문이다. 같은 조건에서 디지털 사슬은 3000비트 중 하나도 틀리지 않는다. 잡음을 키우면 디지털도 결국 틀리기 시작하는데, 그 시점이 아주 갑작스럽다는 점도 눈여겨보자. 이것을 "절벽 효과"라 부른다. 디지털 방송이 잘 나오다가 어느 순간 화면이 통째로 멈추는 것과 같다.</p>
     <div class="formula">$$\sigma_{\text{아날로그}}(N) = \sigma\sqrt{N}, \qquad P_e^{\text{아날로그}} = Q\!\left(\frac{V_{DD}/2}{\sigma\sqrt{N}}\right), \qquad P_e^{\text{디지털}} \approx N\,Q\!\left(\frac{V_M}{\sigma}\right)$$
@@ -485,7 +485,7 @@
       // 파형 생성
       var v = [], y = 0, a = 1 - Math.exp(-1 / (0.16 * S));
       for (var k = 0; k < nb * S; k++) { var b = bits[Math.floor(k / S)]; y += (b * VDD - y) * a; v.push(y + s * z[k]); }
-      var L = narrow ? 44 : 54, R = 12, top = 22, ch = h - 96, X = function (k) { return L + (k / (nb * S)) * (w - L - R); };
+      var L = narrow ? 46 : 64, R = 12, top = 22, ch = h - 96, X = function (k) { return L + (k / (nb * S)) * (w - L - R); };
       var ymin = -0.3, ymax = 1.05, Y = function (u) { return top + (ymax - u) / (ymax - ymin) * ch; };
       // 영역
       ctx.fillStyle = DG.alpha(P.hi, 0.07); ctx.fillRect(L, Y(ymax), w - L - R, Y(band ? th + hw : th) - Y(ymax));
@@ -493,7 +493,7 @@
       if (band) DG.hatch(ctx, L, Y(th + hw), w - L - R, Y(th - hw) - Y(th + hw), P.x);
       // 축
       ctx.strokeStyle = P.grid; ctx.lineWidth = 1;
-      [0, VDD].forEach(function (u) { ctx.beginPath(); ctx.moveTo(L, Y(u)); ctx.lineTo(w - R, Y(u)); ctx.stroke(); T(ctx, u.toFixed(2) + " V", L - 4, Y(u), { size: 10.5, mono: true, align: "right", color: P.dim }); });
+      [0, VDD].forEach(function (u) { ctx.beginPath(); ctx.moveTo(L, Y(u)); ctx.lineTo(w - R, Y(u)); ctx.stroke(); T(ctx, narrow ? u.toFixed(2) : u.toFixed(2) + " V", L - 4, Y(u), { size: 10.5, mono: true, align: "right", color: P.dim }); });
       for (var i = 0; i <= nb; i++) { ctx.beginPath(); ctx.moveTo(X(i * S) + 0.5, top); ctx.lineTo(X(i * S) + 0.5, top + ch); ctx.stroke(); }
       // 문턱
       ctx.setLineDash([5, 4]); ctx.strokeStyle = P.accent2; ctx.lineWidth = 1.4;
@@ -517,7 +517,7 @@
         ctx.strokeStyle = P.text; ctx.lineWidth = 0.8; ctx.stroke();
       }
       // 비트 줄
-      var rows = [["보낸 비트", bits.slice(0, nb)], ["읽은 비트", read]];
+      var rows = [[narrow ? "보냄" : "보낸 비트", bits.slice(0, nb)], [narrow ? "읽음" : "읽은 비트", read]];
       rows.forEach(function (row, j) {
         var yy = top + ch + 14 + j * 26, cw = (w - L - R) / nb;
         T(ctx, row[0], L - 4, yy + 10, { size: narrow ? 9.5 : 11, align: "right", color: P.dim });
@@ -548,12 +548,13 @@
       var N = nS(), s = sS() / 1000, r = SB.rng(seed);
       var pa = [], pd = [], fa = new Float32Array(MC), fd = new Float32Array(MC), ea = 0, ed = 0, bitv = new Uint8Array(MC);
       for (var i = 0; i < MC; i++) {
-        var b = i % 2, va = b * VDD, vd = buf(b * VDD), keep = i < NTR, A = keep ? [va] : null, D = keep ? [vd] : null;
+        var b = i % 2, va = b * VDD, vd = buf(b * VDD), keep = i < NTR, A = keep ? [[0, va]] : null, D = keep ? [[0, vd]] : null;
         bitv[i] = b;
         for (var k = 0; k < N; k++) {
           va += s * gauss(r);
-          vd = buf(vd + s * gauss(r));
-          if (keep) { A.push(va); D.push(vd); }
+          var vn = vd + s * gauss(r);
+          vd = buf(vn);
+          if (keep) { A.push([k + 1, va]); D.push([k + 0.55, vn], [k + 1, vd]); }
         }
         fa[i] = va; fd[i] = vd;
         if ((va > VDD / 2 ? 1 : 0) !== b) ea++;
@@ -579,7 +580,7 @@
       ctx.setLineDash([4, 4]); ctx.strokeStyle = P.accent2; ctx.beginPath(); ctx.moveTo(x0, Y(VDD / 2)); ctx.lineTo(x0 + cw, Y(VDD / 2)); ctx.stroke(); ctx.setLineDash([]);
       ctx.strokeStyle = P.axis; ctx.beginPath(); ctx.moveTo(x0, box.y + 20); ctx.lineTo(x0, box.y + box.h - 20); ctx.lineTo(x0 + cw, box.y + box.h - 20); ctx.stroke();
       T(ctx, "0", x0, box.y + box.h - 10, { size: 10, mono: true, align: "center", color: P.dim });
-      T(ctx, N + "단", x0 + cw, box.y + box.h - 10, { size: 10, mono: true, align: "center", color: P.dim });
+      T(ctx, N + "단", x0 + cw, box.y + box.h - 10, { size: 10, mono: true, align: "right", color: P.dim });
       T(ctx, "단 번호 →", x0 + cw / 2, box.y + box.h - 10, { size: 10.5, align: "center", color: P.faint });
       // 경로
       var upto = prg == null ? N : Math.min(N, prg);
@@ -587,10 +588,13 @@
       paths.forEach(function (p, i) {
         var b = i % 2;
         ctx.strokeStyle = DG.alpha(b ? P.hi : P.lo, 0.6); ctx.lineWidth = 1.3; ctx.beginPath();
-        for (var k = 0; k <= Math.floor(upto); k++) { var px = X(k), py = Y(p[k]); k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
-        if (upto < N && Math.floor(upto) < N) { var kk = Math.floor(upto), t = upto - kk; ctx.lineTo(X(upto), Y(p[kk] + (p[kk + 1] - p[kk]) * t)); }
+        for (var k = 0; k < p.length; k++) {
+          var q = p[k];
+          if (q[0] > upto) { var q0 = p[k - 1], t = (upto - q0[0]) / (q[0] - q0[0]); ctx.lineTo(X(upto), Y(q0[1] + (q[1] - q0[1]) * t)); break; }
+          k ? ctx.lineTo(X(q[0]), Y(q[1])) : ctx.moveTo(X(q[0]), Y(q[1]));
+        }
         ctx.stroke();
-        if (upto >= N) { var last = p[N], wrong = (last > VDD / 2 ? 1 : 0) !== b; if (wrong) DG.dot(ctx, X(N), Y(last), P.bad, 3.6); }
+        if (upto >= N) { var last = p[p.length - 1][1], wrong = (last > VDD / 2 ? 1 : 0) !== b; if (wrong) DG.dot(ctx, X(N), Y(last), P.bad, 3.6); }
       });
       ctx.restore();
       // 분포 막대
@@ -604,7 +608,7 @@
           ctx.fillStyle = DG.alpha(mid > VDD / 2 ? P.hi : P.lo, 0.75);
           ctx.fillRect(hx, y1 + 0.5, Math.max(1, Math.sqrt(c / mx) * hwid), Math.max(1, y0 - y1 - 1));
         });
-        T(ctx, "분포", hx, box.y + box.h - 10, { size: 10, color: P.faint });
+        T(ctx, "분포", hx, box.y + 12, { size: 10, color: P.faint });
       }
     }
     var cv = SB.canvas("#cv-ch", function (ctx, w, h) {
@@ -936,7 +940,7 @@
       DG.gnd(ctx, cx, yB);
       var mos = view() === "mos";
       var inX = A.x + Math.max(14, A.w * 0.1);
-      var inCol = DG.lv(vin / VDD), outCol = DG.lv(vout / VDD);
+      var jx = inX + Math.min(50, (cx - 48 - inX) * 0.6), inCol = DG.lv(vin / VDD), outCol = DG.lv(vout / VDD);
       if (!mos) {
         sw(ctx, cx, yT, ym, cp, P.pmos);
         sw(ctx, cx, ym, yB, cn, P.nmos);
@@ -944,8 +948,8 @@
         T(ctx, "nMOS", cx - 14, ym + sp * 0.5, { size: 11, weight: 700, color: P.nmos, align: "right" });
         // 게이트 제어선 (점선)
         ctx.strokeStyle = inCol; ctx.setLineDash([3, 3]); ctx.lineWidth = 1.4;
-        ctx.beginPath(); ctx.moveTo(inX, ym); ctx.lineTo(inX + 8, ym); ctx.lineTo(inX + 8, yT + sp * 0.5); ctx.lineTo(cx - 48, yT + sp * 0.5);
-        ctx.moveTo(inX + 8, ym); ctx.lineTo(inX + 8, ym + sp * 0.5); ctx.lineTo(cx - 48, ym + sp * 0.5); ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(inX, ym); ctx.lineTo(jx, ym); ctx.lineTo(jx, yT + sp * 0.5); ctx.lineTo(cx - 48, yT + sp * 0.5);
+        ctx.moveTo(jx, ym); ctx.lineTo(jx, ym + sp * 0.5); ctx.lineTo(cx - 48, ym + sp * 0.5); ctx.stroke(); ctx.setLineDash([]);
       } else {
         var s = Math.min(40, sp * 0.7);
         var pm = DG.mos(ctx, "p", cx + s * 0.3, yT + sp * 0.5, { s: s, on: cp });
@@ -953,8 +957,8 @@
         ctx.strokeStyle = P.text; ctx.lineWidth = 1.8;
         ctx.beginPath(); ctx.moveTo(pm.top[0], pm.top[1]); ctx.lineTo(pm.top[0], yT); ctx.moveTo(pm.bottom[0], pm.bottom[1]); ctx.lineTo(pm.bottom[0], ym);
         ctx.moveTo(nm.top[0], nm.top[1]); ctx.lineTo(nm.top[0], ym); ctx.moveTo(nm.bottom[0], nm.bottom[1]); ctx.lineTo(nm.bottom[0], yB); ctx.stroke();
-        DG.wire(ctx, [[inX, ym], [inX + 8, ym], [inX + 8, pm.gate[1]], [pm.gate[0], pm.gate[1]]], vin / VDD, 1.8);
-        DG.wire(ctx, [[inX + 8, ym], [inX + 8, nm.gate[1]], [nm.gate[0], nm.gate[1]]], vin / VDD, 1.8);
+        DG.wire(ctx, [[inX, ym], [jx, ym], [jx, pm.gate[1]], [pm.gate[0], pm.gate[1]]], vin / VDD, 1.8);
+        DG.wire(ctx, [[jx, ym], [jx, nm.gate[1]], [nm.gate[0], nm.gate[1]]], vin / VDD, 1.8);
       }
       T(ctx, "IN", inX - 4, ym - 12, { size: 11, weight: 700, mono: true, align: "left" });
       T(ctx, vin.toFixed(2) + " V", inX - 4, ym + 12, { size: 10.5, mono: true, color: P.dim });
@@ -965,11 +969,11 @@
       T(ctx, "OUT", ox, ym - 13, { size: 11, weight: 700, mono: true, align: "right" });
       T(ctx, vout.toFixed(2) + " V", ox, ym + 13, { size: 10.5, mono: true, color: P.dim, align: "right" });
       // 부하 C
-      var capX = cx + (ox - cx) * 0.6;
+      var capX = cx + (ox - cx) * 0.4;
       ctx.strokeStyle = P.dim; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.moveTo(capX, ym); ctx.lineTo(capX, ym + 14); ctx.moveTo(capX - 9, ym + 14); ctx.lineTo(capX + 9, ym + 14); ctx.moveTo(capX - 9, ym + 19); ctx.lineTo(capX + 9, ym + 19); ctx.moveTo(capX, ym + 19); ctx.lineTo(capX, ym + 30); ctx.stroke();
       DG.gnd(ctx, capX, ym + 30, 14);
-      T(ctx, "C", capX + 12, ym + 17, { size: 10.5, color: P.dim, mono: true });
+      T(ctx, "C", capX - 12, ym + 17, { size: 10.5, color: P.dim, mono: true, align: "right" });
       // 관통 전류 화살표
       var isc = DG.ids({ vgs: vin, vds: vout, type: "n" });
       if (isc > 1e-7) { var wd = SB.clamp(1 + Math.log10(isc / 1e-7) * 1.3, 1, 6); DG.arrow(ctx, cx + 30, yT + 12, cx + 30, yB - 12, DG.alpha(P.bad, 0.8), wd, 8); T(ctx, "관통", cx + 36, yB - 22, { size: 10.5, color: P.bad }); }
@@ -1038,8 +1042,8 @@
       DG.dot(ctx, ra, X1.inputs[0][1], DG.lv(A)); DG.dot(ctx, rb, X1.inputs[1][1], DG.lv(B));
       // P
       DG.wire(ctx, [X1.output, [rp, X1.output[1]], [rp, A2.inputs[0][1]], A2.inputs[0]], r.p);
-      DG.wire(ctx, [[rp, X2.inputs[0][1]], X2.inputs[0]], r.p);
-      DG.dot(ctx, rp, X2.inputs[0][1], DG.lv(r.p));
+      DG.wire(ctx, [[rp, X1.output[1]], [rp, X2.inputs[0][1]], X2.inputs[0]], r.p);
+      DG.dot(ctx, rp, X1.output[1], DG.lv(r.p));
       // Cin
       DG.wire(ctx, [[rc, y0 + 14], [rc, A2.inputs[1][1]], A2.inputs[1]], C);
       DG.wire(ctx, [[rc, X2.inputs[1][1]], X2.inputs[1]], C);

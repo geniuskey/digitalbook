@@ -440,6 +440,8 @@
   const LOGO = `<svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="sbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-2)"/></linearGradient></defs><rect x="2" y="2" width="28" height="28" rx="8" fill="url(#sbg)"/><g fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5h5M5 19.5h5M24.5 16h3"/><path d="M10 9.5h5.5a6.5 6.5 0 0 1 0 13H10z"/><circle cx="23.3" cy="16" r="1.5"/></g></svg>`;
   const ICON_MENU = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>`;
   const ICON_MOON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>`;
+  const ICON_BOOKS = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M9 19V5M14 19l3-14 4 1-3 14"/><path d="M3 19h18"/></svg>`;
+  const ICON_FEEDBACK = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 10.5h6M9 13.5h4"/></svg>`;
   const ICON_SUN = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`;
 
   function build() {
@@ -451,6 +453,8 @@
     // favicon
     if (!document.querySelector('link[rel="icon"]')) { const fi = document.createElement("link"); fi.rel = "icon"; fi.type = "image/svg+xml"; fi.href = root + "favicon.svg"; document.head.appendChild(fi); }
 
+    const feedbackHref = () => `https://books.euiyun.com/feedback.html?book=digitalbook&page=${encodeURIComponent(location.href)}`;
+
     // top bar
     const bar = document.createElement("header");
     bar.className = "pb-topbar";
@@ -458,6 +462,8 @@
       <button class="pb-btn icon" id="pb-menu" aria-label="챕터 목록">${ICON_MENU}</button>
       <a class="pb-logo" href="${href("")}">${LOGO}<span>DigitalBook <small>디지털 회로 설계 교과서</small></span></a>
       <span class="spacer"></span>
+      <a class="pb-btn icon" href="https://books.euiyun.com/" aria-label="euiyun books 전체 책장" title="euiyun books 전체 책장">${ICON_BOOKS}</a>
+      <a class="pb-btn icon pb-feedback" href="${feedbackHref()}" aria-label="오류 제보·의견 보내기" title="오류 제보·의견 보내기">${ICON_FEEDBACK}</a>
       <button class="pb-btn icon" id="pb-theme" aria-label="테마 전환"></button>
       <div class="pb-progress" id="pb-progress"></div>`;
     body.prepend(bar);
@@ -534,9 +540,11 @@
     const foot = document.createElement("footer");
     foot.className = "pb-foot";
     foot.innerHTML = `DigitalBook — 공학도를 위한 인터랙티브 디지털 회로 설계 교과서 · 수치는 교육용 근사 모델입니다.<br>
-      시리즈: <a href="https://devicebook.euiyun.com/">DeviceBook</a> · <a href="https://designbook.euiyun.com/">DesignBook</a> · <a href="https://socbook.euiyun.com/">SoCBook</a> · <a href="https://memorybook.euiyun.com/">MemoryBook</a> · <a href="https://computerbook.euiyun.com/">ComputerBook</a> · <a href="https://books.euiyun.com/">전체 책장</a><br>
+      시리즈: <a href="https://devicebook.euiyun.com/">DeviceBook</a> · <a href="https://designbook.euiyun.com/">DesignBook</a> · <a href="https://socbook.euiyun.com/">SoCBook</a> · <a href="https://memorybook.euiyun.com/">MemoryBook</a> · <a href="https://computerbook.euiyun.com/">ComputerBook</a> · <a href="https://books.euiyun.com/">전체 책장</a> · <a class="pb-feedback" href="${feedbackHref()}">오류 제보·의견</a><br>
       © 2026 geniuskey 및 DigitalBook 기여자 · 콘텐츠 <a rel="license" href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> · 코드 <a href="${root}LICENSE-MIT">MIT</a> · <a href="${root}LICENSE.md">라이선스 안내</a>`;
     body.appendChild(foot);
+    // 공유 링크처럼 주소가 바뀐 뒤에도 현재 위치를 의견 페이지에 넘긴다
+    body.addEventListener("click", (e) => { const a = e.target.closest && e.target.closest("a.pb-feedback"); if (a) a.href = feedbackHref(); });
 
     // quiz
     document.querySelectorAll(".quiz-q").forEach((q) => {

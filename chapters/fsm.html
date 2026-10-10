@@ -476,7 +476,7 @@
     if (filled < o.cycles) {
       const x0 = r.X(filled);
       ctx.save();
-      ctx.fillStyle = DG.alpha(SB.color("canvas-bg") || "#ffffff", 0.88);
+      ctx.fillStyle = SB.color("canvas-bg") || "#ffffff";
       ctx.fillRect(x0 + 1, box.y, box.x + box.w - x0, box.h);
       if (box.x + box.w - x0 > 70) T(ctx, "다음 클럭…", (x0 + box.x + box.w) / 2, box.y + box.h / 2, { color: SB.palette().faint, size: 12 });
       ctx.restore();

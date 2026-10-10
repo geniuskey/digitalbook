@@ -1121,11 +1121,11 @@
     }
     var cv = SB.canvas("#cv-domino", function (ctx, w, h) {
       pal();
-      var n = N(), slot = (w - 30) / n, tw = Math.min(22, slot * 0.3), th = Math.min(84, Math.max(48, slot * 1.1)), base = h * 0.62;
+      var n = N(), slot = (w - 30) / n, tw = Math.min(22, slot * 0.3), base = h * 0.66, th = Math.min(base - 34, slot * 1.1), gap = slot - tw * 0.5, amax = th > gap ? Math.asin(gap / th) : 1.25;
       hits = [];
       ctx.strokeStyle = P.axis; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(10, base + 0.5); ctx.lineTo(w - 10, base + 0.5); ctx.stroke();
       for (var k = 0; k < n; k++) {
-        var x = 20 + slot * k + slot * 0.25, o = out(k), ang = prog[k] * Math.min(1.25, Math.atan2(slot * 0.9, th) + 0.25);
+        var x = 20 + slot * k + slot * 0.25, o = out(k), ang = prog[k] * (k === n - 1 ? 1.35 : amax);
         ctx.save(); ctx.translate(x + tw, base); ctx.rotate(ang);
         ctx.fillStyle = DG.alpha(DG.lv(o ? 1 : 0), 0.85);
         DG.roundRect(ctx, -tw, -th, tw, th, 3); ctx.fill();

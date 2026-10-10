@@ -647,12 +647,15 @@
       SB.chart(ctx, Bx, {
         x: [6, 60], y: [0, 30], xLabel: "선 폭 W (nm)",
         series: [{ data: cuD, color: cu, width: 2.4 }, { data: ruD, color: ru, width: 2.4 }, { data: cuNB, color: cu, width: 1.2, dash: [4, 4] }],
-        hlines: [{ y: 1.7, color: cu, label: "Cu 덩어리 1.7" }, { y: 7.1, color: ru, label: "Ru 덩어리 7.1" }],
+        hlines: [{ y: 1.7, color: cu }, { y: 7.1, color: ru }],
         vlines: [{ x: W, color: P.accent }],
         points: [{ x: W, y: Math.min(30, rc), color: cu, r: 5 }, { x: W, y: Math.min(30, rr), color: ru, r: 5 }],
       });
-      T(ctx, "실효 비저항 (µΩ·cm)", Bx.x + 6, Bx.y + 8, { size: 11, color: P.dim, weight: 700 });
-      T(ctx, "점선: 장벽 없는 Cu", Bx.x + 6, Bx.y + 24, { size: 10.5, color: P.dim });
+      T(ctx, "실효 비저항 (µΩ·cm)", Bx.x + Bx.w - 6, Bx.y + 8, { size: 11, color: P.dim, weight: 700, align: "right" });
+      T(ctx, "가는 점선: 장벽 없는 Cu", Bx.x + Bx.w - 6, Bx.y + 24, { size: 10.5, color: P.dim, align: "right" });
+      var ch = SB.chart; var Yp = function (v) { return Bx.y + Bx.h - v / 30 * Bx.h; };
+      T(ctx, "Ru 덩어리 7.1", Bx.x + Bx.w - 6, Yp(7.1) + 9, { size: 10.5, color: ru, align: "right" });
+      T(ctx, "Cu 덩어리 1.7", Bx.x + Bx.w - 6, Yp(1.7) - 8, { size: 10.5, color: cu, align: "right" });
     }, aopt("#cv-rho", 0.44, 1.2, 560, { minHeight: 280, maxHeight: 470 }));
     function upd() {
       var rc = rhoEff("cu", W, 2 * W, B), rr = rhoEff("ru", W, 2 * W, BRU);
@@ -674,7 +677,7 @@
     N = +document.getElementById("el-n").value; I = Math.min(gi(), N);
     var cv = SB.canvas("#cv-elmore", function (ctx, w, h) {
       pal();
-      var x0 = 40, x1 = w - 20, yW = 40, yC = 78, segW = (x1 - x0) / N;
+      var x0 = 40, x1 = w - 44, yW = 40, yC = 78, segW = (x1 - x0) / N;
       hit = [];
       // 구동 소스
       ctx.strokeStyle = P.text; ctx.lineWidth = 1.6;
@@ -704,7 +707,7 @@
       var by = yC + 50, bh = h - by - 34, bw = segW * 0.6, maxv = N;
       var sum = 0;
       for (var j = 1; j <= N; j++) {
-        var bx = x0 + (j - 0.5) * segW - bw / 2 + segW / 2, hh = bh * j / maxv;
+        var bx = x0 + j * segW - bw / 2, hh = bh * j / maxv;
         ctx.fillStyle = j === I ? P.accent : DG.alpha(P.accent, 0.3);
         ctx.fillRect(bx, by + bh - hh, bw, hh);
         sum += j;
@@ -712,6 +715,7 @@
       // 연속 극한 (삼각형)
       ctx.strokeStyle = P.faint; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.moveTo(x0, by + bh); ctx.lineTo(x1, by); ctx.stroke(); ctx.setLineDash([]);
+      x1 = x1 + 20;
       ctx.strokeStyle = P.axis; ctx.beginPath(); ctx.moveTo(x0, by + bh); ctx.lineTo(x1, by + bh); ctx.stroke();
       var el = (N + 1) / (2 * N);
       T(ctx, "C" + I + "의 몫 = (R/N)·" + I + " × C/N = " + I + "·RC/" + (N * N), x0, h - 22, { size: 11.5, color: P.accent, weight: 700 });
@@ -822,7 +826,6 @@
       var vl = [{ x: tc * u, color: P.accent, dash: [2, 2] }];
       if (isFinite(res.t50)) vl.push({ x: res.t50 * u, color: P.accent, label: "t50", dash: [5, 3] });
       SB.chart(ctx, box, { x: [0, res.Tm * u], y: [0, VDD], xLabel: "시간 (" + (ns ? "ns" : "ps") + ")", yTicks: [0, 0.25, 0.5, 0.75], series: series, vlines: vl, hlines: [{ y: VDD / 2, color: P.faint }] });
-      T(ctx, "V", 14, box.y + 6, { size: 11, color: P.dim });
     }, aopt("#cv-rcline", 0.5, 0.95, 560, { minHeight: 300, maxHeight: 460 }));
     SB.loop(cv.canvas, function (dt) {
       if (!res) return;
@@ -891,7 +894,7 @@
       var Y = LAYERS[st.ly], b = best();
       var narrow = w < 600;
       // 배치 띠
-      var x0 = 14, x1 = w - 14, yb = 26;
+      var x0 = 14, x1 = w - 14, yb = 36;
       ctx.strokeStyle = DG.alpha(P.accent2, 0.8); ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(x0, yb); ctx.lineTo(x1, yb); ctx.stroke();
       var sz = Math.min(12, 4 + 2.2 * Math.log2(st.h + 1)), gap = (x1 - x0) / st.k;
       sz = Math.min(sz, gap * 0.45);
@@ -900,7 +903,7 @@
         ctx.fillStyle = P.accent; ctx.beginPath(); ctx.moveTo(xx, yb - sz); ctx.lineTo(xx + sz * 1.4, yb); ctx.lineTo(xx, yb + sz); ctx.closePath(); ctx.fill();
       }
       T(ctx, "리피터 " + st.k + "개 × 크기 " + st.h + "  ·  간격 " + lenStr(st.L / st.k), x0, 8 + 0, { size: 11, color: P.dim, base: "top" });
-      var top = 52;
+      var top = 60;
       var A = narrow ? { x: 54, y: top + 8, w: w - 54 - 14, h: (h - top - 8) / 2 - 50 } : { x: 58, y: top + 8, w: w / 2 - 58 - 20, h: h - top - 8 - 46 };
       var B = narrow ? { x: 54, y: A.y + A.h + 58, w: w - 54 - 14, h: A.h } : { x: w / 2 + 52, y: top + 8, w: w / 2 - 52 - 16, h: A.h };
       var dc = [], dopt = [], ec = [], ho = hOpt(Y), tmax = 0, emax = 0;
@@ -1016,7 +1019,6 @@
       ser.push({ data: pts(res.V), color: P.accent, width: 2.6 });
       SB.chart(ctx, box, { x: [0, TM * u], y: [-0.25, 1.0], xLabel: "시간 (ps)", yTicks: [-0.25, 0, 0.25, 0.5, 0.75, 1], series: ser,
         hlines: [{ y: VDD / 2, color: P.faint }, { y: 0, color: P.axis, dash: [] }], vlines: [{ x: tc * u, color: P.text, dash: [2, 3] }, { x: T0 * u, color: P.faint, label: "천이" }] });
-      T(ctx, "V", 14, box.y + 6, { size: 11, color: P.dim });
       T(ctx, "피해선", box.x + box.w - 6, box.y + 10, { size: 11, color: P.accent, align: "right", weight: 700 });
       T(ctx, "공격선 (점선)", box.x + box.w - 6, box.y + 26, { size: 11, color: P.accent2, align: "right", weight: 700 });
     }, aopt("#cv-xtalk", 0.5, 1.0, 560, { minHeight: 300, maxHeight: 440 }));

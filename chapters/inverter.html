@@ -923,7 +923,7 @@
     function tpOf(S, Cx) { var r = transient({ vdd: VDD, Wn: S, Wp: S * MU, CL: S * CPAR1 + Cx, slew: 1e-12, N: 1500 }); return (r.tpHL + r.tpLH) / 2; }
     function build() {
       curve = []; for (var k = 0; k <= 20; k++) { var S = Math.pow(2, k / 4); curve.push([S, tpOf(S, cext * 1e-15) * 1e12]); }
-      tp0 = tpOf(1, 0);
+      tp0 = tpOf(1, 0) * 1e12;
     }
     var cv = SB.canvas("#cv-sz", function (ctx, w, h) {
       pal();
@@ -931,7 +931,7 @@
       var narrow = w < 560, S = Math.pow(2, u);
       var A = narrow ? { x: 50, y: 18, w: w - 50 - 14, h: h * 0.62 - 18 - 44 } : { x: 56, y: 18, w: w * 0.64 - 56 - 10, h: h - 18 - 46 };
       var B = narrow ? { x: 50, y: h * 0.62 + 24, w: w - 50 - 14, h: h * 0.38 - 24 - 20 } : { x: w * 0.64 + 40, y: 30, w: w * 0.36 - 40 - 16, h: h - 30 - 46 };
-      var ymax = Math.max(curve[0][1] * 1.1, tp0 * 3);
+      var ymax = Math.max(curve[0][1] * 1.4, tp0 * 3);
       var tpS = tpOf(S, cext * 1e-15) * 1e12;
       SB.chart(ctx, A, {
         x: [1, 32], y: [tp0 * 0.6, ymax], logX: true, logY: true, yTicks: [1, 2, 5, 10, 20, 50, 100].filter(function (t) { return t >= tp0 * 0.6 && t <= ymax; }), xTicks: [1, 2, 4, 8, 16, 32], xFmt: function (v) { return v + "×"; },
@@ -953,7 +953,7 @@
     function upd() {
       var S = Math.pow(2, u);
       SB.stat("sz-tp", fT(tpOf(S, cext * 1e-15)));
-      SB.stat("sz-t0", fT(tp0));
+      SB.stat("sz-t0", fT(tp0 * 1e-12));
       SB.stat("sz-cin", (S * CIN1 * 1e15).toFixed(2) + "<small>fF</small>");
       cv.redraw();
     }
@@ -1002,7 +1002,7 @@
         txt(ctx, (r[1] * unit * 1e15).toFixed(3) + " fJ", bx + 4, y + rh * 0.45, { size: 11, mono: true, weight: 700, color: P.text });
       });
       var yb = B.y + rows.length * rh + 6;
-      if (yb + 14 < B.y + B.h + 10) txt(ctx, "막대 한 칸 = 전원 에너지 축적. 단위 CV² = " + (unit * 1e15).toFixed(3) + " fJ", B.x, yb + 6, { size: 11, color: P.dim });
+      if (yb + 14 < B.y + B.h + 10) txt(ctx, "기준: C_L·V_DD² = " + (unit * 1e15).toFixed(3) + " fJ", B.x, yb + 6, { size: 11, color: P.dim });
     }, aopt("#cv-en", 0.42, 1.1, 560, { minHeight: 260, maxHeight: 520 }));
     function readout() {
       SB.stat("en-sw", fE(C * V * V)); SB.stat("en-n", String(cycles));

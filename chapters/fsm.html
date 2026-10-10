@@ -5,6 +5,30 @@
 <html lang="ko">
 <head>
 <!--head:start {"desc": "상태 레지스터와 다음 상태 논리로 이루어진 동기 순차 회로의 일반형에서 출발해 카운터·시프트 레지스터·LFSR, 상태도에서 게이트까지의 설계 절차, 무어와 밀리 기계의 타이밍 차이, 상태 인코딩과 최소화, 불법 상태 복구와 Verilog 코딩까지 직접 클럭을 넣어 가며 익힌다."}-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>유한 상태 기계 · DigitalBook</title>
+<meta name="description" content="상태 레지스터와 다음 상태 논리로 이루어진 동기 순차 회로의 일반형에서 출발해 카운터·시프트 레지스터·LFSR, 상태도에서 게이트까지의 설계 절차, 무어와 밀리 기계의 타이밍 차이, 상태 인코딩과 최소화, 불법 상태 복구와 Verilog 코딩까지 직접 클럭을 넣어 가며 익힌다.">
+<link rel="canonical" href="https://digitalbook.euiyun.com/chapters/fsm.html">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<meta name="theme-color" content="#1971c2">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="DigitalBook">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="유한 상태 기계 · DigitalBook">
+<meta property="og:description" content="상태 레지스터와 다음 상태 논리로 이루어진 동기 순차 회로의 일반형에서 출발해 카운터·시프트 레지스터·LFSR, 상태도에서 게이트까지의 설계 절차, 무어와 밀리 기계의 타이밍 차이, 상태 인코딩과 최소화, 불법 상태 복구와 Verilog 코딩까지 직접 클럭을 넣어 가며 익힌다.">
+<meta property="og:url" content="https://digitalbook.euiyun.com/chapters/fsm.html">
+<meta property="og:image" content="https://digitalbook.euiyun.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Chapter","LearningResource"],"@id":"https://digitalbook.euiyun.com/chapters/fsm.html#chapter","name":"유한 상태 기계","headline":"유한 상태 기계 · DigitalBook","description":"상태 레지스터와 다음 상태 논리로 이루어진 동기 순차 회로의 일반형에서 출발해 카운터·시프트 레지스터·LFSR, 상태도에서 게이트까지의 설계 절차, 무어와 밀리 기계의 타이밍 차이, 상태 인코딩과 최소화, 불법 상태 복구와 Verilog 코딩까지 직접 클럭을 넣어 가며 익힌다.","url":"https://digitalbook.euiyun.com/chapters/fsm.html","position":9,"inLanguage":"ko","isAccessibleForFree":true,"learningResourceType":"인터랙티브 교재","educationalLevel":"공대 학부","image":"https://digitalbook.euiyun.com/og.png","dateModified":"2026-10-10","isPartOf":{"@type":"Book","@id":"https://digitalbook.euiyun.com/#book","name":"DigitalBook · 디지털 회로 설계 교과서","url":"https://digitalbook.euiyun.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DigitalBook","item":"https://digitalbook.euiyun.com/"},{"@type":"ListItem","position":2,"name":"9. 유한 상태 기계","item":"https://digitalbook.euiyun.com/chapters/fsm.html"}]}]}</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/common.js"></script>
+<script src="../js/dig.js"></script>
 <!--head:end-->
 <style>
   .fsm-io { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -430,6 +454,1016 @@
       <div class="quiz-exp">조합 블록에서 어떤 경로에 대입이 없으면 "값을 기억하라"는 의미가 되어 래치가 추론된다. 블록 맨 앞에 <code>next = S0;</code>(또는 <code>next = state;</code>) 같은 기본값을 두어 막는다.</div></div>
   </section>
 </main>
-<!--SCRIPT-->
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
+  function T(ctx, s, x, y, o) {
+    o = o || {};
+    ctx.save();
+    ctx.fillStyle = o.color || SB.palette().text;
+    ctx.font = SB.font(o.size || 12, o.mono, o.weight);
+    ctx.textAlign = o.align || "center"; ctx.textBaseline = o.base || "middle";
+    ctx.fillText(s, x, y);
+    ctx.restore();
+  }
+  const lvH = (v) => (v ? '<span class="lv hi">1</span>' : '<span class="lv lo">0</span>');
+  /** DG.wave + 아직 오지 않은 칸 가리기 */
+  function waveMasked(ctx, box, o, filled) {
+    const r = DG.wave(ctx, box, o);
+    if (filled < o.cycles) {
+      const x0 = r.X(filled);
+      ctx.save();
+      ctx.fillStyle = DG.alpha(SB.color("canvas-bg") || "#ffffff", 0.88);
+      ctx.fillRect(x0 + 1, box.y, box.x + box.w - x0, box.h);
+      if (box.x + box.w - x0 > 70) T(ctx, "다음 클럭…", (x0 + box.x + box.w) / 2, box.y + box.h / 2, { color: SB.palette().faint, size: 12 });
+      ctx.restore();
+    }
+    return r;
+  }
+  function bitBox(ctx, x, y, w, h, v, label, o) {
+    o = o || {};
+    const P = SB.palette();
+    const col = DG.lv(v);
+    DG.box(ctx, x, y, w, h, DG.alpha(col, 0.18), null, { stroke: o.stroke || col, lw: o.lw || 1.6, r: 6 });
+    T(ctx, v == null ? "X" : String(v), x + w / 2, y + h / 2 + 1, { color: col, size: Math.min(20, h * 0.5), mono: true, weight: 700 });
+    if (label) T(ctx, label, x + w / 2, y - 9, { color: P.dim, size: 11, mono: true });
+  }
+
+  /* ================================================================ 그림 9-2: 일반형 블록도 */
+  (function () {
+    const cvEl = $("cv-block"); if (!cvEl) return;
+    let s = 0, up = 1, flash = 0;
+    const mode = SB.seg("bk-mode", () => { cv.redraw(); upd(); });
+    const nxt = () => (up ? (s + 1) & 3 : (s + 3) & 3);
+    const outY = () => (mode() === "moore" ? +(s === 3) : +((up && s === 3) || (!up && s === 0)));
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      const P = SB.palette(), narrow = w < 520;
+      const left = 44, right = w - 26, gap = narrow ? 20 : 48;
+      const bw = (right - left - 2 * gap) / 3, bh = Math.min(96, h * 0.4), cy = h * 0.46, by = cy - bh / 2;
+      const x1 = left, x2 = left + bw + gap, x3 = left + 2 * (bw + gap);
+      const fs = narrow ? 10.5 : 13;
+      const inY = cy - bh * 0.22, fbY = cy + bh * 0.22;
+      // 입력
+      DG.wire(ctx, [[8, inY], [x1, inY]], up, 2.4);
+      T(ctx, "UP=" + up, 8, inY - 11, { align: "left", size: 11, mono: true, color: DG.lv(up), weight: 700 });
+      // 블록
+      DG.box(ctx, x1, by, bw, bh, DG.alpha(P.accent, 0.1), null, { stroke: P.accent, lw: 1.5, r: 10 });
+      DG.box(ctx, x2, by, bw, bh, DG.alpha(P.accent2, 0.1 + 0.4 * flash), null, { stroke: P.accent2, lw: 1.5 + 2 * flash, r: 10 });
+      DG.box(ctx, x3, by, bw, bh, DG.alpha(P.text, 0.05), null, { stroke: P.dim, lw: 1.5, r: 10 });
+      if (narrow) {
+        T(ctx, "다음 상태", x1 + bw / 2, by + 14, { size: fs, weight: 700 }); T(ctx, "논리", x1 + bw / 2, by + 28, { size: fs, weight: 700 });
+        T(ctx, "상태", x2 + bw / 2, by + 14, { size: fs, weight: 700 }); T(ctx, "레지스터", x2 + bw / 2, by + 28, { size: fs, weight: 700 });
+        T(ctx, "출력", x3 + bw / 2, by + 14, { size: fs, weight: 700 }); T(ctx, "논리", x3 + bw / 2, by + 28, { size: fs, weight: 700 });
+      } else {
+        T(ctx, "다음 상태 논리", x1 + bw / 2, by + 18, { size: fs, weight: 700 });
+        T(ctx, "상태 레지스터", x2 + bw / 2, by + 18, { size: fs, weight: 700 });
+        T(ctx, "출력 논리", x3 + bw / 2, by + 18, { size: fs, weight: 700 });
+      }
+      const n = nxt();
+      T(ctx, (up ? "s+1" : "s−1") + " = " + n, x1 + bw / 2, by + bh * 0.62, { size: narrow ? 11 : 13, mono: true, color: P.accent, weight: 700 });
+      T(ctx, SB.bin(n, 2), x1 + bw / 2, by + bh * 0.84, { size: 11, mono: true, color: P.dim });
+      // 레지스터 비트 두 칸
+      const cw = Math.min(26, bw * 0.28), ch = Math.min(26, bh * 0.3), bx0 = x2 + bw / 2 - cw - 3, byb = by + bh * 0.52;
+      [(s >> 1) & 1, s & 1].forEach((b, i) => bitBox(ctx, bx0 + i * (cw + 6), byb, cw, ch, b, null));
+      const y = outY();
+      T(ctx, mode() === "moore" ? (narrow ? "s=3?" : "s = 3 ?") : (narrow ? "넘침?" : "한 바퀴 넘침?"), x3 + bw / 2, by + bh * 0.58, { size: narrow ? 10.5 : 12, color: P.dim });
+      T(ctx, "y = " + y, x3 + bw / 2, by + bh * 0.8, { size: narrow ? 12 : 14, mono: true, weight: 700, color: DG.lv(y) });
+      // 화살표
+      DG.arrow(ctx, x1 + bw, cy, x2, cy, P.dim, 1.8);
+      T(ctx, "s′", x1 + bw + gap / 2, cy - 10, { size: 11, mono: true, color: P.dim });
+      const tap = x2 + bw + gap / 2;
+      DG.arrow(ctx, x2 + bw, cy, x3, cy, P.dim, 1.8);
+      DG.dot(ctx, tap, cy, P.dim);
+      T(ctx, "s", tap + 7, cy - 10, { size: 11, mono: true, color: P.dim });
+      // 되먹임
+      const topY = by - 18;
+      ctx.save(); ctx.strokeStyle = P.dim; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(tap, cy); ctx.lineTo(tap, topY); ctx.lineTo(left - 16, topY); ctx.lineTo(left - 16, fbY); ctx.stroke(); ctx.restore();
+      DG.arrow(ctx, left - 16, fbY, x1, fbY, P.dim, 1.6);
+      if (!narrow) T(ctx, "현재 상태 되먹임", (left + tap) / 2, topY - 9, { size: 11, color: P.faint });
+      // 출력
+      DG.wire(ctx, [[x3 + bw, cy], [w - 6, cy]], y, 2.4);
+      // 밀리 경로
+      const botY = by + bh + 18;
+      if (mode() === "mealy") {
+        ctx.save(); ctx.strokeStyle = P.accent2; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(24, inY); ctx.lineTo(24, botY); ctx.lineTo(x3 + bw * 0.7, botY); ctx.lineTo(x3 + bw * 0.7, by + bh + 8); ctx.stroke(); ctx.restore();
+        DG.arrow(ctx, x3 + bw * 0.7, by + bh + 10, x3 + bw * 0.7, by + bh, P.accent2, 1.6);
+        DG.dot(ctx, 24, inY, P.accent2);
+      }
+      // 클럭
+      const ckx = x2 + bw * 0.3;
+      ctx.save(); ctx.strokeStyle = P.text; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(ckx - 7, by + bh); ctx.lineTo(ckx, by + bh - 8); ctx.lineTo(ckx + 7, by + bh); ctx.stroke();
+      ctx.strokeStyle = flash > 0 ? P.accent2 : P.dim; ctx.lineWidth = 1.6 + 2 * flash;
+      ctx.beginPath(); ctx.moveTo(ckx, by + bh); ctx.lineTo(ckx, h - 22); ctx.stroke(); ctx.restore();
+      T(ctx, "CLK", ckx, h - 11, { size: 11, mono: true, color: flash > 0 ? P.accent2 : P.dim, weight: 700 });
+    }, { aspect: 0.42, minHeight: 230, maxHeight: 300 });
+    function upd() {
+      SB.stat("bk-s", s + " <small>(" + SB.bin(s, 2) + ")</small>");
+      SB.stat("bk-n", nxt() + " <small>(" + SB.bin(nxt(), 2) + ")</small>");
+      SB.stat("bk-y", lvH(outY()));
+      const b = $("bk-up"); if (b) b.innerHTML = "UP = <b>" + up + "</b>";
+    }
+    on("bk-up", "click", () => { up ^= 1; upd(); cv.redraw(); });
+    on("bk-clk", "click", () => { s = nxt(); flash = 1; upd(); cv.redraw(); });
+    on("bk-rst", "click", () => { s = 0; flash = 0; upd(); cv.redraw(); });
+    SB.loop(cvEl, (dt) => { if (flash > 0) { flash = Math.max(0, flash - dt * 2.2); cv.redraw(); } });
+    upd();
+  })();
+
+  /* ================================================================ 그림 9-3: 4비트 카운터 */
+  (function () {
+    const cvEl = $("cv-cnt"); if (!cvEl) return;
+    let cnt = 0, hist = [0], acc = 0;
+    const NC = 16;
+    const run = SB.seg("ct-run", () => { acc = 0; });
+    const spd = SB.range("ct-spd", (v) => v + " 클럭/초");
+    function tick() { cnt = (cnt + 1) & 15; hist.push(cnt); if (hist.length > NC) hist.shift(); }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      const P = SB.palette(), narrow = w < 520;
+      const th = 96, bw = Math.min(60, (w - 40) / 4 - 16), gap = narrow ? 14 : 26;
+      const total = 4 * bw + 3 * gap, x0 = narrow ? (w - total) / 2 : Math.max(16, (w - total) / 2 - 60);
+      for (let k = 0; k < 4; k++) {
+        const i = 3 - k, b = (cnt >> i) & 1, x = x0 + k * (bw + gap);
+        const Tn = (cnt & ((1 << i) - 1)) === (1 << i) - 1;
+        bitBox(ctx, x, 26, bw, 40, b, "Q" + i, Tn ? { stroke: P.accent2, lw: 3 } : null);
+        const lab = i === 0 ? "T=1" : "T=" + Array.from({ length: i }, (_, j) => "Q" + j).join("·");
+        T(ctx, lab, x + bw / 2, 80, { size: narrow ? 9 : 10.5, mono: true, color: Tn ? P.accent2 : P.faint });
+      }
+      if (!narrow) {
+        T(ctx, "= " + cnt, x0 + total + 30, 46, { align: "left", size: 26, mono: true, weight: 700, color: P.accent });
+        T(ctx, "0x" + cnt.toString(16).toUpperCase(), x0 + total + 32, 74, { align: "left", size: 12, mono: true, color: P.dim });
+      }
+      const sig = [{ name: "CLK", type: "clk" }];
+      for (let i = 0; i < 4; i++) sig.push({ name: "Q" + i, type: "bit", v: hist.map((c) => (c >> i) & 1) });
+      sig.push({ name: "N", type: "bus", v: hist.map((c) => String(c)) });
+      waveMasked(ctx, { x: 8, y: th + 8, w: w - 16, h: h - th - 14 }, { cycles: NC, signals: sig, nameW: 40, cursor: hist.length - 1 }, hist.length);
+    }, { height: 320 });
+    function upd() { cv.redraw(); }
+    on("ct-clk", "click", () => { tick(); upd(); });
+    on("ct-rst", "click", () => { cnt = 0; hist = [0]; upd(); });
+    SB.loop(cvEl, (dt) => {
+      if (run() !== "run") return;
+      acc += dt * spd();
+      let k = 0;
+      while (acc >= 1 && k++ < 20) { acc -= 1; tick(); }
+      if (k) upd();
+    });
+  })();
+
+  /* ================================================================ 시뮬레이터: 리플 vs 동기 카운터 */
+  (function () {
+    const cvEl = $("cv-ripple"); if (!cvEl) return;
+    const mode = SB.seg("rp-mode", () => recompute());
+    const gN = SB.range("rp-n", (v) => v + "비트", () => recompute());
+    const gTcq = SB.range("rp-tcq", (v) => v + " ps", () => recompute());
+    const gTg = SB.range("rp-tg", (v) => v + " ps", () => recompute());
+    const gT = SB.range("rp-T", (v) => v + " ps (" + SB.fmt(1000 / v, 3) + " GHz)", () => recompute());
+    const CYC = 8, TSU = 10;
+    let R = null;
+    function build(kind, n, tcq, tg, T, start) {
+      const C = new DG.Circuit();
+      C.input("clk", 0);
+      for (let i = 0; i < n; i++) {
+        const init = (start >> i) & 1;
+        if (kind === "ripple") {
+          C.gate("NOT", ["q" + i], "qb" + i, 1);
+          C.dff("q" + i, "qb" + i, i ? "qb" + (i - 1) : "clk", { tcq, init });
+        } else {
+          if (i === 0) C.gate("NOT", ["q0"], "d0", tg);
+          else {
+            let cn = "q0";
+            if (i >= 2) { C.gate("AND", [i === 2 ? "q0" : "c" + (i - 1), "q" + (i - 1)], "c" + i, tg); cn = "c" + i; }
+            C.gate("XOR", ["q" + i, cn], "d" + i, tg);
+          }
+          C.dff("q" + i, "d" + i, "clk", { tcq, init });
+        }
+      }
+      C.reset();
+      C.clock("clk", T, T / 2, T / 2 + CYC * T);
+      const tEnd = (CYC + 1) * T;
+      C.run(tEnd);
+      return C;
+    }
+    function analyze(C, n, T, start) {
+      const mask = (1 << n) - 1, tEnd = (CYC + 1) * T;
+      const dt = Math.max(0.5, tEnd / 700), N = Math.ceil(tEnd / dt);
+      const edges = []; for (let k = 0; k < CYC; k++) edges.push(T / 2 + k * T);
+      const bits = [], val = [], wrong = [];
+      for (let i = 0; i < n; i++) bits.push(C.sample("q" + i, 0, dt, N));
+      const clk = C.sample("clk", 0, dt, N);
+      for (let j = 0; j < N; j++) {
+        let v = 0, ok = true;
+        for (let i = 0; i < n; i++) { const b = bits[i][j]; if (b !== 0 && b !== 1) { ok = false; break; } v |= b << i; }
+        val.push(ok ? v : null);
+        const t = j * dt + dt / 2;
+        let k = 0; while (k < CYC && edges[k] <= t) k++;
+        const nw = (start + k) & mask, old = (start + k - 1 + mask + 1) & mask;
+        wrong.push(ok && v !== nw && !(k > 0 && v === old));
+      }
+      // 정착 시간
+      let settle = 0;
+      for (let i = 0; i < n; i++) C.trace("q" + i).forEach(([t]) => {
+        let e = -1; for (let k = 0; k < CYC; k++) if (edges[k] <= t) e = edges[k];
+        if (e >= 0 && t > e) settle = Math.max(settle, t - e);
+      });
+      const runs = []; let a = -1;
+      for (let j = 0; j <= N; j++) { const w = j < N && wrong[j]; if (w && a < 0) a = j; if (!w && a >= 0) { runs.push([a, j]); a = -1; } }
+      return { dt, N, edges, bits, val, wrong, runs, settle, clk };
+    }
+    function recompute() {
+      const n = gN(), tcq = gTcq(), tg = gTg(), T = gT(), m = mode();
+      const start = ((1 << (n - 1)) - 3) & ((1 << n) - 1);
+      const kinds = m === "both" ? ["ripple", "sync"] : [m];
+      const res = {};
+      kinds.forEach((k) => { res[k] = analyze(build(k, n, tcq, tg, T, start), n, T, start); });
+      const tminR = n * tcq + (n - 1) + TSU, tminS = tcq + Math.max(1, n - 1) * tg + TSU;
+      R = { n, T, m, res, kinds, tminR, tminS };
+      const main = res[kinds[0]];
+      SB.stat("rp-settle", kinds.map((k) => (kinds.length > 1 ? (k === "ripple" ? "리플 " : "동기 ") : "") + Math.round(res[k].settle) + " ps").join(" · "));
+      SB.stat("rp-wrong", kinds.map((k) => (kinds.length > 1 ? (k === "ripple" ? "리플 " : "동기 ") : "") + res[k].runs.length + "곳").join(" · "));
+      SB.stat("rp-tmin", kinds.map((k) => (kinds.length > 1 ? (k === "ripple" ? "리플 " : "동기 ") : "") + (k === "ripple" ? tminR : tminS) + " ps").join(" · "));
+      let msg;
+      if (m === "sync") msg = T < tminS ? '<span class="bad-t">타이밍 위반: 세는 값이 틀림</span>' : '<span class="ok-t">모든 비트가 함께 바뀜</span>';
+      else if (m === "ripple") msg = main.runs.length ? '<span class="warn-t">중간값 ' + main.runs.length + "곳 노출</span>" : '<span class="ok-t">이번 구간엔 중간값 없음</span>';
+      else msg = "리플 " + res.ripple.runs.length + "곳 / 동기 " + res.sync.runs.length + "곳";
+      SB.stat("rp-ok", msg);
+      cv.redraw();
+    }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      if (!R) return;
+      const P = SB.palette(), narrow = w < 520;
+      const main = R.res[R.kinds[0]];
+      const sig = [{ name: "CLK", type: "bit", v: main.clk, color: P.dim }];
+      if (R.m === "both") {
+        sig.push({ name: "리플", type: "bus", v: R.res.ripple.val.map((v) => (v == null ? null : String(v))) });
+        sig.push({ name: "동기", type: "bus", v: R.res.sync.val.map((v) => (v == null ? null : String(v))), color: P.accent2 });
+      } else {
+        for (let i = 0; i < R.n; i++) sig.push({ name: "Q" + i, type: "bit", v: main.bits[i] });
+        sig.push({ name: "N", type: "bus", v: main.val.map((v) => (v == null ? null : String(v))) });
+      }
+      const box = { x: 6, y: 18, w: w - 12, h: h - 46 };
+      const shade = [];
+      R.kinds.forEach((k) => R.res[k].runs.forEach(([a, b]) => shade.push({ c0: a, c1: b, color: DG.alpha(P.bad, 0.2) })));
+      const marks = main.edges.map((e) => ({ c: e / main.dt, color: P.faint, dash: [2, 3] }));
+      const W = DG.wave(ctx, box, { cycles: main.N, signals: sig, nameW: narrow ? 40 : 56, gridStep: 1e9, skew: 0, shade, marks });
+      // 시간 축
+      const step = R.T * (CYC + 1) > 1200 ? 200 : R.T * (CYC + 1) > 600 ? 100 : 50;
+      ctx.save(); ctx.strokeStyle = P.axis; ctx.fillStyle = P.dim; ctx.font = SB.font(10.5, true);
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      const yb = box.y + box.h + 4;
+      for (let t = 0; t <= R.T * (CYC + 1); t += step) {
+        const x = W.X(t / main.dt); if (x > w - 14) break;
+        ctx.beginPath(); ctx.moveTo(x, yb); ctx.lineTo(x, yb + 4); ctx.stroke();
+        if (!narrow || (t / step) % 2 === 0) ctx.fillText(String(t), x, yb + 6);
+      }
+      ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("t (ps)", 6, yb + 6);
+      ctx.restore();
+      T(ctx, "빨간 띠 = 이전 값도 새 값도 아닌 잘못된 값", w - 8, 9, { align: "right", size: 11, color: P.bad });
+    }, { height: 340 });
+    recompute();
+  })();
+
+  /* ================================================================ 그림 9-4: 시프트 레지스터 */
+  (function () {
+    const cvEl = $("cv-shift"); if (!cvEl) return;
+    let q = [0, 0, 0, 0], si = 1, hist = [];
+    const NC = 12;
+    const mode = SB.seg("sh-mode", () => { reset(); });
+    function inBit() { const m = mode(); return m === "sipo" ? si : m === "ring" ? q[3] : 1 - q[3]; }
+    function snap() { hist.push({ i: inBit(), q: q.slice() }); if (hist.length > NC) hist.shift(); }
+    function reset() { q = mode() === "ring" ? [1, 0, 0, 0] : [0, 0, 0, 0]; hist = []; snap(); upd(); }
+    function clk() { const b = inBit(); q = [b, q[0], q[1], q[2]]; snap(); upd(); }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      const P = SB.palette(), narrow = w < 520, m = mode();
+      const th = 104, bw = Math.min(56, (w - 90) / 4 - 12), gap = narrow ? 12 : 30;
+      const total = 4 * bw + 3 * gap, x0 = Math.max(62, (w - total) / 2), by = 40, bh = 38;
+      const ib = inBit();
+      // 입력
+      T(ctx, m === "sipo" ? "SI" : m === "ring" ? "Q3" : "Q̄3", x0 - 46, by + bh / 2 - 13, { size: 11, mono: true, color: P.dim, weight: 700 });
+      DG.wire(ctx, [[x0 - 56, by + bh / 2], [x0, by + bh / 2]], ib, 2.4);
+      T(ctx, String(ib), x0 - 30, by + bh / 2 + 12, { size: 12, mono: true, color: DG.lv(ib), weight: 700 });
+      for (let i = 0; i < 4; i++) {
+        const x = x0 + i * (bw + gap);
+        bitBox(ctx, x, by, bw, bh, q[i], "Q" + i);
+        if (i < 3) DG.wire(ctx, [[x + bw, by + bh / 2], [x + bw + gap, by + bh / 2]], q[i], 2.2);
+      }
+      const xe = x0 + total;
+      if (m !== "sipo") {
+        ctx.save(); ctx.strokeStyle = P.accent2; ctx.lineWidth = 1.6; ctx.setLineDash([5, 3]);
+        const yb = by + bh + 22;
+        ctx.beginPath(); ctx.moveTo(xe, by + bh / 2); ctx.lineTo(xe + 10, by + bh / 2); ctx.lineTo(xe + 10, yb); ctx.lineTo(x0 - 56, yb); ctx.lineTo(x0 - 56, by + bh / 2); ctx.stroke(); ctx.restore();
+        T(ctx, m === "ring" ? "되먹임: Q3 → 입력" : "되먹임: NOT Q3 → 입력", (x0 + xe) / 2, by + bh + 32, { size: 10.5, color: P.accent2 });
+      } else {
+        DG.arrow(ctx, xe, by + bh / 2, Math.min(w - 4, xe + 26), by + bh / 2, P.dim, 1.4);
+      }
+      const sig = [{ name: "CLK", type: "clk" }, { name: m === "sipo" ? "SI" : "입력", type: "bit", v: hist.map((s) => s.i) }];
+      for (let i = 0; i < 4; i++) sig.push({ name: "Q" + i, type: "bit", v: hist.map((s) => s.q[i]) });
+      waveMasked(ctx, { x: 8, y: th + 8, w: w - 16, h: h - th - 14 }, { cycles: NC, signals: sig, nameW: 42, cursor: hist.length - 1 }, hist.length);
+    }, { height: 320 });
+    function upd() {
+      const b = $("sh-si"); if (b) { b.innerHTML = "SI = <b>" + si + "</b>"; b.disabled = mode() !== "sipo"; }
+      cv.redraw();
+    }
+    on("sh-si", "click", () => { si ^= 1; if (hist.length) hist[hist.length - 1].i = inBit(); upd(); });
+    on("sh-clk", "click", clk);
+    on("sh-rst", "click", reset);
+    reset();
+  })();
+
+  /* ================================================================ 그림 9-5: LFSR */
+  (function () {
+    const cvEl = $("cv-lfsr"); if (!cvEl) return;
+    const BEST = { 3: [3, 2], 4: [4, 3], 5: [5, 3], 6: [6, 5], 7: [7, 6], 8: [8, 6, 5, 4], 9: [9, 5], 10: [10, 7] };
+    let n = 4, taps = new Set(BEST[4]), s = 1, visited = new Uint8Array(16), stream = [], acc = 0, layout = null;
+    const run = SB.seg("lf-run", () => { acc = 0; });
+    const mask = () => (1 << n) - 1;
+    function fb(st) { let f = 0; taps.forEach((t) => { if (t <= n) f ^= (st >> (t - 1)) & 1; }); return f; }
+    function stepState(st) { return ((st << 1) | fb(st)) & mask(); }
+    function step() { stream.push((s >> (n - 1)) & 1); if (stream.length > 400) stream.shift(); s = stepState(s); visited[s] = 1; }
+    function period(st) {
+      const seen = new Map(); let k = 0;
+      while (!seen.has(st) && k < 5000) { seen.set(st, k++); st = stepState(st); }
+      return k - seen.get(st);
+    }
+    function reset(keepTaps) { if (!keepTaps) taps = new Set(BEST[n]); s = 1; visited = new Uint8Array(1 << n); visited[1] = 1; stream = []; upd(); }
+    const gN = SB.range("lf-n", (v) => v + "비트", (v) => { n = v; reset(false); });
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      const P = SB.palette(), narrow = w < 520;
+      const xl = 46, bs = Math.min(40, (w - xl - 16) / n - 6), gap = Math.min(14, Math.max(4, (w - xl - 16 - n * bs) / Math.max(1, n - 1)));
+      const by = 26, tapY = by + bs + 18, busY = tapY + 20;
+      layout = { xl, bs, gap, by, tapY };
+      const xs = (i) => xl + i * (bs + gap);
+      // 되먹임 버스
+      const act = [...taps].filter((t) => t <= n).sort((a, b) => a - b);
+      const f = fb(s);
+      ctx.save(); ctx.strokeStyle = P.accent2; ctx.lineWidth = 1.6;
+      if (act.length) {
+        const xr = xs(act[act.length - 1] - 1) + bs / 2;
+        ctx.beginPath(); ctx.moveTo(22, busY); ctx.lineTo(xr, busY); ctx.stroke();
+        act.forEach((t) => { const x = xs(t - 1) + bs / 2; ctx.beginPath(); ctx.moveTo(x, tapY + 7); ctx.lineTo(x, busY); ctx.stroke(); DG.dot(ctx, x, busY, P.accent2, 2.5); });
+      }
+      ctx.restore();
+      // XOR 기호
+      ctx.save(); ctx.strokeStyle = P.text; ctx.lineWidth = 1.6; ctx.fillStyle = SB.color("bg-elev");
+      ctx.beginPath(); ctx.arc(22, busY, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(13, busY); ctx.lineTo(31, busY); ctx.moveTo(22, busY - 9); ctx.lineTo(22, busY + 9); ctx.stroke(); ctx.restore();
+      DG.wire(ctx, [[22, busY - 9], [22, by + bs / 2], [xl - 3, by + bs / 2]], f, 2.2);
+      T(ctx, String(f), 30, by + bs / 2 - 9, { size: 11, mono: true, color: DG.lv(f), weight: 700 });
+      for (let i = 0; i < n; i++) {
+        const b = (s >> i) & 1, x = xs(i), tp = taps.has(i + 1);
+        bitBox(ctx, x, by, bs, bs, b, "q" + (i + 1));
+        ctx.save(); ctx.beginPath(); ctx.arc(x + bs / 2, tapY, 7, 0, Math.PI * 2);
+        ctx.fillStyle = tp ? P.accent2 : SB.color("bg-elev"); ctx.fill(); ctx.strokeStyle = tp ? P.accent2 : P.faint; ctx.lineWidth = 1.4; ctx.stroke(); ctx.restore();
+      }
+      // 하단: 출력 비트열 + 상태 격자
+      const y2 = busY + 26, avail = h - y2 - 8;
+      const cols = 1 << Math.ceil(n / 2), rows = 1 << Math.floor(n / 2);
+      const cell = Math.max(2, Math.floor(Math.min(avail / rows, (narrow ? w * 0.45 : w * 0.38) / cols)));
+      const gw = cols * cell, gx = w - gw - 10, gy = y2 + 14;
+      T(ctx, "지나간 상태 " + visited.reduce((a, b) => a + b, 0) + " / " + (1 << n), gx + gw / 2, y2 + 4, { size: 10.5, color: P.dim });
+      for (let k = 0; k < 1 << n; k++) {
+        const cx = gx + (k % cols) * cell, cyy = gy + Math.floor(k / cols) * cell;
+        ctx.fillStyle = k === s ? P.accent2 : visited[k] ? DG.alpha(P.accent, 0.75) : DG.alpha(P.faint, 0.18);
+        ctx.fillRect(cx, cyy, cell - (cell > 3 ? 1 : 0), cell - (cell > 3 ? 1 : 0));
+      }
+      ctx.save(); ctx.strokeStyle = P.bad; ctx.lineWidth = 1.2; ctx.strokeRect(gx - 0.5, gy - 0.5, cell, cell); ctx.restore();
+      const sw = gx - 26;
+      T(ctx, "출력 비트열 (q" + n + ")", 10, y2 + 4, { align: "left", size: 10.5, color: P.dim });
+      const sq = 9, per = Math.max(1, Math.floor(sw / (sq + 2))), lines = Math.max(1, Math.floor((avail - 14) / (sq + 4)));
+      const shown = stream.slice(-per * lines);
+      shown.forEach((b, k) => {
+        ctx.fillStyle = DG.lv(b);
+        ctx.fillRect(10 + (k % per) * (sq + 2), y2 + 14 + Math.floor(k / per) * (sq + 4), sq, sq);
+      });
+      if (!stream.length) T(ctx, "클럭을 넣어 보자", 10, y2 + 22, { align: "left", size: 11, color: P.faint });
+    }, { height: 330 });
+    function upd() {
+      const p = period(s), mx = (1 << n) - 1;
+      SB.stat("lf-st", '<span class="bits">' + SB.bin(s, n) + "</span>");
+      SB.stat("lf-per", String(p));
+      SB.stat("lf-max", String(mx));
+      SB.stat("lf-ok", s === 0 ? '<span class="bad-t">0에 갇힘</span>' : p === mx ? '<span class="ok-t">최대 길이</span>' : '<span class="warn-t">짧은 주기</span>');
+      cv.redraw();
+    }
+    DG.pointer(cvEl, {
+      down(x, y) {
+        if (!layout) return;
+        const { xl, bs, gap, by, tapY } = layout;
+        if (y < by - 4 || y > tapY + 10) return;
+        const i = Math.floor((x - xl + gap / 2) / (bs + gap));
+        if (i < 0 || i >= n) return;
+        if (taps.has(i + 1)) taps.delete(i + 1); else taps.add(i + 1);
+        upd();
+      },
+    });
+    on("lf-clk", "click", () => { step(); upd(); });
+    on("lf-x16", "click", () => { for (let k = 0; k < 16; k++) step(); upd(); });
+    on("lf-best", "click", () => { taps = new Set(BEST[n]); upd(); });
+    on("lf-rst", "click", () => reset(true));
+    SB.loop(cvEl, (dt) => {
+      if (run() !== "run") return;
+      acc += dt * 8; let k = 0;
+      while (acc >= 1 && k++ < 20) { acc -= 1; step(); }
+      if (k) upd();
+    });
+    n = gN(); reset(false);
+  })();
+
+  /* ================================================================ 그림 9-6: "101" 검출기 게이트 회로 */
+  (function () {
+    const cvEl = $("cv-g101"); if (!cvEl) return;
+    let x = 0, q1 = 0, q0 = 0, hx = "", hy = "", timer = 0;
+    function nets() {
+      const xb = 1 - x, q0b = 1 - q0, a = q0 & xb, b = q1 & q0b & x, d1 = a | b;
+      return { x, "x̄": xb, q0, q1, "q̄0": q0b, a, b, D1: d1, D0: x, y: q1 & q0 };
+    }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      const P = SB.palette(), N = nets(), sx = w / 600, sy = h / 250, fs = w < 520 ? 10 : 12;
+      const lab = (name, px, py, align) => T(ctx, name, px, py, { align, size: fs, mono: true, weight: 700, color: DG.lv(N[name]) });
+      function G(type, gx, gy, gw, gh, ins, out) {
+        const g = DG.gate(ctx, type, gx * sx, gy * sy, gw * sx, gh * sy, { n: ins.length, inV: ins.map((k) => N[k]), outV: N[out] });
+        g.inputs.forEach(([px, py], i) => lab(ins[i], px - 3, py, "right"));
+        lab(out, g.output[0] + 3, g.output[1], "left");
+      }
+      G("NOT", 40, 18, 64, 30, ["x"], "x̄");
+      G("NOT", 40, 82, 64, 30, ["q0"], "q̄0");
+      G("AND", 175, 14, 74, 38, ["q0", "x̄"], "a");
+      G("AND", 175, 74, 74, 48, ["q1", "q̄0", "x"], "b");
+      G("OR", 318, 44, 74, 40, ["a", "b"], "D1");
+      G("AND", 318, 186, 74, 40, ["q1", "q0"], "y");
+      // D0 = x 배선
+      DG.wire(ctx, [[340 * sx, 140 * sy], [392 * sx, 140 * sy]], x, 2);
+      lab("x", 337 * sx, 140 * sy, "right"); lab("D0", 395 * sx, 140 * sy, "left");
+      // 플립플롭
+      const ff = (fy, dName, qName) => {
+        const fx = 470 * sx, fw = 80 * sx, fh = 54 * sy, y0 = fy * sy;
+        DG.box(ctx, fx, y0, fw, fh, SB.color("bg-elev"), null, { stroke: P.text, lw: 1.6, r: 4 });
+        T(ctx, "D", fx + 9, y0 + fh * 0.35, { size: 11, mono: true, color: P.dim });
+        T(ctx, "Q", fx + fw - 9, y0 + fh * 0.35, { size: 11, mono: true, color: P.dim });
+        T(ctx, String(N[qName]), fx + fw / 2, y0 + fh * 0.42, { size: 16, mono: true, weight: 700, color: DG.lv(N[qName]) });
+        ctx.save(); ctx.strokeStyle = P.text; ctx.lineWidth = 1.3; ctx.beginPath();
+        ctx.moveTo(fx + fw / 2 - 6, y0 + fh); ctx.lineTo(fx + fw / 2, y0 + fh - 7); ctx.lineTo(fx + fw / 2 + 6, y0 + fh); ctx.stroke(); ctx.restore();
+        DG.wire(ctx, [[fx - 14 * sx, y0 + fh * 0.35], [fx, y0 + fh * 0.35]], N[dName], 2);
+        lab(dName, fx - 15 * sx, y0 + fh * 0.35, "right");
+        DG.wire(ctx, [[fx + fw, y0 + fh * 0.35], [fx + fw + 14 * sx, y0 + fh * 0.35]], N[qName], 2);
+        lab(qName, fx + fw + 15 * sx, y0 + fh * 0.35, "left");
+        ctx.save(); ctx.strokeStyle = P.faint; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(fx + fw / 2, y0 + fh); ctx.lineTo(fx + fw / 2, y0 + fh + 10 * sy); ctx.stroke(); ctx.restore();
+      };
+      ff(24, "D1", "q1"); ff(112, "D0", "q0");
+      T(ctx, "CLK ↑", 510 * sx, 186 * sy, { size: 11, mono: true, color: P.dim });
+      T(ctx, "같은 이름 = 같은 선", 10, h - 10, { align: "left", size: 10.5, color: P.faint });
+    }, { aspect: 250 / 600, minHeight: 210, maxHeight: 340 });
+    function upd() {
+      const N = nets();
+      SB.stat("g1-s", '<span class="bits">' + q1 + q0 + "</span> = S" + (q1 * 2 + q0));
+      SB.stat("g1-n", '<span class="bits">' + N.D1 + N.D0 + "</span>");
+      SB.stat("g1-y", lvH(N.y));
+      SB.stat("g1-h", hx ? '<span class="bits">x ' + hx + "<br>y " + hy + "</span>" : "—");
+      const b = $("g1-x"); if (b) b.innerHTML = "x = <b>" + x + "</b>";
+      cv.redraw();
+    }
+    function clk() { const N = nets(); hx = (hx + x).slice(-14); q1 = N.D1; q0 = N.D0; hy = (hy + (q1 & q0)).slice(-14); upd(); }
+    on("g1-x", "click", () => { x ^= 1; upd(); });
+    on("g1-clk", "click", clk);
+    on("g1-rst", "click", () => { clearInterval(timer); q1 = q0 = 0; x = 0; hx = hy = ""; upd(); });
+    on("g1-seq", "click", () => {
+      clearInterval(timer);
+      const seq = [1, 0, 1, 1, 0, 1]; let k = 0;
+      timer = setInterval(() => { if (k >= seq.length) { clearInterval(timer); return; } x = seq[k++]; clk(); }, 420);
+    });
+    upd();
+  })();
+
+  /* ================================================================ 그림 9-7: 무어 vs 밀리 파형 */
+  (function () {
+    const cvEl = $("cv-mm"); if (!cvEl) return;
+    const DEF = [0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1];
+    let bits = DEF.slice(), W = null, S = 10;
+    const NC = DEF.length;
+    const glitch = SB.seg("mm-glitch", () => cv.redraw());
+    const reg = SB.seg("mm-reg", () => cv.redraw());
+    const dM = [[0, 1], [2, 1], [0, 3], [2, 1]], dE = [[0, 1], [2, 1], [0, 1]];
+    function model() {
+      const sm = [0], se = [0];
+      for (let c = 0; c < NC; c++) { sm.push(dM[sm[c]][bits[c]]); se.push(dE[se[c]][bits[c]]); }
+      let gc = [];
+      if (glitch() === "1") {
+        for (let c = 0; c < NC; c++) if (se[c] === 2) gc.push(c);
+        if (!gc.length) gc = [3, 9];
+        if (!gc.includes(1)) gc.push(1);
+      }
+      const L = NC * S, X = [], MS = [], MY = [], ES = [], EZ = [];
+      const zEnd = (c) => (c >= 0 ? +(se[c] === 2 && bits[c] === 1) : 0);
+      let pulses = 0;
+      for (let j = 0; j < L; j++) {
+        const c = Math.floor(j / S), f = j % S;
+        let xv = f >= 2 ? bits[c] : c > 0 ? bits[c - 1] : 0;
+        if (gc.includes(c) && f === 6) xv = 1 - bits[c];
+        X.push(xv);
+        const ms = f >= 1 ? sm[c] : c > 0 ? sm[c - 1] : 0, es = f >= 1 ? se[c] : c > 0 ? se[c - 1] : 0;
+        MS.push("S" + ms); MY.push(+(ms === 3)); ES.push("S" + es);
+        if (reg() === "1") EZ.push(f >= 1 ? zEnd(c - 1) : zEnd(c - 2));
+        else EZ.push(+(es === 2 && xv === 1));
+      }
+      gc.forEach((c) => { if (se[c] === 2 && reg() !== "1") pulses++; });
+      let mo = 0, me = 0; for (let c = 0; c < NC; c++) { if (sm[c] === 3) mo++; if (se[c] === 2 && bits[c] === 1) me++; }
+      return { X, MS, MY, ES, EZ, gc, pulses, mo, me };
+    }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      const P = SB.palette(), M = model(), narrow = w < 520;
+      const shade = M.gc.map((c) => ({ c0: c * S + 6, c1: c * S + 7, color: DG.alpha(P.bad, 0.25) }));
+      W = DG.wave(ctx, { x: 6, y: 6, w: w - 12, h: h - 12 }, {
+        cycles: NC * S, gridStep: S, skew: 0.4, nameW: narrow ? 50 : 76, shade,
+        signals: [
+          { name: "CLK", type: "clk", period: S },
+          { name: "X", type: "bit", v: M.X, fill: true },
+          { name: narrow ? "무어 s" : "무어 상태", type: "bus", v: M.MS },
+          { name: "무어 Y", type: "bit", v: M.MY, fill: true },
+          { name: narrow ? "밀리 s" : "밀리 상태", type: "bus", v: M.ES, color: P.accent2 },
+          { name: reg() === "1" ? (narrow ? "Z(FF)" : "밀리 Z(FF)") : "밀리 Z", type: "bit", v: M.EZ, fill: true },
+        ],
+      });
+      // 입력 비트 글자
+      const [t0] = W.rowY(1);
+      for (let c = 0; c < NC; c++) T(ctx, String(bits[c]), W.X(c * S + S / 2 + 1), t0 + 6, { size: 9.5, mono: true, color: P.faint });
+      SB.stat("mm-mo", M.mo + "번");
+      SB.stat("mm-me", M.me + "번");
+      SB.stat("mm-gl", glitch() === "1" ? (M.pulses ? '<span class="bad-t">' + M.pulses + "개</span>" : '<span class="ok-t">0개</span>') : "0개");
+    }, { height: 300 });
+    DG.pointer(cvEl, {
+      down(px, py) {
+        if (!W) return;
+        const [a, b] = W.rowY(1); if (py < a || py > b) return;
+        const c = Math.floor(W.colAt(px) / S);
+        if (c >= 0 && c < NC) { bits[c] ^= 1; cv.redraw(); }
+      },
+    });
+    on("mm-rand", "click", () => { bits = bits.map(() => +(Math.random() < 0.55)); cv.redraw(); });
+    on("mm-def", "click", () => { bits = DEF.slice(); cv.redraw(); });
+  })();
+
+  /* ================================================================ FSM 정의(놀이터·인코딩·최소화 공용) */
+  const PRESETS = {
+    det101: { name: '"101" 검출기 (무어)', type: "moore", inputs: ["0", "1"], inVars: ["x"], states: ["S0", "S1", "S2", "S3"], out: ["0", "0", "0", "1"], outBits: [[0], [0], [0], [1]], outVars: ["y"], next: [[0, 1], [2, 1], [0, 3], [2, 1]],
+      desc: "겹침 허용 \"101\" 검출기(무어). S3에 들어간 다음 주기에 출력 1." },
+    det101m: { name: '"101" 검출기 (밀리)', type: "mealy", inputs: ["0", "1"], inVars: ["x"], states: ["S0", "S1", "S2"], out: [["0", "0"], ["0", "0"], ["0", "1"]], outBits: [[[0], [0]], [[0], [0]], [[0], [1]]], outVars: ["z"], next: [[0, 1], [2, 1], [0, 1]],
+      desc: "같은 검출기를 밀리로. 상태 3개, 화살표에 입력/출력. S2에서 1이 오는 그 주기에 출력 1." },
+    vend: { name: "자판기 (150원)", type: "moore", inputs: ["없음", "50", "100"], inVars: ["c1", "c0"], states: ["0원", "50원", "100원", "배출", "배출+50"], out: ["-", "-", "-", "음료", "음료+50"], outBits: [[0, 0], [0, 0], [0, 0], [1, 0], [1, 1]], outVars: ["drop", "chg"],
+      next: [[0, 1, 2], [1, 2, 3], [2, 3, 4], [0, 1, 2], [0, 1, 2]],
+      desc: "150원 음료 자판기(무어). 입력은 이번 주기에 들어온 동전. 200원이 되면 음료와 50원 거스름을 낸다. 입력 부호화: 없음=00, 50=01, 100=10." },
+    traffic: { name: "신호등 (두 도로)", type: "moore", inputs: ["00", "01", "10", "11"], inVars: ["TA", "TB"], states: ["A녹", "A황", "B녹", "B황"], out: ["녹/적", "황/적", "적/녹", "적/황"],
+      outBits: [[0, 0, 1, 0], [0, 1, 1, 0], [1, 0, 0, 0], [1, 0, 0, 1]], outVars: ["LA1", "LA0", "LB1", "LB0"],
+      next: [[1, 1, 0, 0], [2, 2, 2, 2], [3, 2, 3, 2], [0, 0, 0, 0]],
+      desc: "Harris & Harris식 교차로 신호등(무어). 입력 TA TB는 각 도로의 차량 감지. A 도로에 차가 있는 동안 A 녹색을 유지하고, 없으면 황색을 거쳐 B로 넘긴다. 출력은 A/B 신호." },
+    parity: { name: "홀짝 검사기", type: "moore", inputs: ["0", "1"], inVars: ["x"], states: ["짝", "홀"], out: ["0", "1"], outBits: [[0], [1]], outVars: ["p"], next: [[0, 1], [1, 0]],
+      desc: "지금까지 들어온 1의 개수가 홀수인지 기억한다. 다음 상태 식은 q⁺ = q ⊕ x, XOR 하나." },
+    cnt8: { name: "모듈로-8 카운터 (en)", type: "moore", inputs: ["0", "1"], inVars: ["en"], states: ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7"], out: ["0", "0", "0", "0", "0", "0", "0", "1"],
+      outBits: [[0], [0], [0], [0], [0], [0], [0], [1]], outVars: ["max"], next: [0, 1, 2, 3, 4, 5, 6, 7].map((s) => [s, (s + 1) % 8]),
+      desc: "허용 신호 en이 1일 때만 한 칸씩 세는 카운터. 상태 8개가 순서대로 흐르므로 그레이 인코딩이면 전이마다 한 비트만 바뀐다." },
+  };
+  const clone = (F) => JSON.parse(JSON.stringify(F));
+  const nbits = (N) => Math.max(1, Math.ceil(Math.log2(N)));
+  function codesOf(N, enc) {
+    const nb = nbits(N), out = [];
+    for (let i = 0; i < N; i++) {
+      if (enc === "onehot") { let s = ""; for (let k = N - 1; k >= 0; k--) s += k === i ? "1" : "0"; out.push(s); }
+      else out.push(SB.bin(enc === "gray" ? i ^ (i >> 1) : i, nb));
+    }
+    return out;
+  }
+  const outOf = (F, s, i) => (F.type === "moore" ? F.out[s] : F.out[s][i]);
+  /** 상태도 그리기. 반환: 상태 중심 좌표와 반지름 */
+  function drawFSM(ctx, box, F, o) {
+    o = o || {};
+    const P = SB.palette(), N = F.states.length;
+    const r = SB.clamp(Math.min(box.w, box.h) * (N > 5 ? 0.075 : 0.1), 15, 30);
+    const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    const rx = Math.max(10, box.w / 2 - r - (box.w < 420 ? 22 : 48)), ry = Math.max(10, box.h / 2 - r - 26);
+    const pos = [];
+    for (let k = 0; k < N; k++) {
+      const a = N === 2 ? (k ? 0 : Math.PI) : -Math.PI / 2 - Math.PI / N + (2 * Math.PI * k) / N;
+      pos.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
+    }
+    const edges = new Map();
+    F.next.forEach((row, s) => row.forEach((t, i) => {
+      const key = s + ">" + t;
+      if (!edges.has(key)) edges.set(key, { s, t, ins: [] });
+      edges.get(key).ins.push(i);
+    }));
+    const fsz = N > 5 || box.w < 420 ? 10 : 11.5;
+    const label = (e) => {
+      const nIn = F.inputs.length;
+      if (F.type === "moore") return e.ins.length === nIn && nIn > 1 ? "항상" : e.ins.map((i) => F.inputs[i]).join(",");
+      return e.ins.map((i) => F.inputs[i] + "/" + F.out[e.s][i]).join(",");
+    };
+    const pill = (txt, x, y, col) => {
+      ctx.save(); ctx.font = SB.font(fsz, true, 600);
+      const tw = ctx.measureText(txt).width;
+      ctx.fillStyle = DG.alpha(SB.color("canvas-bg") || "#fff", 0.85);
+      ctx.fillRect(x - tw / 2 - 2, y - fsz * 0.65, tw + 4, fsz * 1.3); ctx.restore();
+      T(ctx, txt, x, y, { size: fsz, mono: true, weight: 600, color: col });
+    };
+    const labels = [];
+    edges.forEach((e) => {
+      const hot = o.last && o.last.s === e.s && o.last.t === e.t;
+      const col = hot ? P.accent2 : P.dim, lw = hot ? 3 : 1.4;
+      const [sx, sy] = pos[e.s], [tx, ty] = pos[e.t];
+      if (e.s === e.t) {
+        let a = Math.atan2(sy - cy, sx - cx); if (N === 1) a = -Math.PI / 2;
+        const d = r + 6, rl = 12, lx = sx + d * Math.cos(a), ly = sy + d * Math.sin(a);
+        ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(lx, ly, rl, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+        const th = Math.acos(SB.clamp((r * r + d * d - rl * rl) / (2 * r * d), -1, 1));
+        const px = sx + r * Math.cos(a + th), py = sy + r * Math.sin(a + th);
+        const qx = sx + (r + 8) * Math.cos(a + th + 0.45), qy = sy + (r + 8) * Math.sin(a + th + 0.45);
+        DG.arrow(ctx, qx, qy, px, py, col, lw, 7);
+        labels.push([label(e), sx + (d + rl + 12) * Math.cos(a), sy + (d + rl + 10) * Math.sin(a), hot ? P.accent2 : P.text]);
+        return;
+      }
+      const dx = tx - sx, dy = ty - sy, dist = Math.hypot(dx, dy) || 1, ux = dx / dist, uy = dy / dist, nx = -uy, ny = ux;
+      const rev = edges.has(e.t + ">" + e.s), bend = rev ? Math.min(28, dist * 0.18) : 0;
+      const mx = (sx + tx) / 2 + nx * bend, my = (sy + ty) / 2 + ny * bend;
+      const v1x = mx - sx, v1y = my - sy, l1 = Math.hypot(v1x, v1y) || 1;
+      const v2x = mx - tx, v2y = my - ty, l2 = Math.hypot(v2x, v2y) || 1;
+      const ax = sx + (v1x / l1) * r, ay = sy + (v1y / l1) * r, bx = tx + (v2x / l2) * (r + 1), by = ty + (v2y / l2) * (r + 1);
+      ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, bx, by); ctx.stroke(); ctx.restore();
+      DG.arrow(ctx, bx + (v2x / l2) * 9, by + (v2y / l2) * 9, bx, by, col, lw, 8);
+      const qx = 0.25 * ax + 0.5 * mx + 0.25 * bx, qy = 0.25 * ay + 0.5 * my + 0.25 * by;
+      const off = rev ? 9 : 10;
+      labels.push([label(e), qx + nx * off, qy + ny * off, hot ? P.accent2 : P.text]);
+    });
+    labels.forEach((l) => pill(l[0], l[1], l[2], l[3]));
+    for (let k = 0; k < N; k++) {
+      const [x, y] = pos[k], cur = o.cur === k;
+      const fill = o.fills ? o.fills[k] : cur ? P.accent : SB.color("bg-elev");
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill();
+      ctx.strokeStyle = cur ? P.accent : P.text; ctx.lineWidth = cur ? 3 : 1.6; ctx.stroke();
+      if (cur && o.fills) { ctx.beginPath(); ctx.arc(x, y, r + 4, 0, Math.PI * 2); ctx.strokeStyle = P.accent; ctx.lineWidth = 2; ctx.stroke(); }
+      ctx.restore();
+      const tc = o.fills || cur ? "#fff" : P.text;
+      const nm = F.states[k];
+      const ns = Math.min(r * 0.62, nm.length > 4 ? 9.5 : nm.length > 2 ? 11 : 13);
+      if (F.type === "moore") {
+        T(ctx, nm, x, y - r * 0.22, { size: ns, weight: 700, color: tc });
+        T(ctx, F.out[k], x, y + r * 0.38, { size: Math.min(10.5, r * 0.45), mono: true, color: tc });
+      } else T(ctx, nm, x, y, { size: ns, weight: 700, color: tc });
+      if (o.codes) T(ctx, o.codes[k], x, y + r + 9, { size: 10, mono: true, color: P.accent });
+    }
+    return { pos, r };
+  }
+
+  /* ================================================================ 시뮬레이터: FSM 놀이터 */
+  (function () {
+    const cvEl = $("cv-fsm"); if (!cvEl) return;
+    const sel = $("fs-preset");
+    Object.keys(PRESETS).forEach((k) => { const op = document.createElement("option"); op.value = k; op.textContent = PRESETS[k].name; sel.appendChild(op); });
+    let F = null, cur = 0, inSel = 0, hist = [], last = null, count = 0, geo = null;
+    const NC = 12;
+    const enc = SB.seg("fs-enc", () => upd());
+    function fillSelect(id, arr) {
+      const s = $(id); s.innerHTML = "";
+      arr.forEach((t, i) => { const op = document.createElement("option"); op.value = String(i); op.textContent = t; s.appendChild(op); });
+    }
+    function syncEd() {
+      const s = +$("fs-ed-s").value || 0, i = +$("fs-ed-i").value || 0;
+      if (F.next[s]) $("fs-ed-t").value = String(F.next[s][i]);
+    }
+    function load(key) {
+      F = clone(PRESETS[key] || PRESETS.det101); cur = 0; inSel = 0; hist = []; last = null; count = 0;
+      const box = $("fs-ins"); box.innerHTML = "";
+      F.inputs.forEach((lab, i) => {
+        const b = document.createElement("button"); b.className = "btn sm" + (i === 0 ? " on" : ""); b.dataset.i = String(i);
+        b.innerHTML = (F.inVars.length > 1 && /^[01]+$/.test(lab) ? F.inVars.join(" ") + " = " : F.inVars.length === 1 ? F.inVars[0] + " = " : "") + "<b>" + lab + "</b>";
+        b.addEventListener("click", () => { inSel = i; [...box.children].forEach((c) => c.classList.toggle("on", c === b)); upd(); });
+        box.appendChild(b);
+      });
+      fillSelect("fs-ed-s", F.states); fillSelect("fs-ed-i", F.inputs); fillSelect("fs-ed-t", F.states); syncEd();
+      SB.stat("fs-desc", F.desc);
+      upd();
+    }
+    function clock() {
+      const t = F.next[cur][inSel];
+      hist.push({ i: inSel, s: cur, o: outOf(F, cur, inSel) }); if (hist.length > NC - 1) hist.shift();
+      last = { s: cur, t }; cur = t; count++;
+      upd();
+    }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      if (!F) return;
+      const P = SB.palette(), narrow = w < 520, codes = codesOf(F.states.length, enc());
+      const waveH = narrow ? 150 : 165;
+      geo = drawFSM(ctx, { x: 4, y: 6, w: w - 8, h: h - waveH - 14 }, F, { cur, last, codes });
+      const cols = hist.concat([{ i: inSel, s: cur, o: outOf(F, cur, inSel) }]);
+      ctx.save(); ctx.strokeStyle = P.border; ctx.beginPath(); ctx.moveTo(8, h - waveH - 6); ctx.lineTo(w - 8, h - waveH - 6); ctx.stroke(); ctx.restore();
+      waveMasked(ctx, { x: 6, y: h - waveH, w: w - 12, h: waveH - 6 }, {
+        cycles: NC, nameW: narrow ? 52 : 70, cursor: cols.length - 1,
+        signals: [
+          { name: "CLK", type: "clk" },
+          { name: "입력", type: "bus", v: cols.map((c) => F.inputs[c.i]) },
+          { name: "상태", type: "bus", v: cols.map((c) => F.states[c.s]), color: P.accent2 },
+          { name: "레지스터", type: "bus", v: cols.map((c) => codes[c.s]) },
+          { name: "출력", type: "bus", v: cols.map((c) => c.o), color: P.ok },
+        ],
+      }, cols.length);
+    }, { aspect: 0.62, minHeight: 480, maxHeight: 580 });
+    function upd() {
+      if (!F) return;
+      const codes = codesOf(F.states.length, enc());
+      SB.stat("fs-st", F.states[cur]);
+      SB.stat("fs-reg", '<span class="bits">' + codes[cur] + "</span>");
+      SB.stat("fs-out", outOf(F, cur, inSel) + (F.type === "mealy" ? " <small>(입력에 따라)</small>" : ""));
+      SB.stat("fs-n", String(count));
+      cv.redraw();
+    }
+    sel.addEventListener("change", () => load(sel.value));
+    on("fs-clk", "click", clock);
+    on("fs-rst", "click", () => { cur = 0; hist = []; last = null; count = 0; upd(); });
+    on("fs-rand", "click", () => {
+      const btns = [...$("fs-ins").children];
+      for (let k = 0; k < 6; k++) { inSel = Math.floor(Math.random() * F.inputs.length); clock(); }
+      btns.forEach((b, i) => b.classList.toggle("on", i === inSel));
+      upd();
+    });
+    on("fs-ed-s", "change", syncEd);
+    on("fs-ed-i", "change", syncEd);
+    on("fs-ed-go", "click", () => {
+      const s = +$("fs-ed-s").value || 0, i = +$("fs-ed-i").value || 0, t = +$("fs-ed-t").value || 0;
+      if (F.next[s] && F.next[s][i] != null && t < F.states.length) { F.next[s][i] = t; F.desc = "편집됨: " + F.states[s] + " --" + F.inputs[i] + "--> " + F.states[t]; SB.stat("fs-desc", F.desc); upd(); }
+    });
+    DG.pointer(cvEl, {
+      down(x, y) {
+        if (!geo) return;
+        geo.pos.forEach(([px, py], k) => { if (Math.hypot(x - px, y - py) <= geo.r + 4) { $("fs-ed-s").value = String(k); syncEd(); } });
+      },
+    });
+    load("det101");
+  })();
+
+  /* ================================================================ 시뮬레이터: 인코딩 비교 */
+  const popc = (v) => { let c = 0; while (v) { c += v & 1; v >>>= 1; } return c; };
+  /** 퀸–매클러스키 + 탐욕적 덮기. 항 = {v, m}: m의 1 비트는 소거된 변수 */
+  function qm(nv, ones, dcs) {
+    if (!ones.length) return [];
+    let terms = new Map();
+    ones.concat(dcs).forEach((x) => terms.set(x + ",0", { v: x, m: 0 }));
+    const primes = [];
+    while (terms.size) {
+      const arr = [...terms.values()], used = new Set(), next = new Map();
+      for (let a = 0; a < arr.length; a++) for (let b = a + 1; b < arr.length; b++) {
+        const A = arr[a], B = arr[b];
+        if (A.m !== B.m) continue;
+        const d = A.v ^ B.v;
+        if (popc(d) !== 1) continue;
+        const t = { v: A.v & ~d, m: A.m | d };
+        next.set(t.v + "," + t.m, t); used.add(a); used.add(b);
+      }
+      arr.forEach((t, i) => { if (!used.has(i)) primes.push(t); });
+      terms = next;
+    }
+    const cov = (p, x) => (x & ~p.m) === p.v;
+    let rem = ones.slice(); const chosen = [];
+    rem.forEach((x) => { const c = primes.filter((p) => cov(p, x)); if (c.length === 1 && !chosen.includes(c[0])) chosen.push(c[0]); });
+    rem = rem.filter((x) => !chosen.some((p) => cov(p, x)));
+    while (rem.length) {
+      let best = null, bs = -1;
+      primes.forEach((p) => { const sc = rem.filter((x) => cov(p, x)).length * 100 + popc(p.m); if (sc > bs) { bs = sc; best = p; } });
+      chosen.push(best); rem = rem.filter((x) => !cov(best, x));
+    }
+    return chosen;
+  }
+  function termStr(p, nv, names) {
+    const lits = [];
+    for (let k = 0; k < nv; k++) { const bit = 1 << (nv - 1 - k); if (p.m & bit) continue; lits.push(names[k] + (p.v & bit ? "" : "'")); }
+    return lits.length ? lits.join("·") : "1";
+  }
+  function support(cover, nv) { const s = new Set(); cover.forEach((p) => { for (let k = 0; k < nv; k++) if (!(p.m & (1 << (nv - 1 - k)))) s.add(k); }); return s; }
+  const lut4 = (v) => (v <= 1 ? 0 : v <= 4 ? 1 : Math.ceil((v - 1) / 3));
+  function costEnc(F, enc) {
+    const N = F.states.length, nIn = F.inputs.length, ni = nIn > 1 ? Math.ceil(Math.log2(nIn)) : 0;
+    const inNames = ni ? F.inVars.slice(0, ni) : [];
+    const res = { ff: 0, nextLit: 0, outLit: 0, maxFan: 0, lut: 0, eqs: [] };
+    const nOut = F.outVars.length;
+    const obit = (s, i, k) => (F.type === "moore" ? F.outBits[s][k] : F.outBits[s][i][k]);
+    if (enc === "onehot") {
+      res.ff = N;
+      const qn = F.states.map((s) => "q_" + s);
+      const inDc = []; for (let ic = nIn; ic < 1 << ni; ic++) inDc.push(ic);
+      const build = (pred) => {
+        const terms = []; const sup = new Set(); let lit = 0;
+        for (let s = 0; s < N; s++) {
+          const ones = []; for (let ic = 0; ic < nIn; ic++) if (pred(s, ic)) ones.push(ic);
+          if (!ones.length) continue;
+          if (ones.length === nIn) { terms.push(qn[s]); sup.add("s" + s); lit += 1; continue; }
+          qm(ni, ones, inDc).forEach((p) => {
+            const ts = termStr(p, ni, inNames);
+            terms.push(ts === "1" ? qn[s] : qn[s] + "·" + ts); sup.add("s" + s);
+            support([p], ni).forEach((k) => sup.add("i" + k)); lit += 1 + (ni - popc(p.m));
+          });
+        }
+        return { str: terms.length ? terms.join(" + ") : "0", sup: sup.size, lit };
+      };
+      for (let j = 0; j < N; j++) {
+        const r = build((s, ic) => F.next[s][ic] === j);
+        res.nextLit += r.lit; res.maxFan = Math.max(res.maxFan, r.sup); res.lut += lut4(r.sup);
+        res.eqs.push(qn[j] + "⁺ = " + r.str);
+      }
+      for (let k = 0; k < nOut; k++) {
+        const r = F.type === "moore" ? (() => {
+          const ss = []; for (let s = 0; s < N; s++) if (F.outBits[s][k]) ss.push(s);
+          return { str: ss.length ? ss.map((s) => qn[s]).join(" + ") : "0", sup: ss.length === N ? 0 : ss.length, lit: ss.length === N ? 0 : ss.length };
+        })() : build((s, ic) => obit(s, ic, k) === 1);
+        res.outLit += r.lit; res.maxFan = Math.max(res.maxFan, r.sup); res.lut += lut4(r.sup);
+        res.eqs.push(F.outVars[k] + " = " + r.str);
+      }
+      return res;
+    }
+    const nb = nbits(N); res.ff = nb;
+    const code = codesOf(N, enc).map((c) => parseInt(c, 2));
+    const sIdx = new Map(); code.forEach((c, s) => sIdx.set(c, s));
+    const qn = []; for (let b = nb - 1; b >= 0; b--) qn.push("q" + b);
+    const run = (nv, names, valFn, label) => {
+      const ones = [], dcs = [];
+      for (let x = 0; x < 1 << nv; x++) { const v = valFn(x); if (v === 1) ones.push(x); else if (v == null) dcs.push(x); }
+      const cv = qm(nv, ones, dcs);
+      const lit = cv.reduce((a, p) => a + nv - popc(p.m), 0), sup = support(cv, nv).size;
+      return { lit, sup, str: label + " = " + (cv.length ? cv.map((p) => termStr(p, nv, names)).join(" + ") : "0") };
+    };
+    const nvAll = nb + ni, namesAll = qn.concat(inNames);
+    for (let b = 0; b < nb; b++) {
+      const r = run(nvAll, namesAll, (x) => {
+        const sc = x >> ni, ic = x & ((1 << ni) - 1);
+        if (!sIdx.has(sc) || ic >= nIn) return null;
+        return (code[F.next[sIdx.get(sc)][ic]] >> (nb - 1 - b)) & 1;
+      }, qn[b] + "⁺");
+      res.nextLit += r.lit; res.maxFan = Math.max(res.maxFan, r.sup); res.lut += lut4(r.sup); res.eqs.push(r.str);
+    }
+    for (let k = 0; k < nOut; k++) {
+      const r = F.type === "moore"
+        ? run(nb, qn, (x) => (sIdx.has(x) ? F.outBits[sIdx.get(x)][k] : null), F.outVars[k])
+        : run(nvAll, namesAll, (x) => { const sc = x >> ni, ic = x & ((1 << ni) - 1); if (!sIdx.has(sc) || ic >= nIn) return null; return obit(sIdx.get(sc), ic, k); }, F.outVars[k]);
+      res.outLit += r.lit; res.maxFan = Math.max(res.maxFan, r.sup); res.lut += lut4(r.sup); res.eqs.push(r.str);
+    }
+    return res;
+  }
+  (function () {
+    const cvEl = $("cv-enc"); if (!cvEl) return;
+    const sel = $("en-preset");
+    Object.keys(PRESETS).forEach((k) => { const op = document.createElement("option"); op.value = k; op.textContent = PRESETS[k].name; sel.appendChild(op); });
+    const ENCS = [["bin", "이진"], ["onehot", "원핫"], ["gray", "그레이"]];
+    let C = null, F = null;
+    const show = SB.seg("en-show", () => render());
+    function compute() { F = PRESETS[sel.value] || PRESETS.det101; C = {}; ENCS.forEach(([k]) => { C[k] = costEnc(F, k); }); render(); }
+    function render() {
+      if (!C) return;
+      const tot = (k) => C[k].nextLit + C[k].outLit;
+      const best = ENCS.map((e) => e[0]).reduce((a, b) => (tot(b) < tot(a) ? b : a));
+      $("en-body").innerHTML = ENCS.map(([k, nm]) => {
+        const c = C[k];
+        return `<tr class="${k === best ? "best" : ""}${k === show() ? " cur" : ""}"><td>${nm}${k === best ? " ✓" : ""}</td><td class="num">${c.ff}</td><td class="num">${c.nextLit}</td><td class="num">${c.outLit}</td><td class="num">${c.maxFan}</td><td class="num">${c.lut}</td></tr>`;
+      }).join("");
+      const c = C[show()], nm = ENCS.find((e) => e[0] === show())[1];
+      const codes = codesOf(F.states.length, show());
+      const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      $("en-eq").innerHTML = "<b>" + nm + " 인코딩</b>  " + esc(F.states.map((s, i) => s + "=" + codes[i]).join(", ")) +
+        (F.inVars.length ? "\n입력: " + esc(F.inVars.join(" ")) + (F.inputs.length > 2 ? "  (" + F.inputs.map((s, i) => s + "=" + SB.bin(i, F.inVars.length)).join(", ") + ")" : "") : "") +
+        "\n" + esc(c.eqs.join("\n"));
+      cv.redraw();
+    }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      if (!C) return;
+      const P = SB.palette(), narrow = w < 520;
+      const metrics = [["플립플롭", (k) => C[k].ff], ["리터럴 (다음+출력)", (k) => C[k].nextLit + C[k].outLit], ["LUT4 추정", (k) => C[k].lut]];
+      const cols = [P.accent, P.accent2, P.ok];
+      const pw = (w - 20) / 3;
+      metrics.forEach(([title, fn], m) => {
+        const x0 = 10 + m * pw, top = 30, bot = h - 34, mx = Math.max(1, ...ENCS.map(([k]) => fn(k)));
+        T(ctx, title, x0 + pw / 2, 14, { size: narrow ? 10.5 : 12.5, weight: 700, color: P.text });
+        const bw = Math.min(40, (pw - 24) / 3 - 8);
+        ENCS.forEach(([k, nm], i) => {
+          const v = fn(k), bh = ((bot - top - 14) * v) / mx, bx = x0 + pw / 2 + (i - 1) * (bw + 8) - bw / 2;
+          ctx.fillStyle = k === show() ? cols[i] : DG.alpha(cols[i], 0.55);
+          ctx.fillRect(bx, bot - bh, bw, bh);
+          T(ctx, String(v), bx + bw / 2, bot - bh - 8, { size: 11, mono: true, weight: 700, color: P.text });
+          T(ctx, nm, bx + bw / 2, bot + 12, { size: narrow ? 9.5 : 11, color: P.dim });
+        });
+        ctx.save(); ctx.strokeStyle = P.axis; ctx.beginPath(); ctx.moveTo(x0 + 6, bot + 0.5); ctx.lineTo(x0 + pw - 6, bot + 0.5); ctx.stroke(); ctx.restore();
+      });
+    }, { height: 220 });
+    sel.addEventListener("change", compute);
+    compute();
+  })();
+
+  /* ================================================================ 그림 9-8: 상태 최소화 */
+  (function () {
+    const cvEl = $("cv-min"); if (!cvEl) return;
+    const F6 = { type: "moore", inputs: ["0", "1"], states: ["A", "B", "C", "D", "E", "F"], out: ["0", "0", "1", "0", "0", "1"], next: [[3, 1], [0, 5], [3, 2], [0, 4], [3, 2], [0, 5]] };
+    const N = 6;
+    function refine(cls) {
+      const sig = F6.states.map((_, s) => cls[s] + "|" + F6.next[s].map((t) => cls[t]).join(","));
+      const map = new Map(), out = [];
+      sig.forEach((g) => { if (!map.has(g)) map.set(g, map.size); out.push(map.get(g)); });
+      return out;
+    }
+    const P0 = (() => { const m = new Map(); return F6.out.map((o) => { if (!m.has(o)) m.set(o, m.size); return m.get(o); }); })();
+    const parts = [P0]; let guard = 0;
+    while (guard++ < 10) { const nx = refine(parts[parts.length - 1]); const prevN = new Set(parts[parts.length - 1]).size; parts.push(nx); if (new Set(nx).size === prevN) break; }
+    const final = parts[parts.length - 1], K = new Set(final).size;
+    const groups = []; for (let g = 0; g < K; g++) groups.push(F6.states.filter((_, s) => final[s] === g));
+    const FM = { type: "moore", inputs: ["0", "1"], states: groups.map((g) => g.join("")), out: groups.map((g) => F6.out[F6.states.indexOf(g[0])]),
+      next: groups.map((g) => F6.next[F6.states.indexOf(g[0])].map((t) => final[t])) };
+    const steps = [{ cls: null }].concat(parts.map((p) => ({ cls: p }))).concat([{ merged: true }]);
+    let k = 0;
+    const fmt = (cls) => { const n = new Set(cls).size, gs = []; for (let g = 0; g < n; g++) gs.push("{" + F6.states.filter((_, s) => cls[s] === g).join(", ") + "}"); return gs.join(" "); };
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      const P = SB.palette(), C = [P.accent, P.accent2, P.ok, P.warn, P.bad, P.dim];
+      const st = steps[k];
+      if (st.merged) drawFSM(ctx, { x: 4, y: 4, w: w - 8, h: h - 8 }, FM, { fills: FM.states.map((_, g) => C[g % 6]) });
+      else drawFSM(ctx, { x: 4, y: 4, w: w - 8, h: h - 8 }, F6, { fills: st.cls ? st.cls.map((g) => C[g % 6]) : F6.states.map(() => P.faint) });
+      T(ctx, (k + 1) + " / " + steps.length, w - 10, 12, { align: "right", size: 11, mono: true, color: P.dim });
+    }, { aspect: 0.5, minHeight: 280, maxHeight: 360 });
+    function upd() {
+      const st = steps[k];
+      let d;
+      if (k === 0) d = "<b>시작.</b> 상태 6개, 출력은 C와 F만 1이다. 숫자는 각 상태의 출력. 같은 일을 하는 상태가 숨어 있을까?";
+      else if (st.merged) d = "<b>합친 결과.</b> 묶음마다 상태 하나: " + FM.states.join(", ") + ". 상태 6개(플립플롭 3개)가 3개(플립플롭 2개)로 줄었다. 앞에서 본 \"11\" 검출기와 같은 기계다.";
+      else if (k === 1) d = "<b>P₀: 출력으로 나누기.</b> " + fmt(st.cls) + ". 출력이 다르면 절대 같은 상태일 수 없다.";
+      else {
+        const prev = steps[k - 1].cls, nCls = new Set(st.cls).size, nPrev = new Set(prev).size;
+        const sigs = F6.states.map((s, i) => s + ": 0→" + F6.states[F6.next[i][0]] + "(" + (prev[F6.next[i][0]] + 1) + "), 1→" + F6.states[F6.next[i][1]] + "(" + (prev[F6.next[i][1]] + 1) + ")").join(" · ");
+        d = "<b>P" + (k - 1) + ": 다음 상태의 묶음 번호로 다시 나누기.</b> " + fmt(st.cls) + "<br><span style=\"font-family:var(--mono);font-size:12px\">" + sigs + "</span><br>" +
+          (nCls === nPrev ? "더 이상 쪼개지지 않는다 → 이 묶음들이 동치 상태다." : "같은 묶음 안에서 다음 상태가 다른 묶음으로 가는 상태를 떼어 냈다.");
+      }
+      SB.stat("mn-desc", d);
+      const pb = $("mn-prev"), nb = $("mn-next"); if (pb) pb.disabled = k === 0; if (nb) nb.disabled = k === steps.length - 1;
+      cv.redraw();
+    }
+    on("mn-prev", "click", () => { k = Math.max(0, k - 1); upd(); });
+    on("mn-next", "click", () => { k = Math.min(steps.length - 1, k + 1); upd(); });
+    on("mn-first", "click", () => { k = 0; upd(); });
+    upd();
+  })();
+
+  /* ================================================================ 그림 9-9: 불법 상태 복구 */
+  (function () {
+    const cvEl = $("cv-ill"); if (!cvEl) return;
+    let q = [1, 0, 0, 0], hist = [], stuck = 0, lay = null;
+    const NC = 14;
+    const mode = SB.seg("il-mode", () => upd());
+    const legal = (v) => v.reduce((a, b) => a + b, 0) === 1;
+    function snap() { hist.push(q.slice()); if (hist.length > NC) hist.shift(); }
+    function clk() {
+      const n = [0, q[0], q[1], q[2]];
+      n[0] = mode() === "safe" ? +!(q[0] | q[1] | q[2]) : q[3];
+      q = n; stuck = legal(q) ? 0 : stuck + 1; snap(); upd();
+    }
+    function flip(i) { q[i] ^= 1; if (hist.length) hist[hist.length - 1] = q.slice(); stuck = legal(q) ? 0 : stuck; upd(); }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      const P = SB.palette(), narrow = w < 520;
+      const bw = Math.min(58, (w - 60) / 4 - 14), gap = narrow ? 16 : 34, total = 4 * bw + 3 * gap, x0 = (w - total) / 2, by = 30, bh = 40;
+      lay = { x0, bw, gap, by, bh };
+      for (let i = 0; i < 4; i++) {
+        const x = x0 + i * (bw + gap);
+        bitBox(ctx, x, by, bw, bh, q[i], "S" + i + " (Q" + i + ")", legal(q) ? null : { stroke: P.bad, lw: 2.4 });
+        if (i < 3) DG.arrow(ctx, x + bw + 2, by + bh / 2, x + bw + gap - 2, by + bh / 2, P.dim, 1.4);
+      }
+      const yb = by + bh + 16, safe = mode() === "safe";
+      ctx.save(); ctx.strokeStyle = safe ? P.ok : P.dim; ctx.lineWidth = 1.5; ctx.setLineDash(safe ? [] : [4, 3]);
+      ctx.beginPath(); ctx.moveTo(x0 + total, by + bh / 2); ctx.lineTo(x0 + total + 10, by + bh / 2); ctx.lineTo(x0 + total + 10, yb); ctx.lineTo(x0 - 12, yb); ctx.lineTo(x0 - 12, by + bh / 2); ctx.stroke(); ctx.restore();
+      DG.arrow(ctx, x0 - 12, by + bh / 2, x0 - 1, by + bh / 2, safe ? P.ok : P.dim, 1.5);
+      T(ctx, safe ? "D0 = NOR(Q0, Q1, Q2)" : "D0 = Q3", (x0 + x0 + total) / 2, yb + 11, { size: 11, mono: true, color: safe ? P.ok : P.dim });
+      // 이력
+      const hy = yb + 30, cell = Math.min(16, (h - hy - 22) / 4), cw = Math.min(26, (w - 60) / NC);
+      T(ctx, "지난 클럭", 8, hy - 6, { align: "left", size: 10.5, color: P.dim });
+      hist.forEach((v, c) => {
+        const x = 50 + c * cw, ok = legal(v);
+        for (let i = 0; i < 4; i++) { ctx.fillStyle = v[i] ? P.hi : DG.alpha(P.lo, 0.3); ctx.fillRect(x, hy + 4 + i * cell, cw - 3, cell - 2); }
+        if (!ok) { ctx.save(); ctx.strokeStyle = P.bad; ctx.lineWidth = 1.6; ctx.strokeRect(x - 1, hy + 3, cw - 1, 4 * cell); ctx.restore(); }
+      });
+      for (let i = 0; i < 4; i++) T(ctx, "Q" + i, 40, hy + 4 + i * cell + cell / 2 - 1, { align: "right", size: 10, mono: true, color: P.faint });
+    }, { height: 250 });
+    function upd() {
+      const ok = legal(q);
+      SB.stat("il-reg", '<span class="bits">' + q.join("") + "</span>");
+      SB.stat("il-ok", ok ? '<span class="ok-t">정상 (원핫)</span>' : '<span class="bad-t">불법 상태</span>');
+      SB.stat("il-cnt", stuck + "클럭");
+      cv.redraw();
+    }
+    DG.pointer(cvEl, {
+      down(x, y) {
+        if (!lay) return;
+        const { x0, bw, gap, by, bh } = lay; if (y < by || y > by + bh) return;
+        const i = Math.floor((x - x0) / (bw + gap)); if (i < 0 || i > 3 || x - x0 - i * (bw + gap) > bw) return;
+        flip(i);
+      },
+    });
+    on("il-clk", "click", clk);
+    on("il-hit", "click", () => flip(Math.floor(Math.random() * 4)));
+    on("il-rst", "click", () => { q = [1, 0, 0, 0]; hist = []; stuck = 0; snap(); upd(); });
+    snap(); upd();
+  })();
+})();
+</script>
 </body>
 </html>

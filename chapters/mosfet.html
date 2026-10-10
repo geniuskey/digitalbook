@@ -197,11 +197,11 @@
         <label class="ctrl"><span>폭 W <output id="ron-w-out"></output></span><input type="range" id="ron-w" min="1" max="4" step="0.1" value="1"></label>
       </div>
       <div class="sim-readout">
-        <div class="stat"><span class="k">원점 기울기 R<sub>lin</sub></span><span class="v" id="ron-lin">—</span></div>
+        <div class="stat"><span class="k">원점 근처 기울기 R<sub>lin</sub></span><span class="v" id="ron-lin">—</span></div>
         <div class="stat"><span class="k">등가 저항 R<sub>eq</sub></span><span class="v" id="ron-eq">—</span></div>
         <div class="stat"><span class="k">V<sub>DD</sub>/I<sub>on</sub></span><span class="v" id="ron-sat">—</span></div>
       </div>
-      <figcaption><b>그림 3-4.</b> <span class="try">해 보기</span>세 직선은 같은 트랜지스터를 세 가지로 본 "저항"이다. 원점 접선(가장 가파름)은 선형 영역의 작은 신호 저항, 원점에서 \(V_{DD}\) 끝점을 잇는 선은 \(V_{DD}/I_{on}\), 굵은 주황선이 음영 구간(\(V_{DD}/2\)~\(V_{DD}\))에서 평균 낸 \(R_{eq}\)다. \(V_{GS}\)를 낮추면(약한 구동) 세 저항이 모두 빠르게 커지고, 폭을 넓히면 반비례로 준다. 지연 계산에는 \(R_{eq}\)를 쓴다.</figcaption>
+      <figcaption><b>그림 3-4.</b> <span class="try">해 보기</span>세 직선은 같은 트랜지스터를 세 가지로 본 "저항"이다. 원점 근처(50 mV까지)의 기울기(가장 가파름)는 선형 영역의 저항, 원점에서 \(V_{DD}\) 끝점을 잇는 선은 \(V_{DD}/I_{on}\), 굵은 주황선이 음영 구간(\(V_{DD}/2\)~\(V_{DD}\))에서 평균 낸 \(R_{eq}\)다. \(V_{GS}\)를 낮추면(약한 구동) 세 저항이 모두 빠르게 커지고, 폭을 넓히면 반비례로 준다. 지연 계산에는 \(R_{eq}\)를 쓴다.</figcaption>
     </figure>
     <p>이제 nMOS와 pMOS를 비교해 보자. 같은 크기에서 pMOS는 nMOS보다 전류가 작다. 정공의 이동도가 전자보다 낮기 때문이다. 평면 트랜지스터 시절 이 비는 2~3배였다. FinFET은 핀의 결정 방향과 변형<span class="en">(Strain)</span> 공학 덕분에 정공 이동도가 크게 개선되어 비가 1.2~1.6배 정도로 줄었다. DG-7은 1.6배(<code>DG.TECH.mu</code>)를 쓴다. 같은 전류, 곧 같은 저항을 얻으려면 pMOS를 그만큼 넓혀야 한다.</p>
     <figure class="play" id="fig-ratio">
@@ -239,7 +239,7 @@
         <div class="stat"><span class="k">자기 부하 비중</span><span class="v" id="cp-self">—</span></div>
         <div class="stat"><span class="k">지연 0.69·R<sub>eq</sub>·C</span><span class="v" id="cp-d">—</span></div>
       </div>
-      <figcaption><b>그림 3-6.</b> <span class="try">해 보기</span>단위 인버터(\(W_n=1\), \(W_p=1.6\))가 보는 부하를 쌓은 막대다. 왼쪽 단면도에는 MOSFET의 커패시터들이 표시되어 있다. 팬아웃 4, 배선 0일 때 지연이 약 7.5 ps, 곧 DG-7의 FO4 지연이 된다. 배선 1 µm(0.2 fF)가 인버터 하나의 입력(0.21 fF)과 맞먹는다는 점도 확인하자. 14장의 이야기가 여기서 시작된다.</figcaption>
+      <figcaption><b>그림 3-6.</b> <span class="try">해 보기</span>단위 인버터(\(W_n=1\), \(W_p=1.6\))가 보는 부하를 쌓은 막대다. 왼쪽 단면도에는 MOSFET의 커패시터들이 표시되어 있다. 팬아웃 4, 배선 0일 때 지연이 약 7.8 ps로, DG-7의 FO4 지연(7.5 ps)과 거의 같다. 배선 1 µm(0.2 fF)가 인버터 하나의 입력(0.21 fF)과 맞먹는다는 점도 확인하자. 14장의 이야기가 여기서 시작된다.</figcaption>
     </figure>
     <p>이제 재료가 다 모였다. 켜진 트랜지스터는 \(R_{eq}\), 꺼진 트랜지스터는 열린 스위치, 그리고 출력 노드에는 자기 확산 커패시턴스와 다음 단 게이트 커패시턴스와 배선이 매달린 \(C\). 이 <b>스위치-RC 모델</b>에서 게이트 하나의 지연은 저항 하나가 커패시터 하나를 충·방전하는 시간이다.</p>
     <div class="formula">$$V_{out}(t)=V_{DD}\,e^{-t/R_{eq}C}\quad\Rightarrow\quad t_{pd}=\ln 2\cdot R_{eq}C\approx 0.69\,R_{eq}C,\qquad \tau = R\,(C_g+C_d)\approx 1.5\ \text{ps}$$
@@ -256,7 +256,7 @@
         <div class="stat"><span class="k">t<sub>pd</sub> 실제 (I-V 적분)</span><span class="v" id="rc-real">—</span></div>
         <div class="stat"><span class="k">t<sub>pd</sub> RC 모델 (0.69RC)</span><span class="v" id="rc-mod">—</span></div>
       </div>
-      <figcaption><b>그림 3-7.</b> <span class="try">해 보기</span>\(t=0\)에 게이트에 계단 전압을 넣으면 nMOS가 \(V_{DD}\)로 충전된 커패시터를 방전한다. 실선은 DG-7의 실제 I-V 곡선으로 \(C\,dV/dt=-I_{DS}\)를 적분한 결과, 점선은 스위치-RC 모델의 지수 함수다. 처음에는 실제 소자가 전류원(포화)처럼 직선으로 내려가 RC보다 빠르고, 끝에서는 선형 영역의 꼬리가 RC를 닮는다. 50% 지점은 두 모델이 거의 일치한다. 이것이 \(R_{eq}\)를 그렇게 정의한 이유다. 손 계산의 지연 모델은 <a href="delay.html">6장</a>에서 엘모어 지연과 논리적 노력으로 이어진다.</figcaption>
+      <figcaption><b>그림 3-7.</b> <span class="try">해 보기</span>\(t=0\)에 게이트에 계단 전압을 넣으면 nMOS가 \(V_{DD}\)로 충전된 커패시터를 방전한다. 실선은 DG-7의 실제 I-V 곡선으로 \(C\,dV/dt=-I_{DS}\)를 적분한 결과, 점선은 스위치-RC 모델의 지수 함수다. 처음에는 실제 소자가 거의 일정한 전류(포화)로 직선처럼 내려가 지수 함수의 가파른 출발보다 조금 느리고, 끝에서는 선형 영역의 작은 저항 덕분에 RC보다 빨리 0에 붙는다. 그래도 50% 지점은 두 모델이 몇 % 안에서 일치한다. 이것이 \(R_{eq}\)를 그렇게 정의한 이유다. 손 계산의 지연 모델은 <a href="delay.html">6장</a>에서 엘모어 지연과 논리적 노력으로 이어진다.</figcaption>
     </figure>
     <div class="callout deep"><strong>게이트 커패시턴스는 동작 영역에 따라 나뉜다</strong><p>차단 상태에서는 채널이 없어 게이트가 바디와 마주 보고(\(C_{gb}\)), 선형 영역에서는 채널이 소스·드레인 양쪽과 이어져 \(C_g\)가 반씩 \(C_{gs}\), \(C_{gd}\)로 나뉜다. 포화 영역에서는 드레인 쪽 채널이 끊겨 약 2/3가 \(C_{gs}\)로 가고 \(C_{gd}\)는 겹침 성분만 남는다(Meyer 모델). 디지털 손 계산에서는 이 모든 것을 무시하고 "게이트 하나 = \(C_g\)"로 둔다. 오차는 수십 % 수준이지만 회로 사이의 <b>비교</b>에는 충분하다.</p></div>
   </section>
@@ -284,6 +284,7 @@
         <div class="stat"><span class="k">90% 도달 시간</span><span class="v" id="ps-t90">—</span></div>
         <div class="stat"><span class="k">판정</span><span class="v" id="ps-j">—</span></div>
       </div>
+      <div class="mf-key"><span><i style="background:var(--nmos)"></i>nMOS</span><span><i style="background:var(--pmos)"></i>pMOS</span><span><i style="background:var(--accent-2)"></i>전송 게이트</span></div>
       <div class="sim-note">nMOS 게이트는 항상 V<sub>DD</sub>(켜짐), pMOS 게이트는 항상 0(켜짐)이다. 전송 게이트<span class="en">(Transmission gate)</span>는 둘을 병렬로 붙인 것. 커패시터는 처음에 반대 값으로 충전되어 있고 t=0에 입력이 바뀐다. 전류는 DG.ids(단위 폭)로 계산하고, 소스가 바디에서 멀어질수록 V<sub>t</sub>가 γ(√(0.8+V<sub>SB</sub>)−√0.8)만큼 오르는 바디 효과를 넣었다. 그래프에는 세 가지 문의 결과를 모두 그리고 선택한 것만 진하게 표시한다.</div>
     </div>
     <p>결과를 표로 정리하면 이렇다. nMOS는 0을 완벽하게, 1을 \(V_{DD}-V_{tn}\)까지만 전달한다. pMOS는 정확히 반대로 1을 완벽하게, 0을 \(|V_{tp}|\)까지만 전달한다. 그래서 정적 CMOS 게이트는 출력을 0으로 <b>끌어내리는</b> 풀다운 망을 nMOS로, 1로 <b>끌어올리는</b> 풀업 망을 pMOS로 짓는다. 각자 강한 값만 맡기는 분업이다(<a href="gates.html">5장</a>). 두 문을 병렬로 붙인 <b>전송 게이트</b>는 양쪽 값을 모두 강하게 전달하므로 MUX와 래치에 널리 쓰인다(<a href="styles.html">7장</a>).</p>
@@ -318,6 +319,7 @@
         <div class="stat"><span class="k">I<sub>off</sub> (같은 면적)</span><span class="v" id="ga-off">—</span></div>
         <div class="stat"><span class="k">I<sub>on</sub>/I<sub>off</sub></span><span class="v" id="ga-r">—</span></div>
       </div>
+      <div class="mf-key"><span><i style="background:#9aa3b2"></i>게이트(단면)</span><span><i style="background:var(--warn)"></i>게이트 절연막</span><span><i style="background:var(--nmos)"></i>채널 / FinFET 곡선</span><span><i style="background:var(--text-dim)"></i>평면 곡선</span><span><i style="background:var(--accent-2)"></i>GAA 곡선</span></div>
       <figcaption><b>그림 3-8.</b> <span class="try">해 보기</span>왼쪽은 채널을 전류 방향으로 바라본 단면(회색 = 게이트, 파랑 = 채널)이다. 오른쪽은 세 구조의 로그 전달 특성을 같은 게이트 길이에서 비교한다(선택한 구조가 진하게). 게이트 길이를 줄이면 평면 소자는 기울기가 급격히 눕고 문턱이 내려가 누설이 폭증하지만, GAA는 꽤 짧아져도 버틴다. 같은 칩 면적에 핀·시트를 세워 유효 폭도 늘어나 켜짐 전류도 크다. \(S\)·DIBL은 자연 길이(평면 6, 핀 3, GAA 2.2 nm)로 만든 정성적 교육 모델이다.</figcaption>
     </figure>
     <div class="table-wrap">
@@ -461,10 +463,10 @@
     return Math.round(Math.pow(10, e - b)) + (pre[b] != null ? pre[b] : "e" + b) + "A";
   }
   function decTicks(lo, hi, step) { var o = []; for (var e = Math.ceil(Math.log10(lo) - 1e-9); e <= Math.log10(hi) + 1e-9; e += step) o.push(Math.pow(10, e)); return o; }
-  function niceMax(v) { var m = Math.pow(10, Math.floor(Math.log10(v))); var r = v / m; return (r <= 1 ? 1 : r <= 2 ? 2 : r <= 2.5 ? 2.5 : r <= 5 ? 5 : 10) * m; }
+  function niceMax(v) { var m = Math.pow(10, Math.floor(Math.log10(v))); var r = v / m; return ([1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].filter(function (q) { return q >= r - 1e-9; })[0] || 10) * m; }
   function uA(v) { return v * 1e6; }
   function setRange(get, v) { get.el.value = v; get.el.dispatchEvent(new Event("input", { bubbles: true })); }
-  function chartBox(x, y, w, h) { return { x: x + 52, y: y + 8, w: Math.max(40, w - 52 - 10), h: Math.max(40, h - 8 - 40) }; }
+  function chartBox(x, y, w, h) { return { x: x + 52, y: y + 8, w: Math.max(40, w - 52 - 18), h: Math.max(40, h - 8 - 40) }; }
   function ratioStr(r) { if (!isFinite(r)) return "—"; var e = Math.floor(Math.log10(r)); return r >= 1e4 ? (r / Math.pow(10, e)).toFixed(1) + "×10<sup>" + e + "</sup>" : SB.fmt(r, 3); }
 
   /* ==================================================================== 1. 단면도 스위치 */
@@ -538,7 +540,7 @@
       var ang = (1 - on) * 0.6;
       ctx.strokeStyle = on > 0.05 ? col : P.dim;
       ctx.beginPath(); ctx.moveTo(swx, y1 - 6); ctx.lineTo(swx + Math.sin(ang) * (y1 - y0 - 12), y1 - 6 - Math.cos(ang) * (y1 - y0 - 12)); ctx.stroke();
-      T(ctx, on > 0.05 ? "닫힘" : "열림", swx + 12, my, { size: 12, weight: 700, color: on > 0.05 ? col : P.dim });
+      T(ctx, on > 0.05 ? "닫힘" : "열림", swx + 30, my, { size: 12, weight: 700, color: on > 0.05 ? col : P.dim });
       T(ctx, "회로 기호", mx, B.y + B.h - 6, { size: 10.5, color: P.faint, align: "center", base: "bottom" });
       T(ctx, "스위치 모델", swx, B.y + B.h - 6, { size: 10.5, color: P.faint, align: "center", base: "bottom" });
     }, aopt("#cv-xsec", 0.42, 1.0, 560, { minHeight: 250, maxHeight: 440 }));
@@ -712,7 +714,7 @@
     function upd() {
       var vg = st.vgs, vd = st.vds, Id = I(vg, vd);
       var reg = vg < st.vt - 0.02 ? '<span class="bad-t">부문턱</span>' : vd < vdsat(vg) ? '<span class="ok-t">선형</span>' : '<span class="warn-t">포화</span>';
-      SB.stat("iv-op", vg.toFixed(2) + ", " + vd.toFixed(2) + "<small>V</small>");
+      SB.stat("iv-op", vg.toFixed(2) + "/" + vd.toFixed(2) + "<small>V</small>");
       SB.stat("iv-reg", reg);
       SB.stat("iv-id", htm(Id, "A"));
       var d = 0.004;
@@ -848,7 +850,7 @@
     var vgs = 0.75, W = 1;
     function I(v) { return DG.ids({ vgs: vgs, vds: v, W: W }); }
     function req() { var s = 0, N = 80; for (var i = 0; i < N; i++) { var v = VDD / 2 + (i + 0.5) / N * VDD / 2; s += v / I(v); } return s / N; }
-    function rlin() { var d = 0.005; return d / I(d); }
+    function rlin() { var d = 0.05; return d / I(d); }
     var cv = SB.canvas("#cv-ron", function (ctx, w, h) {
       pal();
       var b = chartBox(0, 16, w, h - 16), data = [];
@@ -865,7 +867,7 @@
       });
       T(ctx, "I_DS (µA)", b.x + 6, 9, { size: 11, color: P.dim, weight: 700 });
       var lx = b.x + b.w - 4, ly = b.y + b.h - 54;
-      T(ctx, "··· 원점 접선 R_lin", lx, ly, { size: 11, color: P.faint, align: "right" });
+      T(ctx, "··· 원점 근처(50 mV) 기울기 R_lin", lx, ly, { size: 11, color: P.faint, align: "right" });
       T(ctx, "– – V_DD/I_on", lx, ly + 15, { size: 11, color: P.dim, align: "right" });
       T(ctx, "━ R_eq (음영 구간 평균)", lx, ly + 30, { size: 11, color: P.accent2, align: "right", weight: 700 });
     }, aopt("#cv-ron", 0.45, 0.85, 500, { minHeight: 240, maxHeight: 400 }));
@@ -1147,7 +1149,7 @@
         hlines: [{ y: VDD - TK.vtn, color: P.nmos, label: "V_DD − V_t" }, { y: TK.vtp, color: P.pmos, label: "|V_tp|" }],
         series: ser,
       });
-      T(ctx, "노드 전압 (V)  ━ nMOS ━ pMOS ━ TG", bx.x, B.y + 10, { size: 11.5, color: P.dim, weight: 700 });
+      T(ctx, "노드 전압 (V)", bx.x, B.y + 10, { size: 11.5, color: P.dim, weight: 700 });
     }, aopt("#cv-pass", 0.44, 1.35, 600, { minHeight: 300, maxHeight: 640 }));
     function upd() {
       recompute();
@@ -1210,7 +1212,6 @@
         }
         T(ctx, "시트 3장을 네 면 모두 감싼다", cx, A.y + 12, { size: 11.5, align: "center", color: P.dim, weight: 700 });
       }
-      T(ctx, "■ 게이트  ■ 채널  ■ 절연막", A.x + A.w / 2, base - (cur === "planar" ? U * 1.6 : cur === "fin" ? U * 3.1 : U * 2.7), { size: 10, align: "center", color: P.faint });
       var b = chartBox(B.x, B.y + 14, B.w, B.h - 14), ser = [], cc = { planar: P.dim, fin: P.nmos, gaa: P.accent2 };
       ["planar", "fin", "gaa"].forEach(function (k) {
         var d = []; for (var v = 0; v <= VDD + 1e-9; v += 0.005) d.push([v, I(k, v)]);
@@ -1220,7 +1221,7 @@
         x: [0, VDD], y: [1e-12, 1e-3], logY: true, yFmt: logFmt, yTicks: decTicks(1e-12, 1e-3, narrow ? 3 : 1), xTicks: [0, 0.25, 0.5, 0.75], xLabel: "V_GS (V)",
         series: ser, points: [{ x: 0.002, y: I(cur, 0), color: P.bad, r: 5 }],
       });
-      T(ctx, "I_DS @ V_DS=V_DD (A) — 회색 평면 · 파랑 핀 · 주황 GAA", b.x, B.y + 10, { size: narrow ? 10.5 : 11.5, color: P.dim, weight: 700 });
+      T(ctx, "I_DS @ V_DS=V_DD (A, 로그)", b.x, B.y + 10, { size: 11.5, color: P.dim, weight: 700 });
     }, aopt("#cv-gaa", 0.42, 1.15, 560, { minHeight: 250, maxHeight: 460 }));
     function upd() {
       var p = par(cur);

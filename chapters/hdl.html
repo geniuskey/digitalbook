@@ -5,6 +5,30 @@
 <html lang="ko">
 <head>
 <!--head:start {"desc": "Verilog 코드 몇 줄이 합성을 거쳐 표준 셀 넷리스트가 되기까지. 모듈과 대입문이 어떤 하드웨어가 되는지, 래치 추론과 블로킹·논블로킹 함정, 미니 합성기로 보는 파싱·최적화·기술 매핑, 테스트벤치와 어서션 검증, 명세에서 테이프아웃까지의 흐름."}-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HDL에서 게이트까지 · DigitalBook</title>
+<meta name="description" content="Verilog 코드 몇 줄이 합성을 거쳐 표준 셀 넷리스트가 되기까지. 모듈과 대입문이 어떤 하드웨어가 되는지, 래치 추론과 블로킹·논블로킹 함정, 미니 합성기로 보는 파싱·최적화·기술 매핑, 테스트벤치와 어서션 검증, 명세에서 테이프아웃까지의 흐름.">
+<link rel="canonical" href="https://digitalbook.euiyun.com/chapters/hdl.html">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<meta name="theme-color" content="#1971c2">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="DigitalBook">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="HDL에서 게이트까지 · DigitalBook">
+<meta property="og:description" content="Verilog 코드 몇 줄이 합성을 거쳐 표준 셀 넷리스트가 되기까지. 모듈과 대입문이 어떤 하드웨어가 되는지, 래치 추론과 블로킹·논블로킹 함정, 미니 합성기로 보는 파싱·최적화·기술 매핑, 테스트벤치와 어서션 검증, 명세에서 테이프아웃까지의 흐름.">
+<meta property="og:url" content="https://digitalbook.euiyun.com/chapters/hdl.html">
+<meta property="og:image" content="https://digitalbook.euiyun.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Chapter","LearningResource"],"@id":"https://digitalbook.euiyun.com/chapters/hdl.html#chapter","name":"HDL에서 게이트까지","headline":"HDL에서 게이트까지 · DigitalBook","description":"Verilog 코드 몇 줄이 합성을 거쳐 표준 셀 넷리스트가 되기까지. 모듈과 대입문이 어떤 하드웨어가 되는지, 래치 추론과 블로킹·논블로킹 함정, 미니 합성기로 보는 파싱·최적화·기술 매핑, 테스트벤치와 어서션 검증, 명세에서 테이프아웃까지의 흐름.","url":"https://digitalbook.euiyun.com/chapters/hdl.html","position":17,"inLanguage":"ko","isAccessibleForFree":true,"learningResourceType":"인터랙티브 교재","educationalLevel":"공대 학부","image":"https://digitalbook.euiyun.com/og.png","dateModified":"2026-10-10","isPartOf":{"@type":"Book","@id":"https://digitalbook.euiyun.com/#book","name":"DigitalBook · 디지털 회로 설계 교과서","url":"https://digitalbook.euiyun.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DigitalBook","item":"https://digitalbook.euiyun.com/"},{"@type":"ListItem","position":2,"name":"17. HDL에서 게이트까지","item":"https://digitalbook.euiyun.com/chapters/hdl.html"}]}]}</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/common.js"></script>
+<script src="../js/dig.js"></script>
 <!--head:end-->
 <style>
   .hd-code { position: relative; }
@@ -16,7 +40,7 @@
   .hd-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; width: 100%; }
   .hd-pair pre.code { margin: 0 0 10px; font-size: 13px; }
   @media (min-width: 760px) { .hd-pair.two { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 14px; align-items: start; } .hd-pair.two pre.code { margin: 0; } }
-  .hd-info { font-size: 14px; color: var(--text-dim); line-height: 1.6; padding: 8px 2px 0; min-height: 3.2em; }
+  .hd-info { font-size: 14px; color: var(--text-dim); line-height: 1.6; padding: 10px 16px 4px; min-height: 3.2em; }
   .hd-info b { color: var(--text); }
   .hd-ed { width: 100%; box-sizing: border-box; font-family: var(--mono); font-size: 13.5px; line-height: 1.55; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 10px 12px; resize: vertical; min-height: 92px; }
   .hd-ed:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -309,7 +333,7 @@
         <div class="stat"><span class="k">토글 커버리지</span><span class="v" id="tb-tog">—</span></div>
       </div>
       <div style="padding:0 14px 12px"><div class="hd-log" id="tb-log">—</div></div>
-      <div class="sim-note">교육용 모델: DUT는 XOR·AND·NOT 게이트 14개와 D 플립플롭 4개(지연 0.5, clk→Q 1, 클럭 주기 10 시간 단위). 다음 상태 = 리셋이면 0, en이면 q==9에서 0으로 돌아가고 아니면 +1. 플립플롭 초기값은 X(알 수 없음)이고 X는 게이트를 거치며 퍼진다. 커버리지는 "얼마나 시험했는가"의 척도로, 상태 커버리지는 방문한 카운터 값, 토글 커버리지는 0↔1을 모두 겪은 내부 신호의 비율이다.</div>
+      <div class="sim-note">교육용 모델: DUT는 XOR·AND·NOT·BUF 게이트 15개와 D 플립플롭 4개(지연 0.5, clk→Q 1, 클럭 주기 10 시간 단위). 다음 상태 = 리셋이면 0, en이면 q==9에서 0으로 돌아가고 아니면 +1. 플립플롭 초기값은 X(알 수 없음)이고 X는 게이트를 거치며 퍼진다. 커버리지는 "얼마나 시험했는가"의 척도로, 상태 커버리지는 방문한 카운터 값, 토글 커버리지는 0↔1을 모두 겪은 내부 신호의 비율이다.</div>
     </div>
     <p>버그를 하나씩 주입해 보자. <b>캐리 AND→OR</b>은 오타 한 글자다. 스코어보드가 첫 불일치 사이클을 정확히 짚는다. <b>9 비교 실수</b>는 9 대신 10(1010)에서 0으로 돌아가게 만든 버그로, 기대값을 몰라도 어서션이 "q=10"을 잡아낸다. <b>리셋 빠짐</b>은 플립플롭이 X에서 벗어나지 못해 파형 전체가 빨간 빗금이 된다. 실제 칩이었다면 전원을 켤 때마다 임의의 값에서 시작했을 것이다. 4값 논리(0, 1, X, Z)를 쓰는 HDL 시뮬레이터가 이런 초기화 버그를 잡는 데 강한 이유다.</p>
     <p>흥미로운 것은 <b>en 무시</b> 버그다. 자극을 "en 항상 1"로 바꾸면 이 버그는 <b>전혀 드러나지 않는다</b>. 테스트가 en=0인 경우를 한 번도 시험하지 않았기 때문이다. 버그를 찾으려면 자극이 설계의 구석구석을 건드려야 하고, 그 정도를 재는 것이 <span class="term">커버리지</span><span class="en">(Coverage)</span>다. "en 드묾"으로 바꾸면 카운터가 9까지 가지 못해 상태 커버리지가 떨어지는 것도 보인다. 현대 검증은 무작위 자극을 대량으로 넣고 커버리지가 목표에 닿을 때까지 제약을 조정하는 <b>커버리지 주도 제약 무작위 검증</b><span class="en">(Constrained-random, coverage-driven verification)</span>, 그리고 모든 입력을 수학적으로 따지는 <span class="term">형식 검증</span><span class="en">(Formal verification)</span>을 함께 쓴다. 이를 체계화한 방법론이 UVM이다.</p>
@@ -440,7 +464,1350 @@
   </section>
 </main>
 <script>
-/*__SCRIPT__*/
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const TAU = 1.5; // ps
+
+  /* ---------- 공용 그리기 ---------- */
+  function txt(ctx, s, x, y, o = {}) {
+    const P = SB.palette();
+    ctx.save();
+    ctx.fillStyle = o.color || P.text; ctx.font = SB.font(o.size || 12, o.mono !== false, o.weight || 600);
+    ctx.textAlign = o.align || "center"; ctx.textBaseline = o.base || "middle";
+    ctx.fillText(s, x, y); ctx.restore();
+  }
+  function line(ctx, pts, col, wd = 2, dash) {
+    ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.lineJoin = "round"; ctx.lineCap = "round";
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); ctx.restore();
+  }
+  /** MUX 사다리꼴: 입력 0(위)·1(아래) 왼쪽, sel 아래, 출력 오른쪽 */
+  function mux(ctx, x, y, w, h, o = {}) {
+    const P = SB.palette();
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y + h * 0.2); ctx.lineTo(x + w, y + h * 0.8); ctx.lineTo(x, y + h); ctx.closePath();
+    ctx.fillStyle = o.fill || SB.color("bg-elev") || P.surface; ctx.fill();
+    ctx.strokeStyle = o.stroke || P.text; ctx.lineWidth = o.lw || 1.8; ctx.stroke();
+    ctx.restore();
+    const fs = Math.max(9, Math.min(12, h * 0.16));
+    txt(ctx, "0", x + 7, y + h * 0.28, { size: fs, color: P.dim });
+    txt(ctx, "1", x + 7, y + h * 0.72, { size: fs, color: P.dim });
+    return { in0: [x, y + h * 0.28], in1: [x, y + h * 0.72], sel: [x + w / 2, y + h * 0.9], out: [x + w, y + h / 2] };
+  }
+  /** 플립플롭/래치 상자 */
+  function ffbox(ctx, x, y, w, h, o = {}) {
+    const P = SB.palette();
+    ctx.save();
+    DG.roundRect(ctx, x, y, w, h, 4);
+    ctx.fillStyle = o.fill || SB.color("bg-elev") || P.surface; ctx.fill();
+    ctx.strokeStyle = o.stroke || P.text; ctx.lineWidth = o.lw || 1.8; ctx.stroke();
+    if (!o.latch) {
+      ctx.beginPath(); ctx.moveTo(x, y + h - 14); ctx.lineTo(x + 8, y + h - 9); ctx.lineTo(x, y + h - 4); ctx.stroke();
+    }
+    ctx.restore();
+    const fs = 10.5;
+    txt(ctx, "D", x + 9, y + 12, { size: fs, color: P.dim });
+    txt(ctx, "Q", x + w - 9, y + 12, { size: fs, color: P.dim });
+    if (o.latch) txt(ctx, "EN", x + 12, y + h - 9, { size: 9.5, color: P.dim });
+    if (o.label) txt(ctx, o.label, x + w / 2, y + h / 2 + 2, { size: 11, color: o.labelColor || P.text });
+    return { d: [x, y + 12], q: [x + w, y + 12], clk: [x, y + h - 9] };
+  }
+  function vbits(v, n) { const out = []; for (let i = n - 1; i >= 0; i--) out.push((v >> i) & 1); return out; }
+
+  /* =====================================================================
+     그림 17-1  규모
+     ===================================================================== */
+  (function () {
+    const chips = [
+      [2300, "4004", 1971], [275e3, "80386", 1985], [42e6, "Pentium 4", 2000],
+      [731e6, "Core i7", 2008], [16e9, "A17 Pro", 2023], [92e9, "M3 Max", 2023], [208e9, "B200", 2024],
+    ];
+    const get = SB.range("sc-n", (v) => SB.si(Math.pow(10, v), "", 3) + "개", () => { cv.redraw(); upd(); });
+    const cv = SB.canvas($("cv-scale"), (ctx, w, h) => {
+      const P = SB.palette();
+      const L = 18, R = w - 18, y0 = h * 0.58;
+      const X = (lg) => L + ((lg - 3) / (11.4 - 3)) * (R - L);
+      line(ctx, [[L, y0], [R, y0]], P.axis, 1.5);
+      for (let e = 3; e <= 11; e++) {
+        line(ctx, [[X(e), y0 - 4], [X(e), y0 + 4]], P.axis, 1);
+        if (w > 420 || e % 2 === 1) txt(ctx, "10" + String(e).replace(/\d/g, (d) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[d]), X(e), y0 + 16, { size: 11, color: P.dim });
+      }
+      // 손으로 가능한 영역
+      const handMax = 6.5; // 큰 팀이 몇 년 걸려 손으로 그릴 수 있는 한계(대략)
+      ctx.fillStyle = DG.alpha(P.ok, 0.12); ctx.fillRect(L, y0 - 34, X(handMax) - L, 34);
+      txt(ctx, "손 설계 가능", (L + X(handMax)) / 2, y0 - 44, { size: 11, color: P.ok, mono: false });
+      ctx.fillStyle = DG.alpha(P.accent, 0.1); ctx.fillRect(X(handMax), y0 - 34, R - X(handMax), 34);
+      txt(ctx, "HDL + 합성 + 자동 배치·배선", (X(handMax) + R) / 2, y0 - 44, { size: 11, color: P.accent, mono: false });
+      chips.forEach(([n, name, yr], i) => {
+        const x = X(Math.log10(n)), up = i % 2 === 0;
+        DG.dot(ctx, x, y0, P.accent2, 4);
+        if (w < 480 && (name === "Core i7" || name === "A17 Pro")) return;
+        const yy = up ? y0 - 24 : y0 + 34, lx = SB.clamp(x, 26, w - 26);
+        txt(ctx, name, lx, yy, { size: 10.5, color: P.text, mono: false });
+        txt(ctx, String(yr), lx, yy + 12, { size: 9.5, color: P.faint });
+      });
+      const xc = X(get());
+      line(ctx, [[xc, 14], [xc, h - 10]], P.accent, 2, [5, 4]);
+      DG.dot(ctx, xc, y0, P.accent, 6);
+    }, { aspect: 0.32, minHeight: 170, maxHeight: 230 });
+    function upd() {
+      const n = Math.pow(10, get()), g = n / 4;
+      SB.stat("sc-g", SB.si(g, "", 3));
+      SB.stat("sc-p", SB.si(Math.max(1, g / 100), "", 3) + "쪽");
+      const sec = g * 30, yrs = sec / (8 * 3600 * 250);
+      SB.stat("sc-t", yrs < 1 / 12 ? Math.max(1, Math.round(sec / (8 * 3600))) + "일" : yrs < 1 ? (yrs * 12).toFixed(1) + "개월" : SB.si(yrs, "", 3) + "년");
+    }
+    upd();
+  })();
+
+  /* =====================================================================
+     그림 17-2  코드 줄 ↔ 하드웨어
+     ===================================================================== */
+  (function () {
+    const L = [
+      ['<span class="kw">module</span> demo (', "mod", "모듈의 경계. 회로도에서 바깥 점선 상자가 된다. 이름 <b>demo</b>로 다른 모듈 안에 끼워 쓸 수 있다."],
+      ['  <span class="kw">input</span>  <span class="kw">logic</span>       clk,', "clk", "클럭 입력 핀. <code>always_ff</code>의 <code>posedge clk</code>가 플립플롭의 클럭 단자로 이어진다."],
+      ['  <span class="kw">input</span>  <span class="kw">logic</span>       sel,', "sel", "1비트 선택 입력. MUX의 선택 단자로 간다."],
+      ['  <span class="kw">input</span>  <span class="kw">logic</span> [<span class="nb">3</span>:<span class="nb">0</span>] a, b,', "ab", "4비트 입력 버스 두 개. 선 네 가닥 묶음이 두 개 있다는 뜻이다."],
+      ['  <span class="kw">output</span> <span class="kw">logic</span> [<span class="nb">3</span>:<span class="nb">0</span>] q,', "q", "4비트 출력 포트. 플립플롭 네 개의 Q가 그대로 핀이 된다."],
+      ['  <span class="kw">output</span> <span class="kw">logic</span>       par', "par", "1비트 출력 포트. XOR 트리의 출력이다."],
+      [');', "mod", "포트 목록의 끝."],
+      ['  <span class="kw">logic</span> [<span class="nb">3</span>:<span class="nb">0</span>] y;', "y", "내부 신호 선언. 하드웨어로는 MUX 출력과 플립플롭 D 입력 사이의 <b>선 네 가닥</b>일 뿐, 기억 소자가 아니다."],
+      ['  <span class="kw">assign</span> y = sel ? b : a;', "mux", "연속 대입 + 조건 연산자 → <b>2:1 MUX 네 개</b>(비트마다 하나). sel이 바뀌면 y가 즉시 따라 바뀐다."],
+      ['  <span class="kw">assign</span> par = ^q;', "xor", "축약 XOR → q의 네 비트를 묶는 <b>XOR2 세 개의 트리</b>. 이 줄이 플립플롭보다 위에 있어도 하드웨어는 똑같다."],
+      ['  <span class="kw">always_ff</span> @(<span class="kw">posedge</span> clk)', "ff", "클럭 상승 에지에서만 갱신되는 블록 → <b>D 플립플롭 4개</b>. 대입되는 q의 비트 수만큼 생긴다."],
+      ['    q &lt;= y;', "ff", "플립플롭의 D 입력에 y, 출력 Q가 q. 논블로킹 대입 <code>&lt;=</code>을 쓴다(4절)."],
+      ['<span class="kw">endmodule</span>', "mod", "모듈의 끝."],
+    ];
+    const pre = $("map-code");
+    pre.innerHTML = L.map((l, i) => `<span class="ln" data-i="${i}" tabindex="0">${l[0]}</span>`).join("");
+    let cur = 8;
+    const lines = [...pre.querySelectorAll(".ln")];
+    function sel(i) {
+      cur = (i + L.length) % L.length;
+      lines.forEach((el, k) => el.classList.toggle("on", k === cur));
+      $("map-info").innerHTML = `<span class="hd-tag">${cur + 1}행</span>` + L[cur][2];
+      cv.redraw();
+    }
+    lines.forEach((el) => {
+      el.addEventListener("click", () => sel(+el.dataset.i));
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sel(+el.dataset.i); } });
+    });
+    $("map-prev").addEventListener("click", () => sel(cur - 1));
+    $("map-next").addEventListener("click", () => sel(cur + 1));
+    let hits = [];
+    const cv = SB.canvas($("cv-map"), (ctx, w, h) => {
+      const P = SB.palette();
+      const part = L[cur][1];
+      const s = w / 420;
+      const col = (p) => (p === part || part === "mod" && p === "mod" ? P.accent : P.text);
+      const wd = (p) => (p === part ? 3.2 : 1.8);
+      const bus = (pts, p) => { line(ctx, pts, p === part ? P.accent : P.dim, p === part ? 4 : 3); };
+      const slash = (x, y, p) => { line(ctx, [[x - 4, y + 5], [x + 4, y - 5]], p === part ? P.accent : P.dim, 1.5); txt(ctx, "4", x + 6, y - 9, { size: 10, color: P.dim }); };
+      hits = [];
+      // 모듈 상자
+      line(ctx, [[34 * s, 10], [w - 38 * s, 10], [w - 38 * s, h - 10], [34 * s, h - 10], [34 * s, 10]], part === "mod" ? P.accent : P.faint, part === "mod" ? 2.4 : 1.2, [6, 4]);
+      txt(ctx, "demo", 34 * s + 24, 22, { size: 11, color: part === "mod" ? P.accent : P.faint });
+      hits.push(["mod", 0, 0, w, 24]);
+      const yA = h * 0.30, yB = h * 0.50, ySel = h * 0.82, yClk = h * 0.9;
+      // 입력 라벨
+      txt(ctx, "a", 14 * s + 4, yA, { color: col("ab"), weight: 700 });
+      txt(ctx, "b", 14 * s + 4, yB, { color: col("ab"), weight: 700 });
+      txt(ctx, "sel", 14 * s + 6, ySel - 16, { color: col("sel"), weight: 700, size: 11 });
+      txt(ctx, "clk", 14 * s + 6, yClk + 2, { color: col("clk"), weight: 700, size: 11 });
+      hits.push(["ab", 0, yA - 12, 40 * s, yB - yA + 24]);
+      // MUX
+      const mx = 110 * s, mw = Math.max(24, 34 * s), mh = h * 0.44, my = h * 0.2;
+      bus([[26 * s, yA], [mx, yA]], "ab"); slash(64 * s, yA, "ab");
+      bus([[26 * s, yB], [mx - 0, yB]], "ab"); slash(64 * s, yB, "ab");
+      const M = mux(ctx, mx, my, mw, mh, { stroke: col("mux"), lw: wd("mux") });
+      // fix mux input positions to wires (a->0, b->1)
+      line(ctx, [[mx, yA], [M.in0[0], M.in0[1]]], P.dim, 3);
+      line(ctx, [[mx, yB], [M.in1[0], M.in1[1]]], P.dim, 3);
+      line(ctx, [[26 * s, ySel], [M.sel[0], ySel], M.sel], part === "sel" ? P.accent : P.dim, part === "sel" ? 3 : 1.8);
+      hits.push(["mux", mx, my, mw, mh]); hits.push(["sel", 0, ySel - 22, mx, 30]);
+      // y 버스
+      const fx = 215 * s, fw = Math.max(40, 52 * s), fh = h * 0.42, fy = h * 0.24;
+      bus([[M.out[0], M.out[1]], [fx, M.out[1]]], "y"); slash((M.out[0] + fx) / 2, M.out[1], "y");
+      txt(ctx, "y", (M.out[0] + fx) / 2 + 12, M.out[1] + 14, { color: col("y"), weight: 700 });
+      hits.push(["y", M.out[0], M.out[1] - 16, fx - M.out[0], 32]);
+      // 플립플롭 묶음
+      for (let k = 3; k >= 0; k--) {
+        const off = k * 4;
+        ffbox(ctx, fx + off, fy - off, fw, fh, { stroke: col("ff"), lw: wd("ff"), label: k === 0 ? "DFF×4" : "" });
+      }
+      line(ctx, [[26 * s, yClk], [fx - 8, yClk], [fx - 8, fy + fh - 9], [fx, fy + fh - 9]], part === "clk" ? P.accent : P.dim, part === "clk" ? 3 : 1.8);
+      hits.push(["ff", fx, fy - 14, fw + 14, fh + 14]); hits.push(["clk", 0, yClk - 10, fx, 22]);
+      // q 출력
+      const qx = w - 38 * s, qy = fy + 12;
+      bus([[fx + fw, qy], [qx, qy]], "q"); slash(qx - 14, qy, "q");
+      txt(ctx, "q", qx + 5, qy, { color: col("q"), weight: 700, align: "left" });
+      hits.push(["q", qx - 20, qy - 16, 60, 32]);
+      // XOR 트리
+      const tx = fx + fw + 14 * s, ty = h * 0.7, gw = Math.max(26, 34 * s), gh = Math.max(18, 22 * s);
+      const xc = col("xor"), xl = wd("xor");
+      line(ctx, [[tx - 6, qy], [tx - 6, ty + gh / 2]], P.dim, 3);
+      const g1 = DG.gate(ctx, "XOR", tx, ty - gh * 0.1, gw, gh, { stroke: xc, lw: xl });
+      const g2 = DG.gate(ctx, "XOR", tx, ty + gh * 1.1, gw, gh, { stroke: xc, lw: xl });
+      [g1, g2].forEach((g) => g.inputs.forEach(([x, y]) => line(ctx, [[tx - 6, y], [x, y]], P.dim, 1.4)));
+      const g3x = tx + gw + 8 * s;
+      const g3 = DG.gate(ctx, "XOR", g3x, ty + gh * 0.5, gw, gh, { stroke: xc, lw: xl });
+      line(ctx, [g1.output, [g1.output[0] + 4, g1.output[1]], [g1.output[0] + 4, g3.inputs[0][1]], g3.inputs[0]], P.dim, 1.4);
+      line(ctx, [g2.output, [g2.output[0] + 4, g2.output[1]], [g2.output[0] + 4, g3.inputs[1][1]], g3.inputs[1]], P.dim, 1.4);
+      line(ctx, [g3.output, [qx, g3.output[1]]], part === "par" ? P.accent : P.dim, part === "par" ? 3 : 1.8);
+      txt(ctx, "par", qx + 4, g3.output[1], { color: col("par"), weight: 700, size: 11, align: "left" });
+      hits.push(["xor", tx, ty - gh * 0.2, g3x + gw - tx, gh * 2.4]);
+      hits.push(["par", qx - 10, g3.output[1] - 14, 60, 28]);
+    }, { aspect: 0.62, minHeight: 220, maxHeight: 300 });
+    DG.pointer($("cv-map"), {
+      down(x, y) {
+        // 작은 영역 우선
+        const found = hits.filter(([, hx, hy, hw, hh]) => x >= hx && x <= hx + hw && y >= hy && y <= hy + hh).sort((a, b) => a[3] * a[4] - b[3] * b[4])[0];
+        if (!found) return;
+        const i = L.findIndex((l) => l[1] === found[0]);
+        if (i >= 0) sel(i);
+      },
+    });
+    sel(8);
+  })();
+
+  /* =====================================================================
+     그림 17-3  비트 벡터와 연산자
+     ===================================================================== */
+  (function () {
+    let a = 0b1011, b = 0b0110;
+    const opSeg = SB.seg("vec-op", () => { cv.redraw(); upd(); });
+    const INFO = {
+      and: ["AND2 ×4 (비트마다 독립)", 4], xor: ["XOR2 ×4 (비트마다 독립)", 4], not: ["INV ×4", 4],
+      add: ["4비트 리플 캐리 덧셈기 (전가산기 ×4)", "약 20"], shl: ["배선만 (아래 자리에 0)", 0], cat: ["배선만 (8비트로 나란히)", 0],
+      eq: ["XNOR2 ×4 + AND4 트리", "약 7"], red: ["AND2 ×3 트리", 3],
+    };
+    function result() {
+      const op = opSeg();
+      switch (op) {
+        case "and": return [a & b, 4];
+        case "xor": return [a ^ b, 4];
+        case "not": return [~a & 15, 4];
+        case "add": return [a + b, 5];
+        case "shl": return [(a << 1) & 15, 4];
+        case "cat": return [(a << 4) | b, 8];
+        case "eq": return [+(a === b), 1];
+        case "red": return [+(a === 15), 1];
+      }
+      return [0, 4];
+    }
+    let boxes = [];
+    const cv = SB.canvas($("cv-vec"), (ctx, w, h) => {
+      const P = SB.palette();
+      const op = opSeg();
+      const [r, rn] = result();
+      const bw = Math.min(40, (w - 64) / 9.6), gap = bw * 0.18;
+      const left = 54;
+      const colX = (i, n) => left + (8 - n) * (bw + gap) + i * (bw + gap); // 오른쪽 정렬 (i=0 MSB)
+      const rowA = 22, rowB = rowA + bw + 16, rowR = h - bw - 16;
+      boxes = [];
+      const drawRow = (bits, y, label, kind, n) => {
+        txt(ctx, label, 22, y + bw / 2, { color: P.dim, weight: 700 });
+        bits.forEach((v, i) => {
+          const x = colX(i, n);
+          DG.box(ctx, x, y, bw, bw, DG.alpha(DG.lv(v), v ? 0.9 : 0.35), String(v), { color: v ? "#fff" : P.text, size: Math.max(11, bw * 0.4), mono: true, r: 5 });
+          if (kind) boxes.push([kind, n - 1 - i, x, y, bw, bw]);
+        });
+        txt(ctx, "[" + (n - 1) + "]", colX(0, n) + bw / 2, y - 7, { size: 9, color: P.faint });
+        txt(ctx, "[0]", colX(n - 1, n) + bw / 2, y - 7, { size: 9, color: P.faint });
+      };
+      const showB = !(op === "not" || op === "shl" || op === "red");
+      drawRow(vbits(a, 4), rowA, "a", "a", 4);
+      if (showB) drawRow(vbits(b, 4), rowB, "b", "b", 4);
+      else txt(ctx, "(b 안 씀)", colX(1, 4) + bw, rowB + bw / 2, { size: 11, color: P.faint, mono: false });
+      drawRow(vbits(r, rn), rowR, op === "eq" || op === "red" ? "y" : "y", null, rn);
+      // 연결선
+      const ax = (i) => colX(3 - i, 4) + bw / 2; // 비트 i의 x
+      const rx = (i) => colX(rn - 1 - i, rn) + bw / 2;
+      const yTop = (showB ? rowB : rowA) + bw + 2, yBot = rowR - 3;
+      const wc = DG.alpha(P.dim, 0.7);
+      if (op === "and" || op === "xor" || op === "not") {
+        for (let i = 0; i < 4; i++) line(ctx, [[ax(i), yTop], [rx(i), yBot]], wc, 1.6);
+        if (showB) for (let i = 0; i < 4; i++) line(ctx, [[ax(i) - bw * 0.25, rowA + bw + 2], [ax(i) - bw * 0.25, rowB - 2]], DG.alpha(P.dim, 0.35), 1.2, [3, 3]);
+      } else if (op === "shl") {
+        for (let i = 0; i < 3; i++) line(ctx, [[ax(i), yTop], [rx(i + 1), yBot]], wc, 1.6);
+        txt(ctx, "0", rx(0), yBot - 12, { size: 11, color: P.accent2 });
+        txt(ctx, "a[3] 버림", ax(3), yTop + 12, { size: 10, color: P.faint, mono: false });
+      } else if (op === "cat") {
+        for (let i = 0; i < 4; i++) { line(ctx, [[ax(i), rowA + bw + 2], [rx(i + 4), yBot]], wc, 1.4); line(ctx, [[ax(i), yTop], [rx(i), yBot]], DG.alpha(P.accent, 0.6), 1.4); }
+      } else if (op === "add") {
+        for (let i = 0; i < 4; i++) line(ctx, [[ax(i), yTop], [rx(i), yBot]], wc, 1.6);
+        for (let i = 0; i < 4; i++) DG.arrow(ctx, rx(i) - bw * 0.15, (yTop + yBot) / 2, rx(i + 1) + bw * 0.15, (yTop + yBot) / 2, P.accent2, 1.8, 6);
+        txt(ctx, "캐리", rx(4) + bw * 0.1, (yTop + yBot) / 2 - 10, { size: 10, color: P.accent2, mono: false });
+      } else {
+        for (let i = 0; i < 4; i++) line(ctx, [[ax(i), yTop], [rx(0), yBot]], wc, 1.4);
+      }
+    }, { aspect: 0.42, minHeight: 200, maxHeight: 250 });
+    DG.pointer($("cv-vec"), {
+      down(x, y) {
+        const hit = boxes.find(([, , bx, by, bw, bh]) => x >= bx && x <= bx + bw && y >= by && y <= by + bh);
+        if (!hit) return;
+        if (hit[0] === "a") a ^= 1 << hit[1]; else b ^= 1 << hit[1];
+        cv.redraw(); upd();
+      },
+    });
+    $("vec-rand").addEventListener("click", () => { a = Math.floor(Math.random() * 16); b = Math.floor(Math.random() * 16); cv.redraw(); upd(); });
+    function upd() {
+      const [r, rn] = result();
+      SB.stat("vec-r", `${rn}'b${SB.bin(r, rn)} <small>(${r})</small>`);
+      SB.stat("vec-hw", INFO[opSeg()][0]);
+      SB.stat("vec-g", String(INFO[opSeg()][1]));
+    }
+    upd();
+  })();
+
+  /* =====================================================================
+     그림 17-4  래치 추론
+     ===================================================================== */
+  (function () {
+    const CODE = {
+      else: '<span class="kw">always_comb</span> <span class="kw">begin</span>\n  <span class="kw">if</span> (en) y = d;\n  <span class="kw">else</span>    y = b;\n<span class="kw">end</span>',
+      none: '<span class="kw">always_comb</span> <span class="kw">begin</span>\n  <span class="kw">if</span> (en) y = d;\n  <span class="cm">// else 없음: en=0이면?</span>\n<span class="kw">end</span>',
+      def: '<span class="kw">always_comb</span> <span class="kw">begin</span>\n  y = b;          <span class="cm">// 기본값 먼저</span>\n  <span class="kw">if</span> (en) y = d;\n<span class="kw">end</span>',
+    };
+    let en = 0, d = 1, b = 0, y = "x", hist = [];
+    const mode = SB.seg("lat-mode", () => { $("lat-code").innerHTML = CODE[mode()]; reset(); });
+    function evalY() {
+      if (mode() === "none") { if (en) y = d; } else y = en ? d : b;
+    }
+    function push() { evalY(); hist.push({ en, d, b, y }); if (hist.length > 14) hist.shift(); cv.redraw(); upd(); }
+    function reset() { hist = []; y = mode() === "none" ? "x" : null; evalY(); for (let i = 0; i < 13; i++) hist.push({ en, d, b, y }); push(); }
+    $("lat-en").addEventListener("click", () => { en ^= 1; push(); });
+    $("lat-d").addEventListener("click", () => { d ^= 1; push(); });
+    $("lat-b").addEventListener("click", () => { b ^= 1; push(); });
+    $("lat-clr").addEventListener("click", reset);
+    const cv = SB.canvas($("cv-latch"), (ctx, w, h) => {
+      const P = SB.palette();
+      const isL = mode() === "none";
+      const top = 8, ch = Math.min(118, h * 0.46);
+      const s = Math.min(1, w / 360);
+      // 회로
+      const x0 = 34, mx = x0 + 70 * s;
+      txt(ctx, "d", 14, top + ch * 0.55, { color: DG.lv(d), weight: 700 });
+      txt(ctx, "b", 14, top + ch * 0.3, { color: isL ? P.faint : DG.lv(b), weight: 700 });
+      txt(ctx, "en", 16, top + ch * 0.86, { color: DG.lv(en), weight: 700 });
+      if (!isL) {
+        const M = mux(ctx, mx, top + 6, 40, ch * 0.78);
+        DG.wire(ctx, [[24, top + ch * 0.55], [mx - 14, top + ch * 0.55], [mx - 14, M.in1[1]], M.in1], d);
+        DG.wire(ctx, [[24, top + ch * 0.3], [mx - 24, top + ch * 0.3], [mx - 24, M.in0[1]], M.in0], b);
+        DG.wire(ctx, [[30, top + ch * 0.86], [M.sel[0], top + ch * 0.86], M.sel], en);
+        DG.wire(ctx, [M.out, [mx + 120 * s, M.out[1]]], y);
+        txt(ctx, "y", mx + 120 * s + 10, M.out[1], { weight: 700, color: DG.lv(y) });
+        txt(ctx, "MUX2 (조합 논리)", mx + 20, top + ch + 4, { size: 11, color: P.ok, mono: false });
+      } else {
+        const bx = mx, bw = 70, bh = ch * 0.8;
+        const F = ffbox(ctx, bx, top + 4, bw, bh, { latch: true, label: "D 래치", stroke: P.warn, lw: 2.4 });
+        DG.wire(ctx, [[24, top + ch * 0.55], [bx - 14, top + ch * 0.55], [bx - 14, F.d[1]], F.d], d);
+        DG.wire(ctx, [[30, top + ch * 0.86], [bx - 20, top + ch * 0.86], [bx - 20, F.clk[1]], F.clk], en);
+        DG.wire(ctx, [F.q, [bx + bw + 60 * s, F.q[1]]], y);
+        txt(ctx, "y", bx + bw + 60 * s + 10, F.q[1], { weight: 700, color: DG.lv(y) });
+        txt(ctx, "래치 (상태를 기억!)", bx + 40, top + ch + 4, { size: 11, color: P.warn, mono: false });
+      }
+      // 파형
+      const n = 14;
+      const sig = (k) => { const arr = []; for (let i = 0; i < n; i++) { const e = hist[i - (n - hist.length)]; arr.push(e ? (e[k] === "x" || e[k] == null ? null : e[k]) : ""); } return arr; };
+      const mk = (k) => sig(k).map((v) => (v === "" ? "z" : v));
+      const pad = n - hist.length;
+      const box = { x: 4, y: top + ch + 18, w: w - 8, h: h - (top + ch + 22) };
+      const ys = sig("y").map((v, i) => (i < pad ? "z" : v));
+      DG.wave(ctx, box, {
+        cycles: n, nameW: 34,
+        signals: [
+          { name: "en", type: "bit", v: mk("en").map((v, i) => (i < pad ? "z" : v)) },
+          { name: "d", type: "bit", v: mk("d").map((v, i) => (i < pad ? "z" : v)) },
+          { name: "b", type: "bit", v: mk("b").map((v, i) => (i < pad ? "z" : v)) },
+          { name: "y", type: "bit", v: ys, fill: true },
+        ],
+        cursor: n - 1,
+      });
+    }, { aspect: 0.75, minHeight: 280, maxHeight: 330 });
+    function upd() {
+      const isL = mode() === "none";
+      SB.stat("lat-kind", isL ? '<span style="color:var(--warn)">D 래치 1개 (순차)</span>' : '<span style="color:var(--ok)">MUX2 1개 (조합)</span>');
+      SB.stat("lat-msg", isL ? "Warning: Latch inferred for 'y'" : "Info: 'y' → combinational");
+    }
+    $("lat-code").innerHTML = CODE[mode()];
+    reset();
+  })();
+
+  /* =====================================================================
+     그림 17-5  블로킹 vs 논블로킹
+     ===================================================================== */
+  (function () {
+    const ST = [["q1", "d"], ["q2", "q1"], ["q3", "q2"]];
+    let v, snap, step, queue, hist;
+    const mode = SB.seg("nba-mode", () => { abort(); render(); });
+    init();
+    function init() { v = { d: 1, q1: 0, q2: 0, q3: 0 }; step = 0; queue = {}; hist = []; for (let i = 0; i < 12; i++) hist.push({ ...v }); snap = null; }
+    function abort() { if (snap) { v = { ...snap, d: v.d }; } step = 0; queue = {}; snap = null; }
+    function nSteps() { return mode() === "nb" ? 4 : 3; }
+    function doStep() {
+      if (step === 0) snap = { ...v };
+      const nb = mode() === "nb";
+      if (step < 3) {
+        const [l, r] = ST[step];
+        if (nb) queue[l] = v[r]; else v[l] = v[r];
+      } else { Object.assign(v, queue); queue = {}; }
+      step++;
+      if (step >= nSteps()) { step = 0; snap = null; queue = {}; hist.push({ ...v }); if (hist.length > 12) hist.shift(); }
+      render();
+    }
+    $("nba-step").addEventListener("click", doStep);
+    $("nba-edge").addEventListener("click", () => { do { doStep(); } while (step !== 0); });
+    $("nba-d").addEventListener("click", () => { v.d ^= 1; render(); });
+    $("nba-rst").addEventListener("click", () => { init(); render(); });
+    function code() {
+      const nb = mode() === "nb", op = nb ? "&lt;=" : "=";
+      const L = ['<span class="kw">always_ff</span> @(<span class="kw">posedge</span> clk) <span class="kw">begin</span>'];
+      ST.forEach(([l, r]) => L.push(`  ${l} ${op} ${r};`));
+      L.push(nb ? '<span class="cm">  // (에지 끝: 예약 값 일괄 갱신)</span>' : '<span class="cm">  // (블로킹: 즉시 갱신)</span>');
+      L.push('<span class="kw">end</span>');
+      $("nba-code").innerHTML = L.map((s, i) => `<span class="ln${step > 0 && i === step ? " on" : ""}${i === 4 && !nb ? " dim" : ""}">${s}</span>`).join("");
+    }
+    function render() {
+      code();
+      cv.redraw();
+      const nb = mode() === "nb";
+      let msg;
+      if (step === 0) msg = nb ? "클럭 에지를 기다리는 중. <b>한 문장 실행</b>을 누르면 에지가 온다. 각 문장은 오른쪽 값을 <b>지금</b> 읽어 예약 칸에 넣는다." : "클럭 에지를 기다리는 중. 블로킹은 각 문장이 <b>즉시</b> 값을 바꾸므로 다음 문장이 바뀐 값을 읽는다.";
+      else if (nb && step === 3) msg = "세 문장 모두 옛값을 읽었다. 다음 단계에서 예약 칸의 값이 <b>한꺼번에</b> q1~q3에 들어간다.";
+      else msg = `${step}번째 문장까지 처리했다. ` + (nb ? "q들은 아직 그대로다. 예약 칸만 채워졌다." : `방금 ${ST[step - 1][0]}이(가) 바뀌었고, 다음 줄은 이 새 값을 읽는다.`);
+      $("nba-info").innerHTML = msg;
+    }
+    const cv = SB.canvas($("cv-nba"), (ctx, w, h) => {
+      const P = SB.palette();
+      const nb = mode() === "nb";
+      const names = ["d", "q1", "q2", "q3"];
+      const bw = Math.min(54, (w - 40) / 5.2), gap = (w - 20 - 4 * bw) / 3;
+      const y1 = 22;
+      names.forEach((n, i) => {
+        const x = 10 + i * (bw + gap);
+        const val = v[n];
+        DG.box(ctx, x, y1, bw, 30, DG.alpha(DG.lv(val), val ? 0.85 : 0.35), String(val), { color: val ? "#fff" : P.text, size: 14, mono: true });
+        txt(ctx, n, x + bw / 2, y1 - 9, { size: 11, color: P.dim });
+        if (i > 0 && nb) {
+          const q = queue[n];
+          ctx.save(); ctx.setLineDash([4, 3]); DG.roundRect(ctx, x, y1 + 40, bw, 24, 5); ctx.strokeStyle = P.accent2; ctx.lineWidth = 1.4; ctx.stroke(); ctx.restore();
+          txt(ctx, q == null ? "·" : String(q), x + bw / 2, y1 + 52, { size: 13, color: q == null ? P.faint : P.accent2, weight: 700 });
+        }
+        if (i > 0) DG.arrow(ctx, x - gap + 4, y1 + 15, x - 4, y1 + 15, DG.alpha(P.dim, 0.6), 1.3, 6);
+      });
+      if (nb) txt(ctx, "예약", 10 + bw / 2, y1 + 52, { size: 10.5, color: P.accent2, mono: false });
+      // 합성된 하드웨어
+      const hy = y1 + 82, hh = Math.min(70, h * 0.3);
+      txt(ctx, nb ? "합성 결과: 직렬 플립플롭 3개 (시프트 레지스터)" : "합성 결과: 세 플립플롭 모두 D = d (병렬)", w / 2, hy, { size: 11, color: nb ? P.ok : P.warn, mono: false });
+      const fw = Math.min(46, (w - 60) / 5), fh = 34, fgap = (w - 40 - 3 * fw) / 3;
+      const fy = hy + 16;
+      let prev = [12, fy + 12];
+      txt(ctx, "d", 8, fy + 12, { size: 11, color: P.dim });
+      for (let i = 0; i < 3; i++) {
+        const fx = 22 + fgap * 0.6 + i * (fw + fgap);
+        const F = ffbox(ctx, fx, fy, fw, fh);
+        if (nb) DG.wire(ctx, [prev, F.d], i ? v["q" + i] : v.d, 1.8);
+        else DG.wire(ctx, [[14, fy + 12], [14, fy + fh + 8], [fx - 6, fy + fh + 8], [fx - 6, F.d[1]], F.d], v.d, 1.6);
+        prev = F.q;
+        txt(ctx, "q" + (i + 1), F.q[0] + 10, F.q[1] - 9, { size: 10, color: P.dim });
+        if (!nb || i === 2) DG.wire(ctx, [F.q, [F.q[0] + 10, F.q[1]]], v["q" + (i + 1)], 1.8);
+      }
+      // 파형 기록
+      const n = 12, pad = n - hist.length;
+      const series = (k) => { const out = []; for (let i = 0; i < n; i++) out.push(i < pad ? "z" : hist[i - pad][k]); return out; };
+      const wy = fy + fh + 18;
+      if (h - wy > 60) DG.wave(ctx, { x: 4, y: wy, w: w - 8, h: h - wy - 4 }, { cycles: n, nameW: 30, signals: ["d", "q1", "q2", "q3"].map((k) => ({ name: k, type: "bit", v: series(k) })) });
+    }, { aspect: 0.78, minHeight: 330, maxHeight: 380 });
+    init(); render();
+  })();
+
+  /* =====================================================================
+     시뮬레이터: 미니 합성기
+     ===================================================================== */
+  (function () {
+    const TCOUNT = { IN: 0, C0: 0, C1: 0, NOT: 2, NAND: 4, NOR: 4, AND: 6, OR: 6, XOR: 12, XNOR: 12, MUX: 12 };
+    const COMM = { AND: 1, OR: 1, XOR: 1, XNOR: 1, NAND: 1, NOR: 1 };
+    const PRESETS = {
+      maj: "// 세 입력 중 둘 이상이 1이면 1\nassign y = (a & b) | (a & c) | (b & c);",
+      fa: "// 전가산기: a ^ b 를 합과 캐리가 공유한다\nassign sum  = a ^ b ^ cin;\nassign cout = (a & b) | (cin & (a ^ b));",
+      mux: "// 2:1 멀티플렉서\nassign y = s ? b : a;",
+      const: "// 상수와 자기 자신과의 연산은 사라진다\nassign y = (a & 1'b1) | (b & 1'b0) | (c ^ c);",
+      dup: "// a&b 와 b&a, 그리고 ~~c\nassign x = (a & b) ^ c;\nassign z = (b & a) | ~(~c);",
+      par: "// 4비트 패리티\nassign p = a ^ b ^ c ^ d;",
+      err: "assign y = a & | b;",
+    };
+    class SynErr extends Error { constructor(msg, pos) { super(msg); this.pos = pos; } }
+
+    /* ---------- 어휘 분석 ---------- */
+    function lex(src) {
+      // 주석을 같은 길이의 공백으로
+      src = src.replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length)).replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
+      const toks = []; let i = 0;
+      const OPS = ["~^", "^~", "&&", "||", "~", "!", "&", "|", "^", "?", ":", "(", ")", "=", ";", ",", "[", "]"];
+      while (i < src.length) {
+        const c = src[i];
+        if (/\s/.test(c)) { i++; continue; }
+        let m;
+        const rest = src.slice(i);
+        if ((m = rest.match(/^[A-Za-z_][A-Za-z0-9_$]*/))) { toks.push({ k: "id", v: m[0], pos: i }); i += m[0].length; continue; }
+        if ((m = rest.match(/^(\d*)'([bBdDhH])([0-9a-fA-FxXzZ_]+)/))) {
+          const val = m[3].replace(/_/g, "");
+          if (/[xXzZ]/.test(val)) throw new SynErr("x·z 상수는 합성 대상이 아니다. 0 또는 1을 쓰자.", i);
+          const n = parseInt(val, { b: 2, d: 10, h: 16 }[m[2].toLowerCase()]);
+          if (!(n === 0 || n === 1)) throw new SynErr(`이 합성기는 1비트 상수(0, 1)만 다룬다: '${m[0]}'`, i);
+          toks.push({ k: "c", v: n, pos: i }); i += m[0].length; continue;
+        }
+        if ((m = rest.match(/^\d+/))) {
+          const n = +m[0];
+          if (n > 1) throw new SynErr(`이 합성기는 1비트 상수(0, 1)만 다룬다: '${m[0]}'`, i);
+          toks.push({ k: "c", v: n, pos: i }); i += m[0].length; continue;
+        }
+        const op = OPS.find((o) => rest.startsWith(o));
+        if (op) { toks.push({ k: "op", v: op, pos: i }); i += op.length; continue; }
+        throw new SynErr(`알 수 없는 문자 '${c}'`, i);
+      }
+      toks.push({ k: "eof", v: "", pos: src.length });
+      return toks;
+    }
+
+    /* ---------- 구문 분석 ---------- */
+    function parse(src) {
+      const T = lex(src); let p = 0; let count = 0;
+      const peek = () => T[p], next = () => T[p++];
+      const isOp = (v) => T[p].k === "op" && T[p].v === v;
+      const show = (t) => (t.k === "eof" ? "글의 끝" : `'${t.v}'`);
+      const expect = (v, what) => { if (!isOp(v)) throw new SynErr(`${what || `'${v}'`}가 필요한데 ${show(peek())}이(가) 있다.`, peek().pos); return next(); };
+      const node = (o) => { if (++count > 90) throw new SynErr("식이 너무 크다(노드 90개 이하).", peek().pos); return o; };
+      function ternary() {
+        const c = lor();
+        if (isOp("?")) { next(); const t = ternary(); expect(":", "조건 연산자의 ':'"); const f = ternary(); return node({ t: "mux", k: [c, t, f] }); }
+        return c;
+      }
+      const binLevel = (sub, ops, map) => () => {
+        let a = sub();
+        while (T[p].k === "op" && ops.includes(T[p].v)) { const o = next().v; const b = sub(); a = node({ t: map[o], k: [a, b] }); }
+        return a;
+      };
+      function unary() {
+        if (isOp("~") || isOp("!")) { next(); return node({ t: "not", k: [unary()] }); }
+        if (isOp("&") || isOp("|") || isOp("^")) throw new SynErr(`${show(peek())} 앞에 피연산자가 없다. 이 합성기는 축약 연산자를 지원하지 않는다.`, peek().pos);
+        return primary();
+      }
+      function primary() {
+        const t = peek();
+        if (t.k === "id") { next(); if (/^(assign|input|output|wire|logic|module|endmodule|always|reg)$/.test(t.v)) throw new SynErr(`예약어 '${t.v}'는 식에 쓸 수 없다.`, t.pos); if (isOp("[")) throw new SynErr("비트 선택·벡터는 지원하지 않는다(1비트 신호만).", peek().pos); return node({ t: "v", n: t.v, pos: t.pos }); }
+        if (t.k === "c") { next(); return node({ t: "c", v: t.v }); }
+        if (isOp("(")) { next(); const e = ternary(); expect(")", "닫는 괄호 ')'"); return e; }
+        throw new SynErr(`식이 와야 할 자리에 ${show(t)}이(가) 있다.`, t.pos);
+      }
+      const band = binLevel(unary, ["&"], { "&": "and" });
+      const bxor = binLevel(band, ["^", "~^", "^~"], { "^": "xor", "~^": "xnor", "^~": "xnor" });
+      const bor = binLevel(bxor, ["|"], { "|": "or" });
+      const land = binLevel(bor, ["&&"], { "&&": "and" });
+      const lor = binLevel(land, ["||"], { "||": "or" });
+      const stmts = [], declIn = [];
+      while (peek().k !== "eof") {
+        const t = peek();
+        if (t.k === "id" && t.v === "assign") {
+          next();
+          const l = peek();
+          if (l.k !== "id") throw new SynErr(`assign 다음에는 출력 이름이 와야 한다(${show(l)}).`, l.pos);
+          next();
+          if (isOp("[")) throw new SynErr("비트 선택·벡터는 지원하지 않는다(1비트 신호만).", peek().pos);
+          expect("=", "'='");
+          const e = ternary();
+          if (peek().k !== "eof") expect(";", "문장 끝의 세미콜론 ';'");
+          else if (!isOp(";")) { /* 마지막 ';' 생략 허용 */ }
+          stmts.push({ lhs: l.v, e, pos: l.pos });
+        } else if (t.k === "id" && /^(input|output|wire|logic)$/.test(t.v)) {
+          const kind = next().v;
+          while (!isOp(";") && peek().k !== "eof") {
+            const q = next();
+            if (q.k === "op" && q.v === "[") throw new SynErr("벡터 선언은 지원하지 않는다(1비트 신호만).", q.pos);
+            if (q.k === "id" && kind === "input" && !/^(logic|wire)$/.test(q.v)) declIn.push(q.v);
+          }
+          if (isOp(";")) next();
+        } else if (t.k === "id" && /^(module|endmodule|always|always_comb|always_ff|reg|begin|end|if)$/.test(t.v)) {
+          throw new SynErr(`이 장난감 합성기는 '${t.v}'를 모른다. assign 문만 쓰자.`, t.pos);
+        } else throw new SynErr(`문장은 assign으로 시작해야 한다(${show(t)}).`, t.pos);
+      }
+      if (!stmts.length) throw new SynErr("assign 문이 하나도 없다.", 0);
+      // 의미 검사
+      const lhs = new Map();
+      stmts.forEach((s, i) => { if (lhs.has(s.lhs)) throw new SynErr(`'${s.lhs}'에 두 번 대입했다(다중 구동).`, s.pos); lhs.set(s.lhs, i); });
+      const inputs = declIn.filter((n, i) => declIn.indexOf(n) === i);
+      inputs.forEach((n) => { if (lhs.has(n)) throw new SynErr(`입력 '${n}'에 대입할 수 없다.`, stmts[lhs.get(n)].pos); });
+      stmts.forEach((s, i) => {
+        (function walk(e) {
+          if (e.t === "v") {
+            if (lhs.has(e.n)) {
+              if (lhs.get(e.n) >= i) throw new SynErr(lhs.get(e.n) === i ? `'${e.n}'가 자기 자신을 참조한다(조합 루프).` : `'${e.n}'를 대입하기 전에 썼다. 순서를 바꾸자.`, e.pos);
+              e.t = "w";
+            } else if (!inputs.includes(e.n)) inputs.push(e.n);
+          }
+          (e.k || []).forEach(walk);
+        })(s.e);
+      });
+      if (inputs.length > 6) throw new SynErr(`입력이 ${inputs.length}개다. 진리표를 그리려면 6개 이하로 줄이자.`, 0);
+      if (stmts.length > 4) throw new SynErr("출력(assign 문)은 4개까지 쓸 수 있다.", stmts[4].pos);
+      return { stmts, inputs };
+    }
+
+    /* ---------- 식 트리 평가 (명세) ---------- */
+    function evalAst(prog, vec) {
+      const env = {}; prog.inputs.forEach((n, i) => (env[n] = vec[i]));
+      const out = {};
+      const ev = (e) => {
+        switch (e.t) {
+          case "v": return env[e.n];
+          case "w": return out[e.n];
+          case "c": return e.v;
+          case "not": return 1 - ev(e.k[0]);
+          case "and": return ev(e.k[0]) & ev(e.k[1]);
+          case "or": return ev(e.k[0]) | ev(e.k[1]);
+          case "xor": return ev(e.k[0]) ^ ev(e.k[1]);
+          case "xnor": return 1 - (ev(e.k[0]) ^ ev(e.k[1]));
+          case "mux": return ev(e.k[0]) ? ev(e.k[1]) : ev(e.k[2]);
+        }
+        return 0;
+      };
+      prog.stmts.forEach((s) => (out[s.lhs] = ev(s.e)));
+      return prog.stmts.map((s) => out[s.lhs]);
+    }
+
+    /* ---------- 넷리스트 빌더 ---------- */
+    function Builder(inputs, opt) {
+      const nodes = inputs.map((n) => ({ type: "IN", ins: [], name: n }));
+      const hash = new Map();
+      const ty = (i) => nodes[i].type;
+      const isC = (i, v) => ty(i) === "C" + v;
+      const compl = (x, y) => (ty(x) === "NOT" && nodes[x].ins[0] === y) || (ty(y) === "NOT" && nodes[y].ins[0] === x);
+      function simplify(t, ins) {
+        const [x, y, z] = ins;
+        switch (t) {
+          case "NOT": if (isC(x, 0)) return mk("C1", []); if (isC(x, 1)) return mk("C0", []); if (ty(x) === "NOT") return nodes[x].ins[0]; break;
+          case "AND":
+            if (isC(x, 0) || isC(y, 0)) return mk("C0", []); if (isC(x, 1)) return y; if (isC(y, 1)) return x;
+            if (x === y) return x; if (compl(x, y)) return mk("C0", []); break;
+          case "OR":
+            if (isC(x, 1) || isC(y, 1)) return mk("C1", []); if (isC(x, 0)) return y; if (isC(y, 0)) return x;
+            if (x === y) return x; if (compl(x, y)) return mk("C1", []); break;
+          case "XOR":
+            if (isC(x, 0)) return y; if (isC(y, 0)) return x; if (isC(x, 1)) return mk("NOT", [y]); if (isC(y, 1)) return mk("NOT", [x]);
+            if (x === y) return mk("C0", []); if (compl(x, y)) return mk("C1", []); break;
+          case "XNOR":
+            if (isC(x, 1)) return y; if (isC(y, 1)) return x; if (isC(x, 0)) return mk("NOT", [y]); if (isC(y, 0)) return mk("NOT", [x]);
+            if (x === y) return mk("C1", []); if (compl(x, y)) return mk("C0", []); break;
+          case "NAND":
+            if (isC(x, 0) || isC(y, 0)) return mk("C1", []); if (isC(x, 1)) return mk("NOT", [y]); if (isC(y, 1)) return mk("NOT", [x]);
+            if (x === y) return mk("NOT", [x]); break;
+          case "NOR":
+            if (isC(x, 1) || isC(y, 1)) return mk("C0", []); if (isC(x, 0)) return mk("NOT", [y]); if (isC(y, 0)) return mk("NOT", [x]);
+            if (x === y) return mk("NOT", [x]); break;
+          case "MUX": // ins [s, t, f]
+            if (isC(x, 1)) return y; if (isC(x, 0)) return z; if (y === z) return y;
+            if (isC(y, 1) && isC(z, 0)) return x; if (isC(y, 0) && isC(z, 1)) return mk("NOT", [x]);
+            if (isC(y, 0)) return mk("AND", [mk("NOT", [x]), z]); if (isC(z, 0)) return mk("AND", [x, y]);
+            if (isC(y, 1)) return mk("OR", [x, z]); if (isC(z, 1)) return mk("OR", [mk("NOT", [x]), y]);
+            break;
+        }
+        return undefined;
+      }
+      function mk(t, ins) {
+        if (opt.cp) { const r = simplify(t, ins); if (r !== undefined) return r; }
+        let key = null;
+        if (opt.cse || t === "C0" || t === "C1") {
+          key = t + ":" + (COMM[t] ? ins.slice().sort((a, b) => a - b) : ins).join(",");
+          if (hash.has(key)) return hash.get(key);
+        }
+        nodes.push({ type: t, ins: ins.slice() });
+        const id = nodes.length - 1;
+        if (key) hash.set(key, id);
+        return id;
+      }
+      return { nodes, mk };
+    }
+    /** 출력에서 닿지 않는 게이트 제거 + 번호 다시 매기기 */
+    function dce(nodes, outs) {
+      const keep = nodes.map((n) => n.type === "IN");
+      const st = outs.map((o) => o[1]);
+      while (st.length) { const i = st.pop(); if (keep[i] && nodes[i].type !== "IN") continue; keep[i] = true; nodes[i].ins.forEach((j) => st.push(j)); }
+      const map = []; const nn = [];
+      nodes.forEach((n, i) => { if (keep[i]) { map[i] = nn.length; nn.push({ type: n.type, ins: n.ins.map((j) => map[j]), name: n.name }); } });
+      return { nodes: nn, outs: outs.map(([nm, i]) => [nm, map[i]]) };
+    }
+    function astToNet(prog) {
+      const B = Builder(prog.inputs, { cp: false, cse: false });
+      const outIdx = {};
+      const OP = { not: "NOT", and: "AND", or: "OR", xor: "XOR", xnor: "XNOR", mux: "MUX" };
+      const build = (e) => {
+        if (e.t === "v") return prog.inputs.indexOf(e.n);
+        if (e.t === "w") return outIdx[e.n];
+        if (e.t === "c") return B.mk(e.v ? "C1" : "C0", []);
+        return B.mk(OP[e.t], e.k.map(build));
+      };
+      prog.stmts.forEach((s) => (outIdx[s.lhs] = build(s.e)));
+      return dce(B.nodes, prog.stmts.map((s) => [s.lhs, outIdx[s.lhs]]));
+    }
+    // std 매핑에서 원래 노드 j의 "입력들"을 새 번호로 돌려주는 도우미 — rebuild의 map을 엿보기 위해 별도 구현
+    let curMap = null;
+    function innerMapped(j) { return curNet.nodes[j].ins.map((k) => curMap[k]); }
+    let curNet = null;
+    // rebuild를 감싸 map을 노출
+    function rebuild(net, opt, xform) {
+      const inputs = net.nodes.filter((n) => n.type === "IN").map((n) => n.name);
+      const B = Builder(inputs, opt);
+      const map = [];
+      const saveMap = curMap, saveNet = curNet;
+      curMap = map; curNet = net;
+      try {
+        net.nodes.forEach((n, i) => {
+          if (n.type === "IN") { map[i] = i; return; }
+          const ins = n.ins.map((j) => map[j]);
+          map[i] = xform ? xform(B, n, ins, i) : B.mk(n.type, ins);
+        });
+      } finally { curMap = saveMap; curNet = saveNet; }
+      return dce(B.nodes, net.outs.map(([nm, i]) => [nm, map[i]]));
+    }
+    function fanouts(net) {
+      const f = net.nodes.map(() => 0);
+      net.nodes.forEach((n) => n.ins.forEach((j) => f[j]++));
+      net.outs.forEach(([, i]) => (f[i] += 1));
+      return f;
+    }
+    function mapNet(net, lib) {
+      const opt = { cp: true, cse: true };
+      if (lib === "std") {
+        const fo = fanouts(net);
+        const NEG = { AND: "NAND", OR: "NOR", XOR: "XNOR", XNOR: "XOR" };
+        return rebuild(net, opt, (B, n, ins, i) => {
+          if (n.type === "NOT") {
+            const inner = net.nodes[n.ins[0]];
+            if (NEG[inner.type] && fo[n.ins[0]] === 1) return B.mk(NEG[inner.type], innerMapped(n.ins[0]));
+          }
+          if ((n.type === "AND" || n.type === "OR") && n.ins.every((j) => net.nodes[j].type === "NOT" && fo[j] === 1))
+            return B.mk(n.type === "AND" ? "NOR" : "NAND", n.ins.map((j) => innerMapped(j)[0]));
+          return B.mk(n.type, ins);
+        });
+      }
+      const nand = lib === "nand";
+      return rebuild(net, opt, (B, n, ins) => {
+        const [a, b, c] = ins;
+        const N = (x) => B.mk("NOT", [x]);
+        const G = (x, y) => B.mk(nand ? "NAND" : "NOR", [x, y]);
+        if (nand) switch (n.type) {
+          case "C0": case "C1": return B.mk(n.type, []);
+          case "NOT": return N(a);
+          case "AND": return N(G(a, b));
+          case "OR": return G(N(a), N(b));
+          case "NAND": return G(a, b);
+          case "NOR": return N(G(N(a), N(b)));
+          case "XOR": { const t = G(a, b); return G(G(a, t), G(b, t)); }
+          case "XNOR": { const t = G(a, b); return N(G(G(a, t), G(b, t))); }
+          case "MUX": return G(G(b, a), G(c, N(a))); // a=s, b=t, c=f
+        }
+        else switch (n.type) {
+          case "C0": case "C1": return B.mk(n.type, []);
+          case "NOT": return N(a);
+          case "OR": return N(G(a, b));
+          case "AND": return G(N(a), N(b));
+          case "NOR": return G(a, b);
+          case "NAND": return N(G(N(a), N(b)));
+          case "XNOR": { const t = G(a, b); return G(G(a, t), G(b, t)); }
+          case "XOR": { const t = G(a, b); return N(G(G(a, t), G(b, t))); }
+          case "MUX": return G(G(c, a), G(b, N(a)));
+        }
+        return B.mk(n.type, ins);
+      });
+    }
+
+    function evalNet(net, vec) {
+      const v = [];
+      let k = 0;
+      net.nodes.forEach((n, i) => {
+        const a = v[n.ins[0]], b = v[n.ins[1]], c = v[n.ins[2]];
+        switch (n.type) {
+          case "IN": v[i] = vec[k++]; break;
+          case "C0": v[i] = 0; break; case "C1": v[i] = 1; break;
+          case "NOT": v[i] = 1 - a; break;
+          case "AND": v[i] = a & b; break; case "OR": v[i] = a | b; break;
+          case "NAND": v[i] = 1 - (a & b); break; case "NOR": v[i] = 1 - (a | b); break;
+          case "XOR": v[i] = a ^ b; break; case "XNOR": v[i] = 1 - (a ^ b); break;
+          case "MUX": v[i] = a ? b : c; break;
+        }
+      });
+      return v;
+    }
+    function levels(net) {
+      const L = [];
+      net.nodes.forEach((n, i) => (L[i] = n.ins.length ? 1 + Math.max(...n.ins.map((j) => L[j])) : 0));
+      return L;
+    }
+    function stats(net) {
+      let g = 0, t = 0;
+      net.nodes.forEach((n) => { if (TCOUNT[n.type] > 0) { g++; t += TCOUNT[n.type]; } });
+      const L = levels(net);
+      const d = net.outs.length ? Math.max(...net.outs.map(([, i]) => L[i])) : 0;
+      return { g, t, d };
+    }
+
+    /* ---------- UI ---------- */
+    const ta = $("sy-src");
+    ta.value = PRESETS.maj;
+    const step = SB.seg("sy-step", () => draw());
+    const optSeg = SB.seg("sy-opt", () => run());
+    const lib = SB.seg("sy-lib", () => run());
+    let prog = null, nets = null, row = 7, err = null;
+    document.querySelectorAll("#sy-presets button").forEach((b) => b.addEventListener("click", () => { ta.value = PRESETS[b.dataset.p] || ""; row = 0; run(); }));
+    ta.addEventListener("input", SB.debounce(run, 220));
+
+    function lineCol(src, pos) { const pre = src.slice(0, pos).split("\n"); return [pre.length, pre[pre.length - 1].length + 1]; }
+    function run() {
+      const src = ta.value;
+      try {
+        prog = parse(src);
+        const raw = astToNet(prog);
+        const o = optSeg();
+        const opt = rebuild(raw, { cp: o === "both" || o === "cp", cse: o === "both" || o === "cse" });
+        const mapped = mapNet(opt, lib());
+        nets = { raw, opt, map: mapped };
+        err = null;
+        const e = $("sy-err"); e.className = "hd-err";
+        e.textContent = `파싱 성공: assign ${prog.stmts.length}개, 입력 ${prog.inputs.join(", ")}`;
+      } catch (ex) {
+        prog = null; nets = null;
+        err = ex instanceof SynErr ? ex : new SynErr("내부 오류: " + (ex && ex.message), 0);
+        const [ln, col] = lineCol(src, err.pos || 0);
+        const e = $("sy-err"); e.className = "hd-err bad";
+        e.textContent = `오류 (${ln}행 ${col}열): ${err.message}`;
+      }
+      if (prog) row = Math.min(row, (1 << prog.inputs.length) - 1);
+      table(); draw();
+    }
+    function vecOf(r) { const n = prog.inputs.length; const v = []; for (let k = n - 1; k >= 0; k--) v.push((r >> k) & 1); return v; }
+    function curNetOf() { const s = step(); return s === "raw" || s === "tree" ? nets.raw : s === "opt" ? nets.opt : nets.map; }
+    function table() {
+      const box = $("sy-tt");
+      if (!prog) { box.innerHTML = '<p class="hd-mini" style="padding:8px">오류를 고치면 진리표가 나타난다.</p>'; ["sy-io", "sy-g", "sy-t", "sy-d", "sy-eq"].forEach((id) => SB.stat(id, "—")); return; }
+      const n = prog.inputs.length, net = curNetOf();
+      let bad = 0;
+      let h = "<table class=\"tt\"><thead><tr>" + prog.inputs.map((x) => `<th>${esc(x)}</th>`).join("") + prog.stmts.map((s, i) => `<th${i === 0 ? ' class="sep"' : ""}>${esc(s.lhs)}</th>`).join("") + "</tr></thead><tbody>";
+      for (let r = 0; r < 1 << n; r++) {
+        const vec = vecOf(r), spec = evalAst(prog, vec), vals = evalNet(net, vec);
+        h += `<tr data-r="${r}"${r === row ? ' class="cur"' : ""}>` + vec.map((b) => `<td class="${b ? "one" : "zero"}">${b}</td>`).join("");
+        net.outs.forEach(([, idx], i) => {
+          const got = vals[idx], ok = got === spec[i];
+          if (!ok) bad++;
+          h += `<td class="${i === 0 ? "sep " : ""}${ok ? (got ? "one" : "zero") : "bad"}">${got}</td>`;
+        });
+        h += "</tr>";
+      }
+      box.innerHTML = h + "</tbody></table>";
+      box.querySelectorAll("tbody tr").forEach((tr) => tr.addEventListener("click", () => { row = +tr.dataset.r; table(); draw(); }));
+      const st = stats(net), sr = stats(nets.raw);
+      SB.stat("sy-io", `${n} / ${prog.stmts.length}`);
+      SB.stat("sy-g", step() === "tree" ? `${sr.g} <small>(연산자)</small>` : String(st.g));
+      SB.stat("sy-t", step() === "tree" ? "—" : `${st.t} <small>(직역 ${sr.t})</small>`);
+      SB.stat("sy-d", String(step() === "tree" ? sr.d : st.d));
+      SB.stat("sy-eq", bad ? `<span style="color:var(--bad)">불일치 ${bad}행</span>` : `<span style="color:var(--ok)">통과 ✓</span> <small>${1 << n}조합</small>`);
+    }
+
+    const cvOpts = { height: 300 };
+    const cv = SB.canvas($("cv-synth"), (ctx, w, h) => paint(ctx, w, h), cvOpts);
+    function draw() {
+      let want = 220;
+      if (prog && nets) {
+        if (step() === "tree") {
+          let dmax = 0; const dep = (e, d) => { dmax = Math.max(dmax, d); (e.k || []).forEach((c) => dep(c, d + 1)); };
+          prog.stmts.forEach((s) => dep(s.e, 0));
+          want = 60 + (dmax + 1) * 54;
+        } else {
+          const net = curNetOf(), L = levels(net), cnt = {};
+          net.nodes.forEach((n, i) => { const l = n.type === "C0" || n.type === "C1" ? 0 : L[i]; cnt[l] = (cnt[l] || 0) + 1; });
+          want = 40 + Math.max(...Object.values(cnt), net.outs.length) * 48;
+        }
+      }
+      want = SB.clamp(Math.round(want), 200, 560);
+      if (want !== cvOpts.height) { cvOpts.height = want; cv.resize(); } else cv.redraw();
+      table();
+    }
+    function paint(ctx, w, h) {
+      const P = SB.palette();
+      if (!prog || !nets) {
+        txt(ctx, "오류를 고치면 회로를 다시 그린다", w / 2, h / 2, { size: 13, color: P.bad, mono: false });
+        return;
+      }
+      const vec = vecOf(row);
+      if (step() === "tree") return paintTree(ctx, w, h, vec);
+      paintNet(ctx, w, h, curNetOf(), vec);
+    }
+    function paintTree(ctx, w, h, vec) {
+      const P = SB.palette();
+      const env = {}; prog.inputs.forEach((n, i) => (env[n] = vec[i]));
+      const outs = {}; prog.stmts.forEach((s, i) => (outs[s.lhs] = evalAst(prog, vec)[i]));
+      // 잎 개수로 가로 배치
+      const lay = []; let leaf = 0;
+      const SYM = { not: "~", and: "&", or: "|", xor: "^", xnor: "~^", mux: "?:" };
+      const ev = (e) => (e.t === "v" ? env[e.n] : e.t === "w" ? outs[e.n] : e.t === "c" ? e.v : e.t === "not" ? 1 - ev(e.k[0]) : e.t === "and" ? ev(e.k[0]) & ev(e.k[1]) : e.t === "or" ? ev(e.k[0]) | ev(e.k[1]) : e.t === "xor" ? ev(e.k[0]) ^ ev(e.k[1]) : e.t === "xnor" ? 1 - (ev(e.k[0]) ^ ev(e.k[1])) : ev(e.k[0]) ? ev(e.k[1]) : ev(e.k[2]));
+      function place(e, d) {
+        const me = { e, d, v: ev(e), kids: [] };
+        if (e.k) { me.kids = e.k.map((c) => place(c, d + 1)); me.x = me.kids.reduce((s, k) => s + k.x, 0) / me.kids.length; }
+        else me.x = leaf++;
+        lay.push(me); return me;
+      }
+      const roots = prog.stmts.map((s) => { const r = place(s.e, 1); leaf += 0.8; return { s, r }; });
+      const span = Math.max(1, leaf - 0.8 - 1);
+      const X = (x) => 24 + (x / span) * (w - 48);
+      const Y = (d) => 18 + (d - 0.5) * 54;
+      const R = Math.min(15, Math.max(10, (w - 48) / Math.max(1, leaf) * 0.32));
+      lay.forEach((n) => n.kids.forEach((k) => line(ctx, [[X(n.x), Y(n.d)], [X(k.x), Y(k.d)]], DG.lv(k.v), 2)));
+      roots.forEach(({ s, r }) => {
+        line(ctx, [[X(r.x), Y(r.d)], [X(r.x), Y(0.45)]], DG.lv(r.v), 2.2);
+        txt(ctx, s.lhs + " =", X(r.x), Y(0.3), { size: 12, weight: 700, color: P.accent });
+      });
+      lay.forEach((n) => {
+        const e = n.e, x = X(n.x), y = Y(n.d);
+        const leafy = !e.k;
+        ctx.save(); ctx.beginPath();
+        if (leafy) DG.roundRect(ctx, x - R * 1.1, y - R * 0.8, R * 2.2, R * 1.6, 4); else ctx.arc(x, y, R, 0, Math.PI * 2);
+        ctx.fillStyle = SB.color("bg-elev") || P.surface; ctx.fill();
+        ctx.strokeStyle = leafy ? (e.t === "w" ? P.accent2 : P.dim) : P.accent; ctx.lineWidth = 1.8; ctx.stroke(); ctx.restore();
+        const label = e.t === "v" || e.t === "w" ? e.n : e.t === "c" ? String(e.v) : SYM[e.t];
+        txt(ctx, label.length > 4 ? label.slice(0, 4) : label, x, y + 0.5, { size: label.length > 2 ? 10 : 12.5, weight: 700, color: leafy ? DG.lv(n.v) === P.lo ? P.text : P.text : P.accent });
+      });
+    }
+    function paintNet(ctx, w, h, net, vec) {
+      const P = SB.palette();
+      const vals = evalNet(net, vec);
+      const L = levels(net);
+      const isC = (n) => n.type === "C0" || n.type === "C1";
+      const lv = net.nodes.map((n, i) => (isC(n) ? 0 : L[i]));
+      const maxL = Math.max(1, ...lv);
+      const left = 44, right = 46;
+      const colW = (w - left - right) / maxL;
+      const gw = SB.clamp(colW * 0.58, 26, 52), gh = Math.max(18, gw * 0.66);
+      const cols = {};
+      net.nodes.forEach((n, i) => (cols[lv[i]] = cols[lv[i]] || []).push(i));
+      const pos = [];
+      const top = 14, H = h - 26;
+      Object.keys(cols).map(Number).sort((a, b) => a - b).forEach((l) => {
+        let ids = cols[l];
+        if (l > 0) ids = ids.map((i) => [i, net.nodes[i].ins.reduce((s, j) => s + pos[j][1], 0) / net.nodes[i].ins.length]).sort((a, b) => a[1] - b[1]).map((p) => p[0]);
+        ids.forEach((i, k) => {
+          const y = top + ((k + 0.5) * H) / ids.length;
+          const x = l === 0 ? left - 6 : left + (l - 1) * colW + colW * 0.35;
+          pos[i] = [x, y];
+        });
+      });
+      const pins = [];
+      // 게이트 그리기 + 핀 계산
+      net.nodes.forEach((n, i) => {
+        const [x, y] = pos[i];
+        if (n.type === "IN") {
+          txt(ctx, n.name.length > 4 ? n.name.slice(0, 4) : n.name, 16, y, { size: 12, weight: 700, color: DG.lv(vals[i]) === P.lo ? P.text : P.hi });
+          DG.wire(ctx, [[30, y], [x, y]], vals[i], 2);
+          pins[i] = { out: [x, y] };
+        } else if (isC(n)) {
+          DG.box(ctx, x - 22, y - 9, 18, 18, DG.alpha(DG.lv(vals[i]), 0.35), n.type === "C1" ? "1" : "0", { color: P.text, size: 11, mono: true, r: 3 });
+          pins[i] = { out: [x - 4, y] };
+        } else if (n.type === "MUX") {
+          const M = mux(ctx, x + gw * 0.15, y - gh * 0.75, gw * 0.7, gh * 1.5);
+          pins[i] = { out: M.out, ins: [M.sel, M.in1, M.in0], mux: true };
+          DG.wire(ctx, [M.out, [M.out[0] + 3, M.out[1]]], vals[i], 2);
+        } else {
+          const g = DG.gate(ctx, n.type, x, y - gh / 2, gw, gh, { n: n.ins.length, outV: vals[i], inV: n.ins.map((j) => vals[j]) });
+          pins[i] = { out: g.output, ins: g.inputs };
+        }
+      });
+      // 배선
+      net.nodes.forEach((n, i) => {
+        if (!pins[i].ins) return;
+        n.ins.forEach((j, k) => {
+          const s = pins[j].out, t = pins[i].ins[k], v = vals[j];
+          if (pins[i].mux && k === 0) {
+            const mx = t[0] - gw * 0.3 - 4 - (j % 3) * 3, by = t[1] + 7;
+            DG.wire(ctx, [s, [mx, s[1]], [mx, by], [t[0], by], t], v, 1.8);
+          } else {
+            const mx = t[0] - 6 - k * 5 - (j % 3) * 3;
+            DG.wire(ctx, [s, [mx, s[1]], [mx, t[1]], t], v, 1.8);
+          }
+        });
+      });
+      // 출력
+      net.outs.forEach(([nm, i], k) => {
+        const s = pins[i].out, yo = net.outs.length === 1 ? s[1] : top + ((k + 0.5) * H) / net.outs.length;
+        const xo = w - right + 6;
+        DG.wire(ctx, [s, [xo - 8, s[1]], [xo - 8, yo], [xo, yo]], vals[i], 2);
+        DG.dot(ctx, xo, yo, DG.lv(vals[i]), 3.5);
+        txt(ctx, nm.length > 4 ? nm.slice(0, 4) : nm, xo + 6, yo, { size: 12, weight: 700, align: "left", color: P.accent });
+      });
+      const lbl = { raw: "직역: 연산자마다 게이트 하나", opt: "최적화 후 (기술 독립)", map: { std: "표준 셀 매핑", nand: "NAND2 + INV 매핑", nor: "NOR2 + INV 매핑" }[lib()] }[step()];
+      txt(ctx, lbl, w - 6, h - 8, { size: 10.5, color: P.faint, align: "right", mono: false });
+    }
+    run();
+  })();
+
+  /* =====================================================================
+     그림 17-6  구동 세기
+     ===================================================================== */
+  (function () {
+    const CINV = 0.2, G = 4 / 3, PAR = 2;
+    const AREA = { 1: 0.055, 2: 0.082, 4: 0.137, 8: 0.25 };
+    const cl = SB.range("dr-cl", (v) => v.toFixed(1) + " fF", () => { cv.redraw(); upd(); });
+    const xs = SB.seg("dr-x", () => { cv.redraw(); upd(); });
+    const scope = SB.seg("dr-scope", () => { cv.redraw(); upd(); });
+    function delay(X, C) {
+      let d = TAU * (PAR + C / (X * CINV));
+      if (scope() === "path") d += TAU * (1 + (G * X * CINV) / CINV); // 앞 단 INV_X1이 이 셀의 입력을 구동
+      return d;
+    }
+    const cols = () => { const P = SB.palette(); return { 1: P.dim, 2: P.accent, 4: P.accent2, 8: P.ok }; };
+    const cv = SB.canvas($("cv-drive"), (ctx, w, h) => {
+      const P = SB.palette(), C = cols();
+      const ymax = scope() === "path" ? 100 : 80;
+      const box = { x: 46, y: 14, w: w - 60, h: h - 56 };
+      const series = [1, 2, 4, 8].map((X) => {
+        const data = []; for (let c = 0.2; c <= 12.001; c += 0.1) data.push([c, delay(X, c)]);
+        return { data, color: C[X], width: X === +xs() ? 3.2 : 1.6, dash: X === +xs() ? [] : [5, 4] };
+      });
+      const ch = SB.chart(ctx, box, { x: [0, 12], y: [0, ymax], xLabel: "출력 부하 (fF)", yLabel: "지연 (ps)", series,
+        vlines: [{ x: cl(), color: P.faint }], points: [{ x: cl(), y: delay(+xs(), cl()), color: C[+xs()], r: 5 }] });
+      [1, 2, 4, 8].forEach((X, i) => {
+        const y = SB.clamp(delay(X, 12), 6, ymax - 4);
+        txt(ctx, "X" + X, ch.X(12) - 4, ch.Y(y) - 8 - (i === 3 ? 0 : 0), { size: 11, color: C[X], align: "right", weight: 700 });
+      });
+    }, { aspect: 0.5, minHeight: 230, maxHeight: 320 });
+    function upd() {
+      const X = +xs(), C = cl();
+      SB.stat("dr-d", delay(X, C).toFixed(1) + " ps");
+      SB.stat("dr-cin", (G * X * CINV).toFixed(2) + " fF");
+      SB.stat("dr-a", AREA[X].toFixed(3) + " µm²");
+      let best = 1; [2, 4, 8].forEach((x) => { if (delay(x, C) < delay(best, C)) best = x; });
+      SB.stat("dr-best", "NAND2_X" + best);
+    }
+    upd();
+  })();
+
+  /* =====================================================================
+     그림 17-7  덮기 선택
+     ===================================================================== */
+  (function () {
+    // 각 단: [셀, p, 출력 부하(C_inv 단위, "L"이면 외부 부하), X]
+    const COV = {
+      A: { name: "AND2+AND2+OR2", area: 0.068 * 3, t: 18, cells: [["AND2_X1", "AND"], ["AND2_X1", "AND"], ["OR2_X1", "OR"]],
+        path: [["NAND2(AND2 안)", 2, 1, 1], ["INV(AND2 안)", 1, 5 / 3, 1], ["NOR2(OR2 안)", 2, 1, 1], ["INV(OR2 안)", 1, "L", 1]] },
+      B: { name: "NAND2 ×3", area: 0.055 * 3, t: 12, cells: [["NAND2_X1", "NAND"], ["NAND2_X1", "NAND"], ["NAND2_X1", "NAND"]],
+        path: [["NAND2", 2, 4 / 3, 1], ["NAND2", 2, "L", 1]] },
+      C: { name: "AOI22+INV", area: 0.082 + 0.041, t: 10, cells: [["AOI22_X1", "AND"], ["AOI22_X1", "AND"], ["AOI22_X1", "NOR"], ["INV_X1", "NOT"]],
+        path: [["AOI22", 4, 1, 1], ["INV", 1, "L", 1]] },
+      D: { name: "NAND2 + NAND2_X4", area: 0.055 * 2 + 0.137, t: 12, cells: [["NAND2_X1", "NAND"], ["NAND2_X1", "NAND"], ["NAND2_X4", "NAND"]],
+        path: [["NAND2", 2, 4 * 4 / 3, 1], ["NAND2_X4", 2, "L", 4]] },
+    };
+    const sel = SB.seg("cv-sel", () => { cv.redraw(); upd(); });
+    const load = SB.range("cv-l", (v) => v + " C<sub>inv</sub> (" + (v * 0.2).toFixed(1) + " fF)", () => { cv.redraw(); upd(); });
+    // out 표기에 HTML을 쓰므로 innerHTML로 다시
+    const lo = $("cv-l-out");
+    function stages(k, L) { return COV[k].path.map(([n, p, c, X]) => [n, p + (c === "L" ? L : c) / X]); }
+    function total(k, L) { return stages(k, L).reduce((s, x) => s + x[1], 0); }
+    const cv = SB.canvas($("cv-cover"), (ctx, w, h) => {
+      const P = SB.palette(), k = sel(), cov = COV[k], L = load();
+      const s = Math.min(1, w / 520);
+      const gw = 58 * s + 10, gh = 36 * s + 8;
+      const x1 = 40, x2 = x1 + gw + 60 * s, x3 = x2 + gw + 36 * s;
+      const yT = h * 0.24, yB = h * 0.62, yM = (yT + yB) / 2;
+      // 입력
+      [["a", yT - gh * 0.16], ["b", yT + gh * 0.16], ["c", yB - gh * 0.16], ["d", yB + gh * 0.16]].forEach(([n, y]) => txt(ctx, n, 14, y, { size: 12, weight: 700, color: P.dim }));
+      const t1 = cov.cells[0][1], t3 = cov.cells[2][1];
+      const big = k === "D";
+      const g1 = DG.gate(ctx, t1, x1, yT - gh / 2, gw, gh);
+      const g2 = DG.gate(ctx, t1, x1, yB - gh / 2, gw, gh);
+      [[g1, yT], [g2, yB]].forEach(([g, y]) => g.inputs.forEach(([px, py]) => line(ctx, [[24, py], [px, py]], P.dim, 1.6)));
+      const gh3 = big ? gh * 1.35 : gh, gw3 = big ? gw * 1.25 : gw;
+      const g3 = DG.gate(ctx, t3, x2, yM - gh3 / 2, gw3, gh3, { lw: big ? 3 : 1.8 });
+      line(ctx, [g1.output, [g1.output[0] + 12, g1.output[1]], [g1.output[0] + 12, g3.inputs[0][1]], g3.inputs[0]], P.dim, 1.6);
+      line(ctx, [g2.output, [g2.output[0] + 12, g2.output[1]], [g2.output[0] + 12, g3.inputs[1][1]], g3.inputs[1]], P.dim, 1.6);
+      let outP = g3.output;
+      if (k === "C") {
+        const g4 = DG.gate(ctx, "NOT", x3, yM - gh * 0.35, gw * 0.7, gh * 0.7);
+        line(ctx, [g3.output, g4.inputs[0]], P.dim, 1.6); outP = g4.output;
+      }
+      line(ctx, [outP, [w - 30, outP[1]]], P.dim, 1.8);
+      txt(ctx, "y", w - 18, outP[1], { weight: 700, color: P.accent });
+      // 셀 경계(점선 상자)
+      const tile = (x, y, ww, hh, label, col) => {
+        ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = col; ctx.lineWidth = 1.6; DG.roundRect(ctx, x, y, ww, hh, 6); ctx.stroke(); ctx.restore();
+        txt(ctx, label, x + ww / 2, y - 8, { size: 10.5, color: col, weight: 700 });
+      };
+      if (k === "C") {
+        tile(x1 - 6, yT - gh / 2 - 6, x2 + gw - x1 + 12, yB - yT + gh + 12, "AOI22_X1", P.accent2);
+        tile(x3 - 6, yM - gh * 0.5, gw * 0.7 + 12, gh, "INV_X1", P.accent);
+      } else {
+        tile(x1 - 5, yT - gh / 2 - 5, gw + 10, gh + 10, cov.cells[0][0], P.accent);
+        tile(x1 - 5, yB - gh / 2 - 5, gw + 10, gh + 10, cov.cells[1][0], P.accent);
+        tile(x2 - 5, yM - gh3 / 2 - 5, gw3 + 10, gh3 + 10, cov.cells[2][0], big ? P.accent2 : P.accent);
+      }
+      // 경로 지연 막대
+      const st = stages(k, L), tot = total(k, L);
+      const by = h - 30, bx = 14, bw = w - 28;
+      const maxT = Math.max(...Object.keys(COV).map((q) => total(q, L)));
+      let x = bx;
+      const pal = [P.accent, P.accent2, P.ok, P.warn];
+      st.forEach(([n, d], i) => {
+        const ww = (d / maxT) * bw;
+        ctx.fillStyle = DG.alpha(pal[i % 4], 0.75); ctx.fillRect(x, by, Math.max(1, ww - 1), 16);
+        if (ww > 28) txt(ctx, d.toFixed(1), x + ww / 2, by + 8.5, { size: 10, color: "#fff", weight: 700 });
+        x += ww;
+      });
+      txt(ctx, `경로 ${tot.toFixed(1)} τ`, Math.min(x + 6, w - 70), by - 8, { size: 10.5, color: P.text, align: "left" });
+    }, { aspect: 0.5, minHeight: 240, maxHeight: 300 });
+    function upd() {
+      const k = sel(), L = load();
+      lo.innerHTML = L + " C<sub>inv</sub> (" + (L * 0.2).toFixed(1) + " fF)";
+      SB.stat("cv-a", COV[k].area.toFixed(3) + " µm²");
+      SB.stat("cv-t", String(COV[k].t));
+      SB.stat("cv-d", (total(k, L) * TAU).toFixed(1) + " ps");
+      const ks = Object.keys(COV);
+      const fast = ks.reduce((a, b) => (total(b, L) < total(a, L) ? b : a));
+      const small = ks.reduce((a, b) => (COV[b].area < COV[a].area ? b : a));
+      SB.stat("cv-w", `지연: ${COV[fast].name}<br>면적: ${COV[small].name}`);
+    }
+    upd();
+  })();
+
+  /* =====================================================================
+     시뮬레이터: 테스트벤치
+     ===================================================================== */
+  (function () {
+    const N = 22, PER = 10;
+    let seed = 1;
+    const bug = SB.seg("tb-bug", run), stim = SB.seg("tb-stim", run);
+    $("tb-seed").addEventListener("click", () => { seed = (seed % 997) + 1; $("tb-seed-v").textContent = "시드 " + seed; run(); });
+    let R = null;
+    function build(bg) {
+      const C = new DG.Circuit(), dl = 0.5;
+      C.input("clk", 0); C.input("rst", 1); C.input("en", 0); C.input("one", 1);
+      const q = (i) => "q" + i;
+      const en = bg === "en" ? "one" : "en";
+      C.gate("BUF", [en], "c0", dl);
+      C.gate("XOR", [q(0), "c0"], "n0", dl);
+      C.gate("AND", [q(0), "c0"], "c1", dl);
+      C.gate("XOR", [q(1), "c1"], "n1", dl);
+      C.gate(bg === "carry" ? "OR" : "AND", [q(1), "c1"], "c2", dl);
+      C.gate("XOR", [q(2), "c2"], "n2", dl);
+      C.gate("AND", [q(2), "c2"], "c3", dl);
+      C.gate("XOR", [q(3), "c3"], "n3", dl);
+      C.gate("AND", bg === "wrap" ? [q(3), q(1), "c0"] : [q(3), q(0), "c0"], "wrap", dl);
+      C.gate("NOT", ["wrap"], "nwrap", dl);
+      C.gate("NOT", ["rst"], "nrst", dl);
+      for (let i = 0; i < 4; i++) {
+        C.gate("AND", bg === "rst" ? ["n" + i, "nwrap"] : ["n" + i, "nwrap", "nrst"], "d" + i, dl);
+        C.dff(q(i), "d" + i, "clk", { tcq: 1 });
+      }
+      return C;
+    }
+    function run() {
+      const bg = bug(), sm = stim(), rnd = SB.rng(seed * 7919 + 13);
+      const C = build(bg);
+      C.reset();
+      const rst = [], en = [];
+      for (let k = 0; k < N; k++) {
+        rst.push(k < 2 ? 1 : 0);
+        en.push(k < 2 ? 0 : sm === "one" ? 1 : rnd() < (sm === "rand" ? 0.8 : 0.3) ? 1 : 0);
+        C.set("rst", rst[k], k * PER); C.set("en", en[k], k * PER);
+      }
+      C.clock("clk", PER, 0, N * PER, 5);
+      C.run(N * PER + 1);
+      // 기준 모델 & 비교
+      const dut = [], ref = [], match = [], log = [];
+      let qr = null, mis = 0, first = -1, asv = 0;
+      const seen = new Set();
+      for (let k = 0; k < N; k++) {
+        qr = rst[k] ? 0 : qr == null ? null : !en[k] ? qr : qr === 9 ? 0 : qr + 1;
+        const t = k * PER + 9.5;
+        const bits = [0, 1, 2, 3].map((i) => C.at("q" + i, t));
+        const val = bits.some((b) => b !== 0 && b !== 1) ? null : bits.reduce((s, b, i) => s + (b << i), 0);
+        dut.push(val); ref.push(qr);
+        const ok = val === qr;
+        match.push(ok ? 1 : 0);
+        if (!ok) { mis++; if (first < 0) first = k; if (log.length < 6) log.push(`<span class="e">[사이클 ${k}] ERROR: q=${val == null ? "x" : val}, expected ${qr == null ? "x" : qr}</span>`); }
+        if (!rst[k] && (val == null || val > 9)) { asv++; if (log.length < 8) log.push(`<span class="w">[사이클 ${k}] ASSERTION a_range 실패: q=${val == null ? "x (알 수 없음)" : val}</span>`); }
+        if (val != null && val <= 9 && !rst[k]) seen.add(val);
+      }
+      const nets = ["c0", "n0", "c1", "n1", "c2", "n2", "c3", "n3", "wrap", "nwrap", "d0", "d1", "d2", "d3", "q0", "q1", "q2", "q3"];
+      const tog = nets.filter((n) => { const tr = C.trace(n).map((x) => x[1]); return tr.includes(0) && tr.includes(1) && (C.toggles[n] || 0) >= 2; }).length;
+      R = { rst, en, dut, ref, match, mis, first, asv, seen: seen.size, tog: tog / nets.length };
+      if (!mis && !asv) log.push(`<span class="o">[사이클 ${N}] 테스트 통과: ${N}사이클 동안 불일치 0, 어서션 위반 0</span>`);
+      else log.push(`<span class="e">테스트 실패: 불일치 ${mis}회, 어서션 위반 ${asv}회</span>`);
+      if (!mis && R.seen < 10) log.push(`<span class="w">경고: 상태 커버리지 ${R.seen}/10 — 통과했지만 시험하지 못한 상태가 있다</span>`);
+      $("tb-log").innerHTML = log.join("\n");
+      SB.stat("tb-mis", mis ? `<span style="color:var(--bad)">${mis}</span>` : '<span style="color:var(--ok)">0</span>');
+      SB.stat("tb-first", first < 0 ? "없음" : "사이클 " + first);
+      SB.stat("tb-as", asv ? `<span style="color:var(--bad)">${asv}</span>` : '<span style="color:var(--ok)">0</span>');
+      SB.stat("tb-cov", `${R.seen}/10`);
+      SB.stat("tb-tog", Math.round(R.tog * 100) + "%");
+      cv.redraw();
+    }
+    const cv = SB.canvas($("cv-tb"), (ctx, w, h) => {
+      if (!R) return;
+      const P = SB.palette();
+      const narrow = w < 520;
+      const shade = [];
+      R.match.forEach((m, k) => { if (!m) shade.push({ c0: k, c1: k + 1, color: DG.alpha(P.bad, 0.16) }); });
+      DG.wave(ctx, { x: 6, y: 8, w: w - 12, h: h - 16 }, {
+        cycles: N, nameW: narrow ? 50 : 100, shade,
+        signals: [
+          { name: "clk", type: "clk" },
+          { name: "rst", type: "bit", v: R.rst },
+          { name: "en", type: "bit", v: R.en },
+          { name: narrow ? "q" : "q (DUT)", type: "bus", v: R.dut.map((x) => (x == null ? null : String(x))) },
+          { name: narrow ? "q_ref" : "q_ref (기대)", type: "bus", v: R.ref.map((x) => (x == null ? null : String(x))), color: P.ok },
+          { name: narrow ? "일치" : "일치?", type: "bit", v: R.match, fill: true },
+        ],
+        marks: R.first >= 0 ? [{ c: R.first, label: "첫 불일치", color: P.bad }] : [],
+      });
+    }, { aspect: 0.42, minHeight: 250, maxHeight: 320 });
+    run();
+  })();
+
+  /* =====================================================================
+     그림 17-8  설계 흐름
+     ===================================================================== */
+  (function () {
+    const S = [
+      ["명세", "spec", "무엇을 만들지 글로 정한다: 기능, 성능(클럭·처리량), 전력·면적 예산, 인터페이스. 아키텍처 모델(C++/Python)로 성능을 미리 가늠한다(<a href=\"https://socbook.euiyun.com/\">SoCBook</a>).", "몇 달", 0],
+      ["RTL 설계", "rtl", "SystemVerilog로 레지스터와 그 사이 조합 논리를 쓴다. 이 장의 코딩 규칙(래치 금지, 순차엔 <code>&lt;=</code>)이 여기서 쓰인다. 산출물: RTL 코드.", "몇 달~1년", 0],
+      ["기능 검증", "ver", "테스트벤치·어서션·커버리지·형식 검증으로 RTL이 명세대로인지 확인한다. 프로젝트 시간의 절반 이상. 버그가 나오면 RTL로 되돌아간다.", "RTL과 병행", 0],
+      ["논리 합성", "syn", "RTL + 셀 라이브러리 + 타이밍 제약(SDC) → 게이트 수준 넷리스트. 최적화·기술 매핑·크기 조정·스캔 삽입. 등가성 검사로 RTL과 같은지 증명한다.", "블록당 수 시간", 0],
+      ["배치·배선", "pnr", "넷리스트의 셀을 칩 위에 놓고(배치), 클럭 트리를 만들고(CTS), 금속층으로 잇는다(배선). <a href=\"https://designbook.euiyun.com/\">DesignBook</a>이 다룬다.", "몇 주", 1],
+      ["STA·서명", "sta", "실제 배선의 RC로 정적 타이밍 분석, 전력·IR 강하·전자 이동 검사. 위반이 있으면 배치·배선이나 합성으로 되돌아간다. <a href=\"https://designbook.euiyun.com/\">DesignBook</a>.", "몇 주", 1],
+      ["DRC·LVS", "drc", "레이아웃이 공정 규칙을 지키는지(DRC), 레이아웃의 회로가 넷리스트와 같은지(LVS) 확인한다. <a href=\"https://designbook.euiyun.com/\">DesignBook</a>.", "몇 주", 1],
+      ["테이프아웃", "tape", "최종 레이아웃(GDS/OASIS)을 파운드리에 넘긴다. 마스크 제작과 웨이퍼 공정에 약 3~4개월이 걸린다(<a href=\"https://processbook.euiyun.com/\">ProcessBook</a>). 첫 실리콘이 오면 실험실에서 검증(post-silicon)한다.", "—", 1],
+    ];
+    let cur = 3, rects = [];
+    function setStage(i) { cur = (i + S.length) % S.length; cv.redraw(); info(); }
+    $("fl-prev").addEventListener("click", () => setStage(cur - 1));
+    $("fl-next").addEventListener("click", () => setStage(cur + 1));
+    function info() { const s = S[cur]; $("fl-info").innerHTML = `<span class="hd-tag">${cur + 1}. ${s[0]}</span><span class="hd-tag">${s[3]}</span> ${s[2]}`; }
+    const flo = { height: 130 };
+    const cv = SB.canvas($("cv-flow"), (ctx, w, h) => {
+      const P = SB.palette();
+      const wantH = w < 560 ? 220 : 130;
+      if (wantH !== flo.height) { flo.height = wantH; setTimeout(() => cv.resize(), 0); }
+      const per = w < 560 ? 4 : 8, rows = Math.ceil(S.length / per);
+      const gap = 10, bw = (w - 20 - gap * (per - 1)) / per, bh = 40;
+      const rowY = (r) => 26 + r * (bh + 44);
+      rects = [];
+      S.forEach((s, i) => {
+        const r = Math.floor(i / per), c = i % per;
+        const x = 10 + c * (bw + gap), y = rowY(r);
+        const col = s[4] ? P.accent2 : P.accent;
+        const on = i === cur;
+        DG.box(ctx, x, y, bw, bh, on ? col : DG.alpha(col, 0.14), null, { stroke: col, lw: on ? 2.4 : 1.2 });
+        txt(ctx, s[0], x + bw / 2, y + bh / 2, { size: bw < 70 ? 11 : 12, mono: false, weight: 700, color: on ? "#fff" : P.text });
+        rects.push([x, y, bw, bh]);
+        if (c < per - 1 && i < S.length - 1) DG.arrow(ctx, x + bw + 1, y + bh / 2, x + bw + gap - 1, y + bh / 2, P.dim, 1.4, 5);
+      });
+      if (rows > 1) { // 줄 바꿈 화살표
+        const a = rects[per - 1], b = rects[per];
+        line(ctx, [[a[0] + a[2] / 2, a[1] + a[3]], [a[0] + a[2] / 2, a[1] + a[3] + 12], [b[0] + b[2] / 2, a[1] + a[3] + 12]], P.dim, 1.4);
+        DG.arrow(ctx, b[0] + b[2] / 2, a[1] + a[3] + 12, b[0] + b[2] / 2, b[1] - 1, P.dim, 1.4, 5);
+      }
+      // 되돌림 고리
+      const loop = (from, to, lab, off) => {
+        const A = rects[from], B = rects[to];
+        const yb = Math.max(A[1], B[1]) + bh + 8 + off;
+        if (A[1] !== B[1]) return;
+        line(ctx, [[A[0] + A[2] / 2, A[1] + bh], [A[0] + A[2] / 2, yb], [B[0] + B[2] / 2 + 6, yb]], DG.alpha(P.bad, 0.7), 1.3, [4, 3]);
+        DG.arrow(ctx, B[0] + B[2] / 2 + 6, yb, B[0] + B[2] / 2 + 6, B[1] + bh + 1, DG.alpha(P.bad, 0.7), 1.3, 5);
+        txt(ctx, lab, (A[0] + B[0] + B[2]) / 2 + 8, yb + 9, { size: 10, color: P.bad, mono: false });
+      };
+      loop(2, 1, "버그 → 고치기", 0);
+      if (per === 8) loop(5, 3, "타이밍 위반 → 다시 합성", 18);
+      else loop(5, 4, "위반 → 재배치", 0);
+      const dbx = rects[4][0], dby = rects[4][1];
+      txt(ctx, "DesignBook", dbx, dby - 9, { size: 10.5, color: P.accent2, align: "left", mono: false, weight: 700 });
+      txt(ctx, "이 장", rects[0][0], rects[0][1] - 9, { size: 10.5, color: P.accent, align: "left", mono: false, weight: 700 });
+    }, flo);
+    DG.pointer($("cv-flow"), { down(x, y) { const i = rects.findIndex(([rx, ry, rw, rh]) => x >= rx && x <= rx + rw && y >= ry && y <= ry + rh); if (i >= 0) setStage(i); } });
+    info();
+  })();
+
+  /* =====================================================================
+     그림 17-9  LUT
+     ===================================================================== */
+  (function () {
+    const FN = {
+      and: (a, b, c, d) => a & b & c & d, xor: (a, b, c, d) => a ^ b ^ c ^ d,
+      maj: (a, b, c, d) => +(a + b + c + d >= 3), mux: (a, b, c, d) => (d ? b : a),
+    };
+    const ASIC = { and: ["AND4_X1 1개", 10], xor: ["XOR2 3개", 36], maj: ["AOI/OAI 약 5개", 28], mux: ["MUX2 1개", 12], custom: ["SOP 직접 구현", null] };
+    let cfg = [], inp = { a: 0, b: 0, c: 0, d: 0 }, custom = false, cells = [];
+    const fn = SB.seg("lut-fn", (v) => load(v));
+    function load(v) { custom = false; cfg = []; for (let i = 0; i < 16; i++) cfg.push(FN[v]((i >> 0) & 1, (i >> 1) & 1, (i >> 2) & 1, (i >> 3) & 1)); cv.redraw(); upd(); }
+    ["a", "b", "c", "d"].forEach((k) => $("lut-" + k).addEventListener("click", () => { inp[k] ^= 1; cv.redraw(); upd(); }));
+    const idx = () => inp.a | (inp.b << 1) | (inp.c << 2) | (inp.d << 3);
+    const cv = SB.canvas($("cv-lut"), (ctx, w, h) => {
+      const P = SB.palette();
+      const I = idx();
+      const ch = Math.min(18, (h - 30) / 16.6), cw = 24, cx = 30, cy = 14;
+      cells = [];
+      for (let i = 0; i < 16; i++) {
+        const y = cy + i * ch * 1.04;
+        const on = i === I;
+        DG.box(ctx, cx, y, cw, ch, DG.alpha(DG.lv(cfg[i]), cfg[i] ? 0.85 : 0.3), String(cfg[i]), { color: cfg[i] ? "#fff" : P.text, size: 11, mono: true, r: 3, stroke: on ? P.accent : null, lw: 2.4 });
+        txt(ctx, SB.bin(i, 4), cx - 4, y + ch / 2, { size: 8.5, align: "right", color: on ? P.accent : P.faint });
+        cells.push([cx, y, cw, ch]);
+      }
+      // MUX 트리: 레벨 0(a) 8개, 1(b) 4개, 2(c) 2개, 3(d) 1개
+      const right = w - 60, x0 = cx + cw + 14;
+      const lvX = (l) => x0 + ((l + 0.5) * (right - x0)) / 4;
+      let prevY = cells.map((c) => c[1] + c[3] / 2), path = I;
+      let prevX = cells.map((c) => c[0] + c[2]);
+      const names = ["a", "b", "c", "d"];
+      for (let l = 0; l < 4; l++) {
+        const n = 16 >> (l + 1), ny = [], nx = [];
+        const sel = inp[names[l]];
+        const mw = Math.min(16, (right - x0) / 10);
+        for (let j = 0; j < n; j++) {
+          const y0 = prevY[2 * j], y1 = prevY[2 * j + 1], ym = (y0 + y1) / 2;
+          const x = lvX(l);
+          const onPath = (path >> 1) === j;
+          const chosen = 2 * j + sel;
+          [0, 1].forEach((t) => {
+            const act = onPath && (path & 1) === t;
+            const v = cfg.length ? null : 0; void v;
+            line(ctx, [[prevX[2 * j + t], prevY[2 * j + t]], [x - 4, prevY[2 * j + t]], [x, ym + (t ? 3 : -3)]], act ? P.accent : DG.alpha(P.dim, chosen === 2 * j + t ? 0.55 : 0.2), act ? 2.4 : 1.1);
+          });
+          ctx.save(); ctx.beginPath(); ctx.moveTo(x, ym - 7); ctx.lineTo(x + mw, ym - 4); ctx.lineTo(x + mw, ym + 4); ctx.lineTo(x, ym + 7); ctx.closePath();
+          ctx.fillStyle = onPath ? SB.color("accent-soft") : SB.color("bg-elev") || P.surface; ctx.fill(); ctx.strokeStyle = onPath ? P.accent : P.dim; ctx.lineWidth = 1.2; ctx.stroke(); ctx.restore();
+          ny.push(ym); nx.push(x + mw);
+        }
+        txt(ctx, names[l] + "=" + sel, lvX(l) + 6, h - 8, { size: 11, weight: 700, color: DG.lv(sel) === P.lo ? P.dim : P.hi });
+        prevY = ny; prevX = nx; path >>= 1;
+      }
+      const y = cfg[I];
+      DG.wire(ctx, [[prevX[0], prevY[0]], [w - 30, prevY[0]]], y, 2.6);
+      txt(ctx, "y=" + y, w - 16, prevY[0] - 12, { size: 12, weight: 700, color: P.accent });
+    }, { height: 330 });
+    DG.pointer($("cv-lut"), { down(x, y) { const i = cells.findIndex(([cx, cy, cw, ch]) => x >= cx && x <= cx + cw && y >= cy && y <= cy + ch); if (i >= 0) { cfg[i] ^= 1; custom = true; cv.redraw(); upd(); } } });
+    function upd() {
+      const I = idx();
+      SB.stat("lut-y", `<span class="lv ${cfg[I] ? "hi" : "lo"}">${cfg[I]}</span>`);
+      SB.stat("lut-i", `${I} <small>(dcba=${SB.bin(I, 4)})</small>`);
+      SB.stat("lut-tf", "약 150 + 배선 스위치");
+      const a = custom ? ASIC.custom : ASIC[fn()];
+      const ones = cfg.reduce((s, v) => s + v, 0);
+      SB.stat("lut-ta", custom ? `최소항 ${ones}개 → 수~수십 트랜지스터` : `${a[0]} · 트랜지스터 ${a[1]}`);
+      ["a", "b", "c", "d"].forEach((k) => $("lut-" + k).classList.toggle("primary", !!inp[k]));
+    }
+    load("and");
+  })();
+})();
+
 </script>
 </body>
 </html>

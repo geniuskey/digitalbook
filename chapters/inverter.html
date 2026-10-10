@@ -1,0 +1,334 @@
+<!doctype html>
+<!-- Copyright (c) 2026 geniuskey and DigitalBook contributors.
+     Executable code: MIT (see ../LICENSE-MIT).
+     Text, illustrations, questions and explanations: CC-BY-4.0 (see ../LICENSE.md). -->
+<html lang="ko">
+<head>
+<!--head:start {"desc": "pMOS 풀업과 nMOS 풀다운 두 스위치로 만든 CMOS 인버터를 부하선 교차, 전압 전달 특성과 노이즈 마진, 스위칭 임계와 크기 조절, 부하 충방전과 전파 지연, 스위칭 에너지, 링 오실레이터까지 직접 만지며 익힌다."}-->
+<!--head:end-->
+<style>
+  .inv-flex { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; width: 100%; }
+  .inv-note { font-size: 13px; color: var(--text-dim); }
+</style>
+</head>
+<body data-chapter="inverter">
+<main class="chapter">
+  <header class="chapter-hero">
+    <div class="eyebrow">Chapter 04</div>
+    <h1>CMOS 인버터</h1>
+    <p class="lead">칩 안에서 가장 많이 쓰이는 회로는 덧셈기도 메모리 셀도 아닌 인버터다. 트랜지스터 두 개, 선 네 가닥이 전부인 이 회로에 디지털 회로 설계의 거의 모든 개념이 들어 있다. 출력이 왜 0과 1로 또렷하게 갈리는지(전압 전달 특성), 잡음을 얼마나 견디는지(노이즈 마진), 얼마나 빨리 바뀌는지(전파 지연), 한 번 바뀔 때 에너지를 얼마나 쓰는지(\(CV_{DD}^2\)). 이 장에서 인버터를 철저히 뜯어 보면, 다음 장의 NAND·NOR와 6장의 지연 계산, 8장의 래치, 15장의 전력은 모두 이 장의 변주가 된다.</p>
+    <ul class="objectives">
+      <li>pMOS 풀업과 nMOS 풀다운이 서로 반대로 켜지는 원리와 정적 전류가 0인 이유를 설명한다.</li>
+      <li>두 트랜지스터의 전류 곡선 교점으로 VTC를 그리고, \(V_M\), \(V_{IL}\), \(V_{IH}\), 노이즈 마진을 읽는다.</li>
+      <li>β비(\(W_p/W_n\))로 스위칭 임계를 옮기는 법과 그 대가를 계산한다.</li>
+      <li>부하 커패시터 충방전으로 \(t_{pHL}\), \(t_{pLH}\), 스위칭 에너지, 링 오실레이터 주파수를 구한다.</li>
+    </ul>
+    <div class="dg-ladder" data-level="gate" data-caption="3장의 트랜지스터 두 개를 엮어 첫 번째 논리 게이트를 만든다. 사다리의 '게이트' 칸이 여기서 시작된다."></div>
+  </header>
+
+  <!-- ============================================================ 1 -->
+  <section id="switches">
+    <h2>두 스위치로 만든 인버터</h2>
+    <p><a href="mosfet.html">3장</a>에서 MOSFET을 전압으로 여닫는 스위치로 보았다. nMOS는 게이트가 높을 때, pMOS는 게이트가 낮을 때 켜진다. 이 두 스위치를 위아래로 쌓고 게이트를 하나로 묶으면 <span class="term">CMOS 인버터</span><span class="en">(CMOS inverter)</span>가 된다. 위의 pMOS는 출력을 \(V_{DD}\)로 끌어올리는 <span class="term">풀업</span><span class="en">(Pull-up)</span>, 아래의 nMOS는 출력을 GND로 끌어내리는 <span class="term">풀다운</span><span class="en">(Pull-down)</span>이다.</p>
+    <p>입력이 <span class="lv lo">0</span>이면 pMOS가 켜지고 nMOS가 꺼져 출력은 \(V_{DD}\)에 붙는다. 입력이 <span class="lv hi">1</span>이면 반대로 출력이 GND에 붙는다. 어느 쪽이든 <b>두 스위치 중 하나는 반드시 꺼져 있으므로</b> \(V_{DD}\)에서 GND로 곧장 흐르는 길이 없다. 정지 상태에서 전력을 (누설을 빼면) 쓰지 않는다는 이 성질이 CMOS를 반세기 동안 디지털 회로의 표준으로 만든 이유다.</p>
+    <figure class="play" id="fig-switch">
+      <div class="play-view"><canvas id="cv-sw"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>입력</span><div class="ctrl-row"><button class="btn sm primary" id="sw-tog">입력 토글 (0 ↔ 1)</button></div></div>
+        <label class="ctrl"><span>입력 전압 \(V_{in}\) <output id="sw-vin-out"></output></span><input type="range" id="sw-vin" min="0" max="0.75" step="0.005" value="0"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">pMOS 켜짐 정도</span><span class="v" id="sw-p">—</span></div>
+        <div class="stat"><span class="k">nMOS 켜짐 정도</span><span class="v" id="sw-n">—</span></div>
+        <div class="stat"><span class="k">출력 \(V_{out}\)</span><span class="v" id="sw-out">—</span></div>
+        <div class="stat"><span class="k">VDD→GND 직통 전류</span><span class="v" id="sw-isc">—</span></div>
+      </div>
+      <figcaption><b>그림 4-1.</b> <span class="try">해 보기</span>입력을 토글하면 출력 커패시터가 pMOS를 통해 충전되거나(파란 점) nMOS를 통해 방전된다. 트랜지스터 채널의 진하기는 켜진 정도(전류의 로그 눈금)다. 슬라이더로 입력을 0.3~0.45 V 근처에 두면 두 트랜지스터가 동시에 반쯤 켜져 \(V_{DD}\)에서 GND로 곧장 흐르는 <b>단락 전류</b>(주황 점)가 보인다. 오른쪽은 같은 회로를 스위치와 저항으로 그린 모델이다. 움직임은 슬로 모션이다.</figcaption>
+    </figure>
+    <p>두 트랜지스터는 출력 노드에 매달린 커패시터 \(C_L\)(다음 단 게이트, 배선, 자기 드레인의 합)을 놓고 줄다리기를 한다. 정지 상태에서는 한쪽이 완전히 이겨 출력이 레일(\(V_{DD}\) 또는 0)에 닿는다. 다른 논리 계열과 달리 <b>출력이 레일까지 꽉 찬다</b>는 점(Rail-to-rail swing)도 CMOS의 장점이다. nMOS만 쓰는 회로나 저항 부하 회로는 출력 0이 GND보다 조금 떠 있고 그동안 전류가 계속 흐른다(<a href="styles.html">7장</a>의 비율 논리).</p>
+    <div class="callout tip"><strong>스위치 + 저항 모델</strong><p>지연을 손으로 계산할 때는 켜진 트랜지스터를 유효 저항 \(R_{eff}\)를 가진 닫힌 스위치로, 꺼진 트랜지스터를 열린 스위치로 본다. DG-7의 단위 nMOS(\(W=1\))는 \(R_{eff}\approx 11\ \text{k}\Omega\)이고, pMOS는 정공 이동도가 낮아 같은 저항을 내려면 약 1.6배 넓어야 한다. 그래서 책 전체의 <b>단위 인버터</b>는 \(W_n=1\), \(W_p=1.6\)이다.</p></div>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="loadline">
+    <h2>부하선 교차로 읽는 VTC</h2>
+    <p>입력이 0이나 \(V_{DD}\)가 아니라 그 사이 어중간한 값이면 출력은 어디에 머물까? 정지 상태에서는 출력 커패시터로 흘러 들어가는 전류가 0이어야 하므로 <b>pMOS가 밀어 넣는 전류 = nMOS가 빼내는 전류</b>다. 두 전류를 출력 전압 \(V_{out}\)의 함수로 같은 그래프에 그리면, 두 곡선의 교점이 바로 그 입력에서의 출력이다. 이것이 <span class="term">부하선</span><span class="en">(Load line)</span> 해석이다.</p>
+    <div class="formula">$$ I_{Dn}(V_{GS}=V_{in},\ V_{DS}=V_{out}) \;=\; I_{Dp}(V_{SG}=V_{DD}-V_{in},\ V_{SD}=V_{DD}-V_{out}) $$
+      <div class="where">nMOS 곡선은 \(V_{out}=0\)에서 시작해 오른쪽으로 갈수록 커지고, pMOS 곡선은 \(V_{out}=V_{DD}\)에서 시작해 왼쪽으로 갈수록 커진다. 교점이 하나뿐이므로 출력은 하나로 정해진다.</div></div>
+    <figure class="play" id="fig-loadline">
+      <div class="play-view"><canvas id="cv-ll"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>입력 전압 \(V_{in}\) <output id="ll-vin-out"></output></span><input type="range" id="ll-vin" min="0" max="0.75" step="0.005" value="0.2"></label>
+        <div class="ctrl"><span>pMOS 폭 \(W_p\)</span><div class="seg" id="ll-wp"><button data-value="0.5">0.8</button><button data-value="1" class="on">1.6</button><button data-value="2">3.2</button></div></div>
+        <div class="ctrl"><span>동작</span><div class="ctrl-row"><button class="btn sm primary" id="ll-sweep">▶ 쓸어 보기</button><button class="btn sm" id="ll-clear">자국 지우기</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">교점 \(V_{out}\)</span><span class="v" id="ll-out">—</span></div>
+        <div class="stat"><span class="k">교점 전류</span><span class="v" id="ll-i">—</span></div>
+        <div class="stat"><span class="k">nMOS 영역</span><span class="v" id="ll-rn">—</span></div>
+        <div class="stat"><span class="k">pMOS 영역</span><span class="v" id="ll-rp">—</span></div>
+      </div>
+      <figcaption><b>그림 4-2.</b> <span class="try">해 보기</span>왼쪽은 nMOS(파랑)와 pMOS(분홍)의 \(I_D\)–\(V_{out}\) 곡선이다. 흐린 선들은 다른 입력 전압에서의 곡선이다. 입력을 바꾸면 두 곡선이 서로 반대 방향으로 부풀고 줄며 교점이 미끄러진다. 교점의 \(V_{out}\)을 오른쪽 그래프에 \(V_{in}\)에 대해 찍어 가면 점들이 모여 VTC가 된다. '쓸어 보기'로 0부터 \(V_{DD}\)까지 자동으로 훑을 수 있다.</figcaption>
+    </figure>
+    <p>그래프를 잘 보면 VTC의 모양이 왜 그렇게 생겼는지 알 수 있다. 입력이 낮을 때 nMOS 곡선은 바닥에 납작 엎드려 있고(부문턱), 교점은 오른쪽 끝 \(V_{DD}\) 근처다. 입력이 \(V_M\) 근처에 오면 두 곡선이 모두 <b>포화 영역의 거의 평평한 부분</b>에서 만난다. 평평한 두 선의 교점은 곡선이 조금만 오르내려도 좌우로 크게 미끄러진다. 이것이 VTC 가운데가 가파른 이유, 즉 인버터의 높은 <b>이득</b>의 정체다. 포화 영역의 기울기를 만드는 채널 길이 변조(\(\lambda\))가 작을수록 곡선이 평평해지고 이득은 커진다.</p>
+    <div class="predict"><strong>예측해 보기: pMOS를 넓히면 교점은?</strong>
+      <p>입력을 \(V_{DD}/2\)=0.375 V에 두고 \(W_p\)를 1.6에서 3.2로 두 배 키우면 pMOS 곡선이 위로 올라간다. 출력은 올라갈까, 내려갈까? 그리고 VTC 전체는 어느 쪽으로 움직일까?</p>
+      <details><summary>답 보기</summary><p>pMOS 곡선이 커지면 교점은 오른쪽(높은 \(V_{out}\))으로 이동한다. 같은 입력에서 출력이 더 높으므로 VTC 전체가 <b>오른쪽으로</b> 밀리고 스위칭 임계 \(V_M\)이 올라간다. 다만 이동량은 생각보다 작다(약 0.375 → 0.40 V). 가파른 영역에서는 두 전류가 모두 포화돼 있고, 속도 포화 때문에 전류가 과구동 전압에 거의 비례(\(\alpha\approx1.3\))하므로 폭을 두 배로 해도 \(V_M\)은 조금밖에 움직이지 않는다. 4절에서 이 관계를 식으로 본다.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="vtc">
+    <h2>전압 전달 특성</h2>
+    <p>입력 전압에 대한 정지 상태 출력 전압의 그래프를 <span class="term">전압 전달 특성</span><span class="en">(VTC, Voltage Transfer Characteristic)</span>이라 한다. 디지털 게이트의 '정적 품질'은 이 곡선 하나에 다 들어 있다. 곡선에서 읽는 값은 다음과 같다.</p>
+    <ul>
+      <li><b>\(V_{OH}\), \(V_{OL}\)</b>: 출력이 1, 0일 때의 전압. CMOS는 거의 \(V_{DD}\)와 0이다.</li>
+      <li><b>\(V_M\)</b>: 스위칭 임계<span class="en">(Switching threshold)</span>. \(V_{out}=V_{in}\)인 점, 즉 VTC와 대각선의 교점.</li>
+      <li><b>\(V_{IL}\), \(V_{IH}\)</b>: 기울기가 \(-1\)이 되는 두 점의 입력 전압<span class="en">(Unity-gain points)</span>. 이 사이에서는 |이득| &gt; 1이어서 입력의 작은 흔들림이 출력에서 커진다. 그러므로 '확실한 0'은 \(V_{IL}\) 아래, '확실한 1'은 \(V_{IH}\) 위다.</li>
+    </ul>
+    <div class="formula">$$ NM_L = V_{IL} - V_{OL}, \qquad NM_H = V_{OH} - V_{IH} $$
+      <div class="where">\(NM_L\), \(NM_H\): 낮은·높은 쪽 <span class="term">노이즈 마진</span><span class="en">(Noise margin)</span>. 앞 단이 내놓은 최악의 0(\(V_{OL}\))에 잡음이 \(NM_L\)보다 적게 얹히면, 뒤 단은 그것을 여전히 확실한 0으로 읽는다.</div></div>
+    <div class="sim" id="sim-vtc">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>인버터 VTC · 이득 · 단락 전류</h3></div>
+      <div class="sim-view"><canvas id="cv-vtc"></canvas></div>
+      <div class="sim-controls">
+        <label class="ctrl"><span>β비 \(W_p/W_n\) <output id="vt-ratio-out"></output></span><input type="range" id="vt-ratio" min="0.4" max="6" step="0.05" value="1.6"></label>
+        <label class="ctrl"><span>공급 전압 \(V_{DD}\) <output id="vt-vdd-out"></output></span><input type="range" id="vt-vdd" min="0.15" max="1" step="0.01" value="0.75"></label>
+        <label class="ctrl"><span>nMOS 문턱 \(V_{tn}\) <output id="vt-vtn-out"></output></span><input type="range" id="vt-vtn" min="0.15" max="0.45" step="0.01" value="0.3"></label>
+        <label class="ctrl"><span>pMOS 문턱 \(|V_{tp}|\) <output id="vt-vtp-out"></output></span><input type="range" id="vt-vtp" min="0.15" max="0.45" step="0.01" value="0.3"></label>
+        <div class="ctrl"><span>프리셋</span><div class="ctrl-row"><button class="btn sm" id="vt-p1">DG-7 기준</button><button class="btn sm" id="vt-p2">저전압 0.3 V</button><button class="btn sm" id="vt-p3">0.2 V</button><button class="btn sm" id="vt-p4">pMOS 약하게</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">\(V_M\)</span><span class="v" id="vt-vm">—</span></div>
+        <div class="stat"><span class="k">\(V_{IL}\) / \(V_{IH}\)</span><span class="v" id="vt-vil">—</span></div>
+        <div class="stat"><span class="k">\(V_{OL}\) / \(V_{OH}\)</span><span class="v" id="vt-vol">—</span></div>
+        <div class="stat"><span class="k">\(NM_L\)</span><span class="v" id="vt-nml">—</span></div>
+        <div class="stat"><span class="k">\(NM_H\)</span><span class="v" id="vt-nmh">—</span></div>
+        <div class="stat"><span class="k">최대 |이득|</span><span class="v" id="vt-gain">—</span></div>
+        <div class="stat"><span class="k">단락 전류 최대</span><span class="v" id="vt-isc">—</span></div>
+      </div>
+      <div class="sim-note">VTC는 각 입력에서 \(I_{Dn}=I_{Dp}\)가 되는 출력을 이분법으로 찾아 그린다(<code>DG.vtc</code>, <code>DG.vtcMetrics</code>). 트랜지스터 모델은 알파 전력 법칙 + 부문턱(75 mV/dec) + 채널 길이 변조를 섞은 교육용 근사다. 축은 \(V_{DD}\)에 맞춰 늘어나므로 저전압에서도 모양을 비교할 수 있다. 아래 두 그래프는 같은 \(V_{in}\) 축의 |이득|과, 그 입력에서 정지 상태로 \(V_{DD}\)→GND로 흐르는 단락 전류다.</div>
+    </div>
+    <p>DG-7 기준값(\(V_{DD}\)=0.75 V, \(W_p/W_n\)=1.6)에서 \(V_M\)=0.375 V로 정확히 가운데이고, \(V_{IL}\)≈0.33 V, \(V_{IH}\)≈0.42 V, 두 노이즈 마진이 모두 약 0.27 V(\(V_{DD}\)의 37%)다. 최대 이득은 약 40으로, 입력이 90 mV만 바뀌어도 출력이 레일에서 레일까지 뒤집힌다.</p>
+    <p>이제 프리셋 '저전압 0.3 V'와 '0.2 V'를 눌러 보자. \(V_{DD}\)가 문턱 전압(0.3 V)과 같거나 그보다 낮아도 인버터는 여전히 인버터다. 두 트랜지스터가 모두 <b>부문턱 영역</b>에서 지수 함수 전류로 줄다리기를 하기 때문이다. 이득은 줄고 노이즈 마진도 \(V_{DD}\)에 비례해 작아지지만(0.2 V에서 약 0.07 V), 0과 1은 여전히 또렷이 갈린다. 단락 전류 그래프의 단위가 µA에서 nA로 떨어지는 것도 보자. 대신 지연은 수십 배 늘어난다(6절).</p>
+    <div class="callout deep"><strong>인버터는 얼마나 낮은 전압까지 동작할까</strong><p>이론적으로 CMOS 인버터가 이득 1 이상을 유지하는 최소 전압은 열 전압 \(kT/q\)의 몇 배, 이상적인 부문턱 기울기에서 약 \(2\ln 2\cdot kT/q\approx 36\ \text{mV}\)다(Swanson–Meindl, 1972). 실제 회로는 문턱 전압의 칩 내 변동 때문에 0.2~0.3 V 근처가 실용 하한이고, 센서 노드나 웨어러블용 초저전력 칩이 이 <b>문턱 아래 동작</b><span class="en">(Subthreshold operation)</span>을 쓴다. 에너지가 최소가 되는 공급 전압은 <a href="power.html">15장</a>에서 다룬다.</p></div>
+    <div class="callout warn"><strong>단락 전류는 \(V_{DD} &gt; V_{tn}+|V_{tp}|\)일 때만</strong><p>두 트랜지스터가 동시에 강하게 켜지려면 입력이 \(V_{tn}\)보다 높으면서 \(V_{DD}-|V_{tp}|\)보다 낮아야 한다. 그런 입력 구간은 \(V_{DD} &gt; V_{tn}+|V_{tp}|\)일 때만 존재한다. DG-7은 0.75 V &gt; 0.6 V라 창이 좁고, 시뮬레이터에서 \(V_{tn}\), \(|V_{tp}|\)를 낮추거나 \(V_{DD}\)를 올리면 단락 전류 봉우리가 급격히 커진다. 낮은 문턱 전압은 속도를 주지만 단락 전류와 누설이라는 청구서를 같이 보낸다.</p></div>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="vm">
+    <h2>스위칭 임계 \(V_M\)과 크기 조절</h2>
+    <p>\(V_M\)에서는 \(V_{in}=V_{out}\)이고 두 트랜지스터가 모두 포화 영역이다. 알파 전력 법칙 \(I_D = k\,W\,(V_{GS}-V_t)^{\alpha}\)를 양쪽에 쓰고 같다고 놓으면 \(V_M\)을 손으로 풀 수 있다.</p>
+    <div class="formula">$$ V_M \approx \frac{V_{tn} + r\,(V_{DD}-|V_{tp}|)}{1+r}, \qquad r = \left(\frac{k_p W_p}{k_n W_n}\right)^{1/\alpha} = \left(\frac{W_p/W_n}{\mu_n/\mu_p}\right)^{1/\alpha} $$
+      <div class="where">\(r\): 풀업과 풀다운의 구동력 비. \(\alpha\): 속도 포화 지수(장채널 2, DG-7 1.3, 극단적 속도 포화에서 1). \(\mu_n/\mu_p\): 이동도 비(DG-7은 1.6). \(r=1\)이면 \(V_{tn}=|V_{tp}|\)일 때 \(V_M=V_{DD}/2\).</div></div>
+    <p>\(V_M\)을 가운데에 두려면 \(r=1\), 즉 \(W_p/W_n=\mu_n/\mu_p\)로 맞춘다. 그런데 이 식의 지수 \(1/\alpha\)가 흥미롭다. \(V_M\)은 β비의 <b>약한 함수</b>여서 \(W_p\)를 두 배로 해도 \(V_M\)은 수십 mV밖에 움직이지 않는다. 반대로 말하면 크기가 조금 어긋나도 VTC는 크게 망가지지 않는다. 설계자가 면적과 입력 커패시턴스를 아끼려고 pMOS를 '덜 넓게'(예: \(W_p/W_n\)=1~1.2) 만드는 경우가 흔한 이유다.</p>
+    <figure class="play" id="fig-vm">
+      <div class="play-view"><canvas id="cv-vm"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>β비 \(W_p/W_n\) <output id="vm-r-out"></output></span><input type="range" id="vm-r" min="-2" max="3" step="0.05" value="0.68"></label>
+        <label class="ctrl"><span>공급 전압 \(V_{DD}\) <output id="vm-vdd-out"></output></span><input type="range" id="vm-vdd" min="0.4" max="1" step="0.01" value="0.75"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">\(V_M\) (모델)</span><span class="v" id="vm-ex">—</span></div>
+        <div class="stat"><span class="k">\(V_M\) (식, α=1.3)</span><span class="v" id="vm-fo">—</span></div>
+        <div class="stat"><span class="k">\(NM_L\)</span><span class="v" id="vm-nml">—</span></div>
+        <div class="stat"><span class="k">\(NM_H\)</span><span class="v" id="vm-nmh">—</span></div>
+      </div>
+      <figcaption><b>그림 4-3.</b> <span class="try">해 보기</span>β비를 0.25부터 8까지(로그 눈금) 바꿔 보자. 왼쪽은 \(V_M\)과 β비의 관계다. 실선은 모델의 정확한 값, 점선은 위 식(α=1.3), 흐린 점선은 장채널(α=2)이었다면의 값이다. 오른쪽 VTC 아래 막대는 두 노이즈 마진이다. \(V_M\)이 한쪽으로 가면 한쪽 마진이 늘어난 만큼 다른 쪽이 줄어 <b>비대칭</b>이 된다.</figcaption>
+    </figure>
+    <p>그렇다면 일부러 \(V_M\)을 옮길 이유가 있을까? 있다. 입력에 0 쪽 잡음이 많이 섞이는 곳(예: 긴 선 끝)에서는 \(V_M\)을 올려 \(NM_L\)을 키운다. 또 출력이 한 방향으로만 빨라야 하는 곳, 예를 들어 <a href="styles.html">7장</a> 도미노 논리의 출력 인버터는 pMOS를 크게 만들어(HI-skew) 상승 천이를 서두른다. 반대로 하강 천이를 서두르는 LO-skew 게이트도 있다. 다만 \(V_M\)을 옮기는 데 드는 폭 비용이 크다는 것, 그리고 한쪽 마진을 얻으면 다른 쪽을 잃는다는 것을 기억하자.</p>
+    <div class="callout tip"><strong>대칭 VTC ≠ 대칭 지연</strong><p>\(W_p/W_n=\mu_n/\mu_p\)로 맞추면 \(V_M=V_{DD}/2\)일 뿐 아니라 풀업과 풀다운의 유효 저항이 같아져 \(t_{pLH}\approx t_{pHL}\)도 된다. 두 조건이 같은 크기에서 만나는 것은 같은 \(k\,W\)가 두 가지를 다 결정하기 때문이다. 하지만 평균 지연을 최소로 하는 β비는 이보다 작다(대략 \(\sqrt{\mu_n/\mu_p}\)). 이유는 <a href="delay.html">6장</a>의 논리적 노력에서 본다.</p></div>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="butterfly">
+    <h2>노이즈 마진과 나비 모양</h2>
+    <p>노이즈 마진이 왜 중요한지는 인버터를 <b>연달아</b> 이어 보면 분명해진다. 인버터 하나의 출력이 잡음으로 \(V_{OL}\)에서 0.1 V 떠도, 다음 인버터는 이득 덕분에 그 입력을 다시 깨끗한 \(V_{OH}\)로 복원한다. 이를 <span class="term">재생성</span><span class="en">(Regeneration)</span>이라 한다(<a href="overview.html">1장</a>). 재생성의 극단적인 형태는 인버터 두 개를 <b>고리로</b> 잇는 것이다. 첫째 인버터의 출력 \(V_2=f(V_1)\)이 둘째의 입력이 되고, 둘째의 출력 \(V_1=f(V_2)\)이 다시 첫째의 입력이 된다.</p>
+    <p>두 VTC를 한 그래프에 그리되 둘째 것은 축을 바꿔(\(V_1\)과 \(V_2\)를 뒤집어) 그리면 나비 날개 모양이 나온다. 이것이 <span class="term">나비 곡선</span><span class="en">(Butterfly curve)</span>이다. 두 곡선의 교점이 고리가 머물 수 있는 상태다. 교점은 세 개다. 양 끝 두 점은 <b>안정</b>(조금 밀어도 돌아온다), 가운데 \(V_1=V_2=V_M\)인 점은 <b>준안정</b>(조금만 밀어도 굴러떨어진다)이다. 두 안정점이 곧 1비트의 기억, 즉 <a href="latch.html">8장</a> 래치와 <a href="memory.html">13장</a> SRAM 셀의 원리다.</p>
+    <figure class="play" id="fig-butterfly">
+      <div class="play-view"><canvas id="cv-bf"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>공급 전압 \(V_{DD}\) <output id="bf-vdd-out"></output></span><input type="range" id="bf-vdd" min="0.2" max="0.9" step="0.01" value="0.75"></label>
+        <label class="ctrl"><span>둘째 인버터 β비 <output id="bf-r-out"></output></span><input type="range" id="bf-r" min="-2" max="3" step="0.05" value="0.68"></label>
+        <div class="ctrl"><span>출발점</span><div class="ctrl-row"><button class="btn sm" id="bf-meta">준안정점 근처에서</button><button class="btn sm" id="bf-rand">무작위</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">정적 노이즈 마진 SNM</span><span class="v" id="bf-snm">—</span></div>
+        <div class="stat"><span class="k">왼쪽 위 / 오른쪽 아래 날개</span><span class="v" id="bf-lobe">—</span></div>
+        <div class="stat"><span class="k">고리의 상태</span><span class="v" id="bf-st">—</span></div>
+      </div>
+      <figcaption><b>그림 4-4.</b> <span class="try">해 보기</span>그래프 위를 누르거나 끌면 그 \((V_1, V_2)\)에서 고리를 출발시킨다. 점은 두 인버터가 각자 자기 출력을 VTC 쪽으로 끌어가는 궤적을 따라 두 안정점 중 하나로 굴러간다. 날개 안에 들어가는 가장 큰 정사각형의 한 변이 <b>정적 노이즈 마진</b>(SNM)이다. 둘째 인버터의 β비를 바꾸면 날개 하나가 작아지고, \(V_{DD}\)를 낮추면 둘 다 작아진다.</figcaption>
+    </figure>
+    <p>정사각형의 한 변이 노이즈 마진인 이유는 이렇다. 고리의 두 노드에 크기 \(v_n\)인 잡음 전압이 서로 반대 방향으로 얹히면, 한 VTC는 오른쪽으로, 다른 VTC는 위로 \(v_n\)만큼 밀린다. 그 결과 한 날개가 줄어들다가 \(v_n\)이 정사각형의 변에 이르면 날개가 닫혀 안정점 하나가 사라지고, 저장된 값이 뒤집힌다. 이 기하학적 정의(Seevinck, 1987)는 SRAM 셀의 읽기 안정성을 재는 표준 방법이다.</p>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="dynamic">
+    <h2>동적 동작: 충방전과 전파 지연</h2>
+    <p>VTC는 정지 상태의 이야기다. 실제 칩에서 중요한 것은 입력이 바뀐 뒤 출력이 <b>얼마나 빨리</b> 따라오느냐다. 출력 노드에는 부하 커패시터 \(C_L\)이 달려 있고, 출력 전압을 바꾸려면 이 커패시터를 트랜지스터 전류로 충전하거나 방전해야 한다. 출력 노드에 키르히호프 전류 법칙을 쓰면 인버터의 동작 전체가 미분 방정식 하나가 된다.</p>
+    <div class="formula">$$ C_L\,\frac{dV_{out}}{dt} = I_{Dp}(V_{in}, V_{out}) - I_{Dn}(V_{in}, V_{out}) $$
+      <div class="where">\(C_L = C_{par} + C_{fanout} + C_{wire}\): 자기 드레인 확산 커패시턴스 + 다음 단 게이트 커패시턴스 + 배선. 이 식을 작은 시간 간격으로 나눠 적분하면 과도 파형이 나온다.</div></div>
+    <p>지연은 50% 점끼리의 시간 차로 정의한다. 입력이 \(V_{DD}/2\)를 지난 뒤 출력이 \(V_{DD}/2\)를 지날 때까지가 <span class="term">전파 지연</span><span class="en">(Propagation delay)</span>이다. 출력이 떨어질 때를 \(t_{pHL}\), 올라갈 때를 \(t_{pLH}\)라 하고, 평균을 \(t_p\)라 한다. 출력이 10%에서 90%까지 가는 데 걸리는 시간은 <span class="term">상승 시간</span> \(t_r\), 90%에서 10%까지는 <span class="term">하강 시간</span> \(t_f\)이다<span class="en">(Rise/fall time, 통틀어 slew)</span>.</p>
+    <div class="formula">$$ t_{pHL} \approx 0.69\,R_{n}\,C_L, \qquad t_{pLH} \approx 0.69\,R_{p}\,C_L, \qquad t_p = \frac{t_{pHL}+t_{pLH}}{2} $$
+      <div class="where">\(R_n\), \(R_p\): 풀다운·풀업의 유효 저항(폭에 반비례). 0.69 = ln 2는 RC 회로가 절반까지 가는 시간. 입력 경사가 느리면 이 값보다 길어진다.</div></div>
+    <div class="sim" id="sim-tran">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>인버터 과도 응답 · 전파 지연 · 단락 전류</h3></div>
+      <div class="sim-view"><canvas id="cv-tr"></canvas></div>
+      <div class="sim-controls">
+        <label class="ctrl"><span>입력 천이 시간(slew) <output id="tr-slew-out"></output></span><input type="range" id="tr-slew" min="1" max="80" step="0.5" value="7.5"></label>
+        <label class="ctrl"><span>팬아웃(단위 인버터 개수) <output id="tr-fo-out"></output></span><input type="range" id="tr-fo" min="0" max="16" step="1" value="4"></label>
+        <label class="ctrl"><span>인버터 크기 배수 \(S\) <output id="tr-s-out"></output></span><input type="range" id="tr-s" min="1" max="8" step="0.5" value="1"></label>
+        <label class="ctrl"><span>공급 전압 \(V_{DD}\) <output id="tr-vdd-out"></output></span><input type="range" id="tr-vdd" min="0.3" max="1" step="0.01" value="0.75"></label>
+        <div class="ctrl"><span>β비 \(W_p/W_n\)</span><div class="seg" id="tr-beta"><button data-value="1">1</button><button data-value="1.6" class="on">1.6</button><button data-value="3.2">3.2</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">\(t_{pHL}\)</span><span class="v" id="tr-phl">—</span></div>
+        <div class="stat"><span class="k">\(t_{pLH}\)</span><span class="v" id="tr-plh">—</span></div>
+        <div class="stat"><span class="k">\(t_f\) / \(t_r\)</span><span class="v" id="tr-ftr">—</span></div>
+        <div class="stat"><span class="k">부하 \(C_L\)</span><span class="v" id="tr-cl">—</span></div>
+        <div class="stat"><span class="k">스위칭 \(C_LV_{DD}^2\)</span><span class="v" id="tr-esw">—</span></div>
+        <div class="stat"><span class="k">단락 에너지(한 주기)</span><span class="v" id="tr-esc">—</span></div>
+      </div>
+      <div class="sim-note">입력에 상승·하강 경사를 차례로 주고, 출력 노드의 식 \(C_L\,dV/dt = I_p - I_n\)을 중점법(RK2)으로 수치 적분한다(<code>DG.ids</code> 사용). 아래 그래프의 주황 영역이 두 트랜지스터를 동시에 지나는 단락 전류 \(\min(I_n, I_p)\)다. 그래프 위에 포인터를 올리면 그 시각의 값을 읽는다. 입력-출력 사이 게이트-드레인 결합(밀러 효과)과 게이트 저항은 무시했다.</div>
+    </div>
+    <p>시뮬레이터에서 몇 가지를 확인하자. 기본값(FO4, 입력 slew 7.5 ps)에서 \(t_p\)≈9 ps이고, 입력을 아주 빠르게(1 ps) 주면 약 7.6 ps로 DG-7의 FO4 지연 7.5 ps와 맞는다. 팬아웃을 늘리면 \(C_L\)에 비례해 지연이 늘고, 크기 \(S\)를 키우면 저항이 \(1/S\)로 줄어 빨라진다. \(V_{DD}\)를 0.75 V에서 0.4 V로 낮추면 지연이 4배 가까이, 0.3 V에서는 10배 넘게 늘어난다. 과구동 전압 \(V_{DD}-V_t\)가 줄어드는 만큼 전류가 줄기 때문이다.</p>
+    <div class="predict"><strong>예측해 보기: 입력이 느려지면?</strong>
+      <p>입력 천이 시간을 7.5 ps에서 60 ps로 늘리면 \(t_p\)는 어떻게 될까? 단락 에너지는?</p>
+      <details><summary>답 보기</summary><p>둘 다 커진다. \(t_p\)는 약 9 ps → 20 ps로 늘어난다. 입력이 \(V_{DD}/2\)를 지날 때 nMOS가 아직 반쯤만 켜져 있어 방전 전류가 작기 때문이다. 단락 에너지도 몇 배 늘어난다. 두 트랜지스터가 동시에 켜진 시간이 입력 천이 시간에 비례하기 때문이다. 설계 도구가 모든 넷의 천이 시간에 상한(max transition)을 두는 이유다. 다만 DG-7처럼 \(V_{DD}\)가 \(V_{tn}+|V_{tp}|\)에 가까우면 단락 에너지는 스위칭 에너지의 몇 %에 그친다. \(V_{DD}\)를 1 V로 올려 비교해 보자.</p></details>
+    </div>
+    <h3>크게 만들면 무한히 빨라질까</h3>
+    <p>인버터 크기를 \(S\)배로 키우면 저항은 \(1/S\)로 줄지만 자기 드레인 커패시턴스 \(C_{par}\)도 \(S\)배로 는다. 외부 부하 \(C_{ext}\)가 고정이라면 다음과 같다.</p>
+    <div class="formula">$$ t_p = 0.69\,\frac{R_{unit}}{S}\,(S\,C_{par} + C_{ext}) = t_{p0}\left(1 + \frac{C_{ext}}{S\,C_{par}}\right), \qquad t_{p0}=0.69\,R_{unit}C_{par} $$
+      <div class="where">\(t_{p0}\): <span class="term">고유 지연</span><span class="en">(Intrinsic delay)</span>. 자기 부하만 끌 때의 지연으로 크기와 무관하다. DG-7에서 약 1.2~1.4 ps.</div></div>
+    <figure class="play" id="fig-size">
+      <div class="play-view"><canvas id="cv-sz"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>외부 부하 \(C_{ext}\) <output id="sz-c-out"></output></span><input type="range" id="sz-c" min="0.5" max="20" step="0.5" value="4"></label>
+        <label class="ctrl"><span>크기 \(S\) <output id="sz-s-out"></output></span><input type="range" id="sz-s" min="0" max="5" step="0.1" value="1"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">이 크기의 \(t_p\)</span><span class="v" id="sz-tp">—</span></div>
+        <div class="stat"><span class="k">고유 지연 \(t_{p0}\)</span><span class="v" id="sz-t0">—</span></div>
+        <div class="stat"><span class="k">앞단이 보는 입력 C</span><span class="v" id="sz-cin">—</span></div>
+      </div>
+      <figcaption><b>그림 4-5.</b> <span class="try">해 보기</span>크기 \(S\)(로그 눈금, 1~32배)를 키우면 지연은 처음엔 빠르게 줄다가 고유 지연(점선)에 붙어 더 줄지 않는다. 대신 이 인버터의 입력 커패시턴스(앞단이 끌어야 할 부하, 막대)는 \(S\)에 비례해 끝없이 커진다. 공짜 점심은 없다. 어디까지 키울지가 <a href="delay.html">6장</a> 버퍼 체인과 논리적 노력의 주제다.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="energy">
+    <h2>전력 미리보기: 한 번 바뀔 때의 값</h2>
+    <p>출력이 0에서 1로 올라갈 때 전원은 커패시터에 전하 \(Q=C_LV_{DD}\)를 밀어 넣는다. 이 전하는 \(V_{DD}\) 높이에서 나오므로 전원이 내놓는 에너지는 \(QV_{DD}=C_LV_{DD}^2\)이다. 그런데 커패시터에 저장되는 에너지는 \(\frac12C_LV_{DD}^2\)뿐이다. 나머지 절반은 pMOS의 저항에서 열이 된다. 출력이 다시 1에서 0으로 내려갈 때는 저장된 절반이 nMOS에서 열이 된다. 결국 한 번의 0→1→0 주기마다 \(C_LV_{DD}^2\)가 모두 열로 사라진다. 놀랍게도 이 값은 트랜지스터 저항과 무관하다.</p>
+    <div class="formula">$$ E_{0\to1\to0} = C_L V_{DD}^2, \qquad P_{dyn} = \alpha\, C_L V_{DD}^2 f $$
+      <div class="where">\(\alpha\): 활동도(한 클럭 주기에 0→1 천이가 일어날 확률), \(f\): 클럭 주파수. 여기에 단락 전력 \(P_{sc}\)과 누설 전력 \(P_{leak}=I_{off}V_{DD}\)가 더해진다. 셋 다 <a href="power.html">15장</a>의 주제다.</div></div>
+    <figure class="play" id="fig-energy">
+      <div class="play-view"><canvas id="cv-en"></canvas></div>
+      <div class="play-ctrl">
+        <div class="ctrl"><span>천이</span><div class="ctrl-row"><button class="btn sm primary" id="en-up">0→1 충전</button><button class="btn sm" id="en-dn">1→0 방전</button><button class="btn sm" id="en-auto">자동 반복</button><button class="btn sm" id="en-reset">0으로</button></div></div>
+        <label class="ctrl"><span>부하 \(C_L\) <output id="en-c-out"></output></span><input type="range" id="en-c" min="0.5" max="10" step="0.1" value="1"></label>
+        <label class="ctrl"><span>\(V_{DD}\) <output id="en-vdd-out"></output></span><input type="range" id="en-vdd" min="0.3" max="1" step="0.01" value="0.75"></label>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">한 주기 \(C_LV_{DD}^2\)</span><span class="v" id="en-sw">—</span></div>
+        <div class="stat"><span class="k">완료한 주기 수</span><span class="v" id="en-n">—</span></div>
+        <div class="stat"><span class="k">\(P_{dyn}\) (α=0.1, 2 GHz)</span><span class="v" id="en-p">—</span></div>
+      </div>
+      <figcaption><b>그림 4-6.</b> <span class="try">해 보기</span>'0→1 충전'을 누르면 전원이 전하를 밀어 넣고, 오른쪽 막대에 전원이 내놓은 에너지, 커패시터에 저장된 에너지, pMOS·nMOS에서 열이 된 에너지가 쌓인다. 충전이 끝나면 전원 에너지의 정확히 절반이 커패시터에, 절반이 pMOS 열에 있다. 이어서 방전하면 저장된 절반이 nMOS 열로 옮겨 간다. \(V_{DD}\)를 절반으로 낮추면 에너지는 4분의 1이 된다.</figcaption>
+    </figure>
+    <div class="callout deep"><strong>왜 저항과 무관할까</strong><p>pMOS 저항이 크면 전류가 작지만 오래 흐르고, 저항이 작으면 크게 짧게 흐른다. 저항에서 소모되는 에너지 \(\int I^2R\,dt\)를 계산하면 \(R\)이 지워지고 \(\frac12CV^2\)만 남는다. 열을 줄이려면 \(C\)나 \(V\)를 줄이거나, 전원 전압 자체를 천천히 올려 저항 양단 전압을 작게 유지하는 '단열 충전'<span class="en">(Adiabatic charging)</span>을 써야 한다. 후자는 회로가 복잡해 실제로는 드물게 쓰인다. 전압의 제곱이 들어가므로 저전력 설계의 첫 번째 손잡이는 언제나 \(V_{DD}\)다.</p></div>
+  </section>
+
+  <!-- ============================================================ 8 -->
+  <section id="ring">
+    <h2>링 오실레이터</h2>
+    <p>인버터 <b>홀수 개</b>를 고리로 이으면 어떤 상태도 안정하지 않다. 노드 하나가 1이면 한 바퀴 돌아온 신호가 그 노드를 0으로 만들려 하고, 0이 되면 다시 1로 만들려 한다. 결국 천이 하나가 고리를 계속 돈다. 이것이 <span class="term">링 오실레이터</span><span class="en">(Ring oscillator)</span>다. 천이가 한 바퀴 돌면 각 노드가 한 번 뒤집히고, 두 바퀴 돌아야 원래 상태로 돌아오므로 주기는 \(2Nt_p\)다.</p>
+    <div class="formula">$$ f_{osc} = \frac{1}{2\,N\,t_p} $$
+      <div class="where">\(N\): 인버터 단 수(홀수), \(t_p\): 한 단의 평균 전파 지연(자기 다음 단 하나를 끄는 FO1 지연).</div></div>
+    <figure class="play" id="fig-ring">
+      <div class="play-view"><canvas id="cv-ro"></canvas></div>
+      <div class="play-ctrl">
+        <label class="ctrl"><span>단 수 \(N\) <output id="ro-n-out"></output></span><input type="range" id="ro-n" min="2" max="15" step="1" value="5"></label>
+        <label class="ctrl"><span>공급 전압 \(V_{DD}\) <output id="ro-vdd-out"></output></span><input type="range" id="ro-vdd" min="0.3" max="0.95" step="0.01" value="0.75"></label>
+        <div class="ctrl"><span>동작</span><div class="ctrl-row"><button class="btn sm" id="ro-kick">흔들기</button></div></div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">단 지연 \(t_p\) (FO1)</span><span class="v" id="ro-tp">—</span></div>
+        <div class="stat"><span class="k">발진 주파수</span><span class="v" id="ro-f">—</span></div>
+        <div class="stat"><span class="k">주기 \(2Nt_p\)</span><span class="v" id="ro-per">—</span></div>
+        <div class="stat"><span class="k">상태</span><span class="v" id="ro-st">—</span></div>
+      </div>
+      <figcaption><b>그림 4-7.</b> <span class="try">해 보기</span>원 위의 인버터들 사이 선 색이 각 노드의 전압이다(초록=1, 회색=0). 아래 파형은 처음 세 노드다. 단 수를 늘리면 천이가 도는 길이 길어져 느려진다. 짝수로 바꾸면 무슨 일이 생기는지 보고, '흔들기'로 다시 밀어 보자. 애니메이션은 실제보다 수백억 배 느린 슬로 모션이며, 수치는 DG-7 모델로 계산한 단 지연에서 나온다.</figcaption>
+    </figure>
+    <div class="predict"><strong>예측해 보기: 짝수 개를 고리로 이으면?</strong>
+      <p>인버터 4개를 고리로 이으면 발진할까?</p>
+      <details><summary>답 보기</summary><p>발진하지 않는다. 짝수 개 인버터의 고리는 신호를 한 바퀴 돌려도 반전되지 않으므로 0101 또는 1010 같은 상태에서 그대로 멈춘다. 이것은 그림 4-4의 두 인버터 고리와 같은 <b>쌍안정</b> 회로다. 발진하려면 고리 전체가 반전(음의 되먹임)이어야 하고, 기억하려면 비반전(양의 되먹임)이어야 한다. 같은 인버터로 시계도, 기억 소자도 만든다.</p></details>
+    </div>
+    <p>링 오실레이터는 거의 모든 칩에 <b>공정 모니터</b>로 들어간다. 주파수가 게이트 지연 하나에 정비례하므로, 웨이퍼마다 수십~수백 단짜리 링의 주파수를 재면 그 웨이퍼의 트랜지스터가 빠른지(FF 코너) 느린지(SS 코너) 바로 알 수 있다. 칩 안에 여러 개를 흩어 두면 온도·전압 강하·노화를 실시간으로 감시하는 센서가 되고, 이 값으로 공급 전압을 조절하는 적응형 전압 조절(AVS)도 가능하다(<a href="robust.html">16장</a>). DG-7에서 FO1 단 지연은 약 3.4 ps이므로 101단 링은 약 1.5 GHz로 돈다. 위상 고정 루프의 전압 제어 발진기(VCO)도 링 구조를 많이 쓴다.</p>
+    <div class="callout warn"><strong>측정 지연과 실제 지연</strong><p>링 오실레이터 안의 각 단은 자기와 똑같은 인버터 하나만 끌고(FO1), 입력 천이도 같은 인버터에서 온다. 실제 논리 경로의 게이트는 팬아웃 3~4와 배선을 끌므로 링에서 잰 \(t_p\)보다 2~3배 느리다. 그래서 공정을 비교할 때는 부하를 맞춘 FO4 지연을 쓴다.</p></div>
+  </section>
+
+  <!-- ============================================================ 9 -->
+  <section id="numbers">
+    <h2>DG-7 단위 인버터의 실제 수치</h2>
+    <p>이 책 전체가 공유하는 DG-7 기준 공정의 단위 인버터(\(W_n=1\), \(W_p=1.6\))를 이 장의 모델로 계산한 값이다. 오른쪽 열은 공개 자료에서 본 실제 7 nm급 공정의 대략적인 범위다.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>항목</th><th>DG-7 단위 인버터</th><th>계산 근거</th><th>실제 7 nm급(약, 2019~2023)</th></tr></thead>
+      <tbody>
+        <tr><td>공급 전압 \(V_{DD}\) / 문턱 \(V_t\)</td><td>0.75 V / 0.30 V</td><td>DG.TECH</td><td>0.65~0.8 V / 0.2~0.35 V</td></tr>
+        <tr><td>입력 커패시턴스 \(C_{in}\)</td><td>약 0.21 fF</td><td>\((1+1.6)\times 0.08\) fF</td><td>약 0.1~0.3 fF</td></tr>
+        <tr><td>자기 드레인 커패시턴스 \(C_{par}\)</td><td>약 0.16 fF</td><td>\((1+1.6)\times 0.06\) fF, \(\gamma\approx0.75\)</td><td>\(\gamma\approx\) 0.6~1</td></tr>
+        <tr><td>켜짐 전류 \(I_{on}\) / 꺼짐 전류 \(I_{off}\)</td><td>54 µA / 0.25 nA</td><td>DG.ids, 비 약 20만</td><td>비 약 10⁴~10⁶</td></tr>
+        <tr><td>유효 저항 \(R_{eff}\)</td><td>약 11 kΩ</td><td>\(t_p/(0.69\,C_L)\)</td><td>수 kΩ~수십 kΩ</td></tr>
+        <tr><td>\(V_M\) / 노이즈 마진</td><td>0.375 V / 약 0.27 V</td><td>DG.vtcMetrics</td><td>—</td></tr>
+        <tr><td>최대 전압 이득</td><td>약 40</td><td>VTC 기울기</td><td>약 10~50</td></tr>
+        <tr><td>고유 지연 \(t_{p0}\)</td><td>약 1.3 ps</td><td>FO0</td><td>약 1~2 ps</td></tr>
+        <tr><td>FO1 지연(링 오실레이터 단 지연)</td><td>약 3.4 ps</td><td>과도 해석</td><td>약 2~5 ps</td></tr>
+        <tr><td>FO4 지연</td><td>약 7.5 ps</td><td>과도 해석, DG.TECH.fo4</td><td>약 6~10 ps</td></tr>
+        <tr><td>FO4 부하 스위칭 에너지 \(C_LV_{DD}^2\)</td><td>약 0.56 fJ</td><td>\((4\times0.21+0.16)\) fF × 0.75²</td><td>약 0.3~1 fJ</td></tr>
+        <tr><td>누설 전력(정지 상태)</td><td>약 0.2 nW</td><td>\(I_{off}V_{DD}\)</td><td>약 0.05~5 nW(문턱에 따라)</td></tr>
+      </tbody>
+    </table></div>
+    <p>숫자 감각을 하나 만들어 두자. 2 GHz로 도는 칩에서 FO4 인버터 하나가 매 주기 10% 확률로 바뀐다면 동적 전력은 \(0.1\times0.56\text{ fJ}\times2\text{ GHz}\approx0.11\ \mu\text{W}\)이고, 누설은 그 1/500 정도다. 이런 게이트가 1억 개 있으면 동적 전력만 약 11 W가 된다. 실제 칩이 클럭 게이팅으로 활동도를 낮추는 이유다.</p>
+  </section>
+
+  <section class="keypoints">
+    <h2>핵심 정리</h2>
+    <ol>
+      <li>CMOS 인버터는 pMOS 풀업과 nMOS 풀다운이 서로 반대로 켜지는 회로다. 정지 상태에서는 하나가 늘 꺼져 있어 정적 전류가 (누설을 빼면) 0이고, 출력은 레일까지 꽉 찬다.</li>
+      <li>VTC는 \(I_{Dn}=I_{Dp}\)가 되는 출력, 즉 두 전류 곡선의 교점을 입력마다 모은 것이다. 가운데에서 두 트랜지스터가 모두 포화돼 이득이 크다.</li>
+      <li>\(V_{IL}\), \(V_{IH}\)는 기울기 −1인 점이고, \(NM_L=V_{IL}-V_{OL}\), \(NM_H=V_{OH}-V_{IH}\)다. DG-7 단위 인버터는 \(V_M\)=0.375 V, 마진 약 0.27 V이며, 문턱 아래 0.2 V에서도 인버터로 동작한다.</li>
+      <li>\(V_M\approx(V_{tn}+r(V_{DD}-|V_{tp}|))/(1+r)\), \(r=(\beta_p/\beta_n)^{1/\alpha}\). β비의 약한 함수이며, 옮기면 마진이 비대칭이 된다.</li>
+      <li>두 인버터를 고리로 이으면 나비 곡선이 생기고 안정점 두 개가 1비트를 기억한다. 날개 안 최대 정사각형의 변이 SNM이다.</li>
+      <li>지연은 \(C_L\,dV/dt=I_p-I_n\)의 결과로, \(t_p\approx0.69R_{eff}C_L\)이다. 입력이 느리거나 \(V_{DD}\)가 낮으면 늘고, 크기를 키워도 고유 지연 아래로는 줄지 않는다.</li>
+      <li>한 번의 0→1→0 주기는 \(C_LV_{DD}^2\)를 쓴다. 홀수 단 링 오실레이터는 \(f=1/(2Nt_p)\)로 돌아 공정 모니터로 쓰인다.</li>
+    </ol>
+  </section>
+
+  <section class="quiz-sec">
+    <h2>확인 퀴즈</h2>
+    <div class="quiz-q"><p>Q1. CMOS 인버터의 정지 상태 전력이 (누설을 빼면) 0인 이유는?</p>
+      <div class="opts"><button class="opt">pMOS와 nMOS의 문턱 전압이 같아서</button><button class="opt" data-correct>정지 상태에서는 두 트랜지스터 중 하나가 항상 꺼져 VDD에서 GND로 가는 길이 없어서</button><button class="opt">출력 커패시터가 전류를 막아서</button><button class="opt">pMOS가 nMOS보다 1.6배 넓어서</button></div>
+      <div class="quiz-exp">입력이 0이면 nMOS가, 1이면 pMOS가 꺼진다. 직렬 경로에 꺼진 스위치가 하나라도 있으면 정적 전류는 누설뿐이다.</div></div>
+    <div class="quiz-q"><p>Q2. 부하선 해석에서 VTC 가운데가 매우 가파른 직접적인 이유는?</p>
+      <div class="opts"><button class="opt" data-correct>두 트랜지스터가 모두 포화 영역에 있어 거의 평평한 두 곡선이 만나므로, 입력이 조금 바뀌어도 교점이 크게 이동한다</button><button class="opt">두 트랜지스터가 모두 꺼져 있어 출력이 떠 있다</button><button class="opt">출력 커패시터가 충전 중이기 때문이다</button><button class="opt">nMOS만 선형 영역에 있기 때문이다</button></div>
+      <div class="quiz-exp">포화 영역 곡선의 기울기는 채널 길이 변조로만 생긴다. 평평한 두 선의 교점은 선이 조금만 움직여도 크게 미끄러지며, 이것이 큰 전압 이득이다.</div></div>
+    <div class="quiz-q"><p>Q3. 어떤 인버터의 \(V_{OL}\)=0.05 V, \(V_{OH}\)=0.70 V, \(V_{IL}\)=0.30 V, \(V_{IH}\)=0.45 V이다. 노이즈 마진은?</p>
+      <div class="opts"><button class="opt">\(NM_L\)=0.30 V, \(NM_H\)=0.45 V</button><button class="opt">\(NM_L\)=0.15 V, \(NM_H\)=0.15 V</button><button class="opt" data-correct>\(NM_L\)=0.25 V, \(NM_H\)=0.25 V</button><button class="opt">\(NM_L\)=0.40 V, \(NM_H\)=0.65 V</button></div>
+      <div class="quiz-exp">\(NM_L=V_{IL}-V_{OL}=0.30-0.05=0.25\) V, \(NM_H=V_{OH}-V_{IH}=0.70-0.45=0.25\) V.</div></div>
+    <div class="quiz-q"><p>Q4. 속도 포화가 심한 짧은 채널 공정(α≈1.3)에서 \(W_p\)를 두 배로 키우면 \(V_M\)은?</p>
+      <div class="opts"><button class="opt">\(V_{DD}\)의 절반만큼 크게 올라간다</button><button class="opt">내려간다</button><button class="opt">전혀 변하지 않는다</button><button class="opt" data-correct>조금(수십 mV) 올라간다</button></div>
+      <div class="quiz-exp">\(r=(\beta_p/\beta_n)^{1/\alpha}\)이므로 β비를 두 배로 해도 \(r\)은 약 1.7배다. pMOS가 강해져 \(V_M\)은 올라가지만 DG-7에서는 0.375 → 0.40 V 정도다.</div></div>
+    <div class="quiz-q"><p>Q5. 부하 1 fF, \(V_{DD}\)=0.8 V인 인버터 출력이 0→1→0 한 주기를 돌 때 소모하는 동적 에너지와, 그중 충전 때 pMOS에서 열이 되는 양은?</p>
+      <div class="opts"><button class="opt">0.8 fJ, 0 fJ</button><button class="opt" data-correct>0.64 fJ, 0.32 fJ</button><button class="opt">0.32 fJ, 0.16 fJ</button><button class="opt">0.64 fJ, 0.64 fJ</button></div>
+      <div class="quiz-exp">\(CV^2=1\text{ fF}\times0.64=0.64\) fJ. 충전 때 전원이 0.64 fJ를 내놓고 절반 0.32 fJ는 커패시터에, 절반은 pMOS 열이 된다. 방전 때 저장된 0.32 fJ가 nMOS 열이 된다.</div></div>
+    <div class="quiz-q"><p>Q6. 단 지연이 4 ps인 인버터 25단으로 링 오실레이터를 만들면 주파수는?</p>
+      <div class="opts"><button class="opt">10 GHz</button><button class="opt">2.5 GHz</button><button class="opt" data-correct>5 GHz</button><button class="opt">짝수가 아니라서 발진하지 않는다</button></div>
+      <div class="quiz-exp">\(f=1/(2Nt_p)=1/(2\times25\times4\text{ ps})=1/200\text{ ps}=5\) GHz. 홀수 단이어야 발진한다.</div></div>
+  </section>
+</main>
+
+<script>
+/*SCRIPT*/
+</script>
+</body>
+</html>

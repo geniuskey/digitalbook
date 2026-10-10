@@ -5,6 +5,30 @@
 <html lang="ko">
 <head>
 <!--head:start {"desc": "MOSFET을 회로 설계자의 눈으로 본다. 게이트 전압으로 여닫는 스위치, 문턱 전압과 I-V 곡선, 알파 전력 법칙, 부문턱 누설과 60 mV/dec 한계, 온저항과 게이트 커패시턴스로 만든 스위치-RC 모델, 강한 0·약한 1의 패스 특성, FinFET과 GAA까지 직접 만지며 익힌다."}-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스위치가 된 트랜지스터 · DigitalBook</title>
+<meta name="description" content="MOSFET을 회로 설계자의 눈으로 본다. 게이트 전압으로 여닫는 스위치, 문턱 전압과 I-V 곡선, 알파 전력 법칙, 부문턱 누설과 60 mV/dec 한계, 온저항과 게이트 커패시턴스로 만든 스위치-RC 모델, 강한 0·약한 1의 패스 특성, FinFET과 GAA까지 직접 만지며 익힌다.">
+<link rel="canonical" href="https://digitalbook.euiyun.com/chapters/mosfet.html">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<meta name="theme-color" content="#1971c2">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="DigitalBook">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="스위치가 된 트랜지스터 · DigitalBook">
+<meta property="og:description" content="MOSFET을 회로 설계자의 눈으로 본다. 게이트 전압으로 여닫는 스위치, 문턱 전압과 I-V 곡선, 알파 전력 법칙, 부문턱 누설과 60 mV/dec 한계, 온저항과 게이트 커패시턴스로 만든 스위치-RC 모델, 강한 0·약한 1의 패스 특성, FinFET과 GAA까지 직접 만지며 익힌다.">
+<meta property="og:url" content="https://digitalbook.euiyun.com/chapters/mosfet.html">
+<meta property="og:image" content="https://digitalbook.euiyun.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Chapter","LearningResource"],"@id":"https://digitalbook.euiyun.com/chapters/mosfet.html#chapter","name":"스위치가 된 트랜지스터","headline":"스위치가 된 트랜지스터 · DigitalBook","description":"MOSFET을 회로 설계자의 눈으로 본다. 게이트 전압으로 여닫는 스위치, 문턱 전압과 I-V 곡선, 알파 전력 법칙, 부문턱 누설과 60 mV/dec 한계, 온저항과 게이트 커패시턴스로 만든 스위치-RC 모델, 강한 0·약한 1의 패스 특성, FinFET과 GAA까지 직접 만지며 익힌다.","url":"https://digitalbook.euiyun.com/chapters/mosfet.html","position":3,"inLanguage":"ko","isAccessibleForFree":true,"learningResourceType":"인터랙티브 교재","educationalLevel":"공대 학부","image":"https://digitalbook.euiyun.com/og.png","dateModified":"2026-10-04","isPartOf":{"@type":"Book","@id":"https://digitalbook.euiyun.com/#book","name":"DigitalBook · 디지털 회로 설계 교과서","url":"https://digitalbook.euiyun.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DigitalBook","item":"https://digitalbook.euiyun.com/"},{"@type":"ListItem","position":2,"name":"3. 스위치가 된 트랜지스터","item":"https://digitalbook.euiyun.com/chapters/mosfet.html"}]}]}</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/common.js"></script>
+<script src="../js/dig.js"></script>
 <!--head:end-->
 <style>
   .mf-tbl td.c, .mf-tbl th.c { text-align: center; }
@@ -407,6 +431,856 @@
     </div>
   </section>
 </main>
-<!--SCRIPT-->
+<script>
+(function () {
+  "use strict";
+  var P = SB.palette();
+  function pal() { P = SB.palette(); return P; }
+  var TK = DG.TECH, VDD = TK.vdd;
+
+  /* ---------- 공통 도우미 ---------- */
+  function aopt(sel, wide, narrow, bp, extra) {
+    var el = document.querySelector(sel), o = Object.assign({}, extra || {});
+    Object.defineProperty(o, "aspect", { get: function () { return (el.parentElement.clientWidth || 600) < (bp || 560) ? narrow : wide; } });
+    return o;
+  }
+  function T(ctx, s, x, y, o) {
+    o = o || {};
+    ctx.font = SB.font(o.size || 12, o.mono, o.weight);
+    ctx.fillStyle = o.color || P.text; ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "middle";
+    ctx.fillText(s, x, y);
+  }
+  function tech(over) { return Object.assign({}, TK, over || {}); }
+  function htm(v, unit, d) { // SI 값 → "53.7<small>µA</small>"
+    var s = SB.si(v, unit, d || 3), i = s.lastIndexOf(" ");
+    return i < 0 ? s : s.slice(0, i) + "<small>" + s.slice(i + 1) + "</small>";
+  }
+  function logFmt(v) {
+    var e = Math.round(Math.log10(v)), b = Math.floor(e / 3) * 3;
+    var pre = { "-18": "a", "-15": "f", "-12": "p", "-9": "n", "-6": "µ", "-3": "m", "0": "" };
+    return Math.round(Math.pow(10, e - b)) + (pre[b] != null ? pre[b] : "e" + b) + "A";
+  }
+  function decTicks(lo, hi, step) { var o = []; for (var e = Math.ceil(Math.log10(lo) - 1e-9); e <= Math.log10(hi) + 1e-9; e += step) o.push(Math.pow(10, e)); return o; }
+  function niceMax(v) { var m = Math.pow(10, Math.floor(Math.log10(v))); var r = v / m; return (r <= 1 ? 1 : r <= 2 ? 2 : r <= 2.5 ? 2.5 : r <= 5 ? 5 : 10) * m; }
+  function uA(v) { return v * 1e6; }
+  function setRange(get, v) { get.el.value = v; get.el.dispatchEvent(new Event("input", { bubbles: true })); }
+  function chartBox(x, y, w, h) { return { x: x + 52, y: y + 8, w: Math.max(40, w - 52 - 10), h: Math.max(40, h - 8 - 40) }; }
+  function ratioStr(r) { if (!isFinite(r)) return "—"; var e = Math.floor(Math.log10(r)); return r >= 1e4 ? (r / Math.pow(10, e)).toFixed(1) + "×10<sup>" + e + "</sup>" : SB.fmt(r, 3); }
+
+  /* ==================================================================== 1. 단면도 스위치 */
+  (function () {
+    var type = "n", vg = 0, target = null, geo = null, parts = [];
+    var rnd = SB.rng(7);
+    for (var i = 0; i < 40; i++) parts.push({ x: rnd(), y: rnd(), r: rnd() });
+    function vgsE() { return type === "n" ? vg : VDD - vg; }
+    function onFrac() { return SB.clamp((vgsE() - TK.vtn) / (VDD - TK.vtn), 0, 1); }
+    function cur() { return DG.ids({ vgs: vgsE(), vds: VDD, type: type }); }
+    var cv = SB.canvas("#cv-xsec", function (ctx, w, h) {
+      pal();
+      var narrow = w < 560;
+      var A = narrow ? { x: 8, y: 6, w: w - 16, h: h * 0.62 } : { x: 8, y: 8, w: w * 0.6, h: h - 16 };
+      var B = narrow ? { x: 8, y: h * 0.62 + 6, w: w - 16, h: h * 0.38 - 12 } : { x: w * 0.6 + 16, y: 8, w: w * 0.4 - 24, h: h - 16 };
+      var dk = SB.isDark(), col = type === "n" ? P.nmos : P.pmos, on = onFrac();
+      // 기판
+      var sx = A.x + 6, sw = A.w - 12, top = A.y + A.h * 0.45, bot = A.y + A.h - 4;
+      ctx.fillStyle = dk ? "#262b36" : "#eef1f5"; ctx.fillRect(sx, top, sw, bot - top);
+      ctx.strokeStyle = P.border; ctx.strokeRect(sx + 0.5, top + 0.5, sw - 1, bot - top - 1);
+      T(ctx, type === "n" ? "p형 기판 (바디, 0 V)" : "n형 우물 (바디, V_DD)", sx + sw / 2, bot - 11, { size: 11, color: P.dim, align: "center" });
+      var rw = sw * 0.24, rh = (bot - top) * 0.38;
+      ctx.fillStyle = DG.alpha(col, 0.45);
+      DG.roundRect(ctx, sx + sw * 0.03, top, rw, rh, 8); ctx.fill();
+      DG.roundRect(ctx, sx + sw * 0.97 - rw, top, rw, rh, 8); ctx.fill();
+      var pl = type === "n" ? "n+" : "p+";
+      T(ctx, pl, sx + sw * 0.03 + rw / 2, top + rh * 0.55, { size: 12, weight: 700, align: "center" });
+      T(ctx, pl, sx + sw * 0.97 - rw / 2, top + rh * 0.55, { size: 12, weight: 700, align: "center" });
+      var cx0 = sx + sw * 0.03 + rw, cx1 = sx + sw * 0.97 - rw;
+      // 공핍층 (문턱 전까지 깊어짐)
+      var dep = Math.sqrt(SB.clamp(vgsE() / TK.vtn, 0, 1)) * rh * 0.9;
+      ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = P.faint; ctx.strokeRect(cx0, top, cx1 - cx0, dep + 1); ctx.restore();
+      if (dep > 12) T(ctx, "공핍층", (cx0 + cx1) / 2, top + dep - 7, { size: 10, color: P.faint, align: "center" });
+      // 반전층 채널
+      var chH = 3 + 9 * on;
+      if (on > 0) { ctx.fillStyle = DG.alpha(col, 0.2 + 0.6 * on); ctx.fillRect(cx0 - 3, top, cx1 - cx0 + 6, chH); }
+      // 운반자
+      var nShow = Math.round(2 + 36 * on);
+      ctx.fillStyle = col;
+      for (var k = 0; k < nShow && k < parts.length; k++) {
+        var p = parts[k];
+        ctx.beginPath(); ctx.arc(cx0 + p.x * (cx1 - cx0), top + 2 + p.y * Math.max(2, chH - 3), 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+      // 산화막 + 게이트
+      var gx = cx0 + 4, gw = cx1 - cx0 - 8, oxH = 4, gH = Math.max(18, A.h * 0.14), gy = top - oxH - gH;
+      ctx.fillStyle = dk ? "#8a95a8" : "#c9d3e0"; ctx.fillRect(gx, top - oxH, gw, oxH);
+      DG.box(ctx, gx, gy, gw, gH, DG.lv(vg / VDD), "게이트", { r: 4, size: 12 });
+      geo = { gx: gx, gy: gy, gw: gw, gH: gH };
+      // 단자
+      ctx.strokeStyle = P.dim; ctx.lineWidth = 1.5;
+      var srcX = sx + sw * 0.03 + rw / 2, drnX = sx + sw * 0.97 - rw / 2, lt = A.y + 20;
+      ctx.beginPath(); ctx.moveTo(srcX, top); ctx.lineTo(srcX, lt); ctx.moveTo(drnX, top); ctx.lineTo(drnX, lt); ctx.moveTo(gx + gw / 2, gy); ctx.lineTo(gx + gw / 2, lt); ctx.stroke();
+      var fs = narrow ? 10.5 : 11.5;
+      T(ctx, type === "n" ? "S 0 V" : "S " + VDD + " V", srcX, lt - 10, { size: fs, align: "center", mono: true });
+      T(ctx, type === "n" ? "D " + VDD + " V" : "D 0 V", drnX, lt - 10, { size: fs, align: "center", mono: true });
+      T(ctx, "G " + vg.toFixed(2) + " V", gx + gw / 2, lt - 10, { size: fs, align: "center", mono: true, weight: 700, color: P.accent });
+      // 오른쪽: 기호 + 스위치
+      var s = Math.min(54, B.h * 0.55), my = B.y + B.h * 0.5;
+      var mx = B.x + B.w * 0.3;
+      var pin = DG.mos(ctx, type, mx, my, { s: s, on: on });
+      ctx.strokeStyle = DG.lv(vg / VDD); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(pin.gate[0], pin.gate[1]); ctx.lineTo(pin.gate[0] - 14, pin.gate[1]); ctx.stroke();
+      T(ctx, "G", pin.gate[0] - 18, pin.gate[1], { size: 11, align: "right", color: P.dim });
+      T(ctx, type === "n" ? "D" : "S", pin.top[0] + 6, pin.top[1] + 4, { size: 11, color: P.dim });
+      T(ctx, type === "n" ? "S" : "D", pin.bottom[0] + 6, pin.bottom[1] - 4, { size: 11, color: P.dim });
+      // 스위치 그림
+      var swx = B.x + B.w * 0.68, y0 = my - s * 0.5, y1 = my + s * 0.5;
+      ctx.strokeStyle = P.text; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(swx, y0 - 6); ctx.lineTo(swx, y0 + 6); ctx.moveTo(swx, y1 - 6); ctx.lineTo(swx, y1 + 6); ctx.stroke();
+      DG.dot(ctx, swx, y0 + 6, P.text); DG.dot(ctx, swx, y1 - 6, P.text);
+      var ang = (1 - on) * 0.6;
+      ctx.strokeStyle = on > 0.05 ? col : P.dim;
+      ctx.beginPath(); ctx.moveTo(swx, y1 - 6); ctx.lineTo(swx + Math.sin(ang) * (y1 - y0 - 12), y1 - 6 - Math.cos(ang) * (y1 - y0 - 12)); ctx.stroke();
+      T(ctx, on > 0.05 ? "닫힘" : "열림", swx + 12, my, { size: 12, weight: 700, color: on > 0.05 ? col : P.dim });
+      T(ctx, "회로 기호", mx, B.y + B.h - 6, { size: 10.5, color: P.faint, align: "center", base: "bottom" });
+      T(ctx, "스위치 모델", swx, B.y + B.h - 6, { size: 10.5, color: P.faint, align: "center", base: "bottom" });
+    }, aopt("#cv-xsec", 0.42, 1.0, 560, { minHeight: 250, maxHeight: 440 }));
+    var get = SB.range("xs-vg", function (v) { return v.toFixed(2) + " V"; }, function (v) { vg = v; target = null; upd(); });
+    SB.seg("xs-type", function (v) { type = v; upd(); });
+    function upd() {
+      var e = vgsE(), I = cur();
+      SB.stat("xs-vgs", e.toFixed(2) + "<small>V</small>");
+      SB.stat("xs-st", e > TK.vtn + 0.05 ? '<span class="ok-t">켜짐</span>' : e > TK.vtn - 0.06 ? '<span class="warn-t">문턱 부근</span>' : '<span class="bad-t">꺼짐</span>');
+      SB.stat("xs-i", htm(I, "A"));
+      cv.redraw();
+    }
+    function onGate(x, y) { return geo && x >= geo.gx && x <= geo.gx + geo.gw && y >= geo.gy - 24 && y <= geo.gy + geo.gH + 6; }
+    DG.pointer(cv.canvas, {
+      down: function (x, y) { if (onGate(x, y)) target = vg > VDD / 2 ? 0 : VDD; },
+      move: function (x, y) { cv.canvas.style.cursor = onGate(x, y) ? "pointer" : "default"; },
+    });
+    SB.loop(cv.canvas, function (dt) {
+      if (target != null) {
+        var d = target - vg, st = dt * 0.9;
+        if (Math.abs(d) <= st) { vg = target; target = null; } else vg += Math.sign(d) * st;
+        get.el.value = vg; get.el.style.setProperty("--fill", (vg / VDD * 100) + "%");
+        var out = document.getElementById("xs-vg-out"); if (out) out.textContent = vg.toFixed(2) + " V";
+        upd();
+      }
+      var sp = 0.5 * Math.sqrt(cur() / 5.4e-5) + 0.02;
+      parts.forEach(function (p) { p.x += sp * dt * (0.6 + p.r) * (type === "n" ? 1 : -1); if (p.x > 1) p.x -= 1; if (p.x < 0) p.x += 1; });
+      cv.redraw();
+    });
+    upd();
+  })();
+
+  /* ==================================================================== 2. 핀치오프 */
+  (function () {
+    var vgs = 0.6, vds = 0.08;
+    var kSq = TK.kn * Math.pow(0.45, TK.alpha) / Math.pow(0.45, 2);
+    function sq(vg, vd) {
+      var ov = vg - TK.vtn; if (ov <= 0) return 0;
+      var i = vd < ov ? kSq * (2 * ov * vd - vd * vd) : kSq * ov * ov;
+      return i * (1 + TK.lambda * vd);
+    }
+    var cv = SB.canvas("#cv-pinch", function (ctx, w, h) {
+      pal();
+      var narrow = w < 560;
+      var A = narrow ? { x: 8, y: 6, w: w - 16, h: h * 0.48 } : { x: 8, y: 8, w: w * 0.5 - 8, h: h - 16 };
+      var B = narrow ? { x: 0, y: h * 0.5, w: w, h: h * 0.5 } : { x: w * 0.5, y: 0, w: w * 0.5, h: h };
+      var ov = Math.max(0, vgs - TK.vtn), vdp = Math.min(vds, ov), sat = vds >= ov;
+      var sx = A.x + 4, sw = A.w - 8, top = A.y + A.h * 0.38, bot = A.y + A.h - 4, dk = SB.isDark();
+      ctx.fillStyle = dk ? "#262b36" : "#eef1f5"; ctx.fillRect(sx, top, sw, bot - top);
+      var rw = sw * 0.2, rh = (bot - top) * 0.45;
+      ctx.fillStyle = DG.alpha(P.nmos, 0.45);
+      DG.roundRect(ctx, sx + 2, top, rw, rh, 8); ctx.fill();
+      DG.roundRect(ctx, sx + sw - rw - 2, top, rw, rh, 8); ctx.fill();
+      T(ctx, "S", sx + 2 + rw / 2, top + rh / 2, { size: 12, weight: 700, align: "center" });
+      T(ctx, "D", sx + sw - rw / 2 - 2, top + rh / 2, { size: 12, weight: 700, align: "center" });
+      var x0 = sx + 2 + rw, x1 = sx + sw - rw - 2, L = x1 - x0;
+      // 게이트
+      ctx.fillStyle = dk ? "#8a95a8" : "#c9d3e0"; ctx.fillRect(x0 + 2, top - 4, L - 4, 4);
+      DG.box(ctx, x0 + 2, top - 4 - 22, L - 4, 22, DG.lv(vgs / VDD), "G " + vgs.toFixed(2) + " V", { r: 4, size: 11.5 });
+      // 채널 두께 프로파일
+      var maxT = rh * 0.7, xp = sat ? 1 - 0.12 * SB.clamp((vds - ov) / VDD, 0, 1) - 0.02 : 1;
+      ctx.beginPath(); ctx.moveTo(x0, top);
+      var N = 60;
+      for (var i = 0; i <= N; i++) {
+        var u = i / N, xr = u * xp;
+        var arg = ov * ov - u * (2 * ov * vdp - vdp * vdp);
+        var vx = ov - Math.sqrt(Math.max(0, arg));
+        var th = ov > 0 ? (ov - vx) / 0.45 * maxT : 0;
+        ctx.lineTo(x0 + xr * L, top + Math.max(0, th));
+      }
+      ctx.lineTo(x0 + xp * L, top); ctx.closePath();
+      ctx.fillStyle = DG.alpha(P.nmos, 0.55); ctx.fill();
+      if (sat && ov > 0) {
+        ctx.fillStyle = DG.alpha(P.warn, 0.25); ctx.fillRect(x0 + xp * L, top, (1 - xp) * L + 2, maxT * 0.6);
+        T(ctx, "핀치오프", x0 + xp * L - 2, top + maxT + 12, { size: 11, color: P.warn, align: "right", weight: 700 });
+      }
+      T(ctx, "V_DS = " + vds.toFixed(2) + " V", sx + sw - 2, A.y + 8, { size: 11.5, mono: true, align: "right", color: P.dim });
+      T(ctx, "채널 두께 ∝ V_GS − V_t − V(x)", sx + 2, bot - 10, { size: 10.5, color: P.faint });
+      // I-V
+      var data = [], data2 = [];
+      for (var v = 0; v <= VDD + 1e-9; v += 0.01) { data.push([v, uA(sq(vgs, v))]); data2.push([v, uA(DG.ids({ vgs: vgs, vds: v }))]); }
+      var ym = niceMax(uA(sq(0.75, 0.75)) * 1.1);
+      var bx = chartBox(B.x, B.y, B.w, B.h);
+      SB.chart(ctx, bx, {
+        x: [0, VDD], y: [0, ym], xLabel: "V_DS (V)", xTicks: [0, 0.25, 0.5, 0.75],
+        series: [{ data: data2, color: DG.alpha(P.nmos, 0.35), width: 1.5, dash: [4, 3] }, { data: data, color: P.accent2, width: 2.2 }],
+        vlines: ov > 0 ? [{ x: ov, label: "V_ov", color: P.faint }] : [],
+        points: [{ x: vds, y: uA(sq(vgs, vds)), color: P.accent2, r: 5 }],
+      });
+      T(ctx, "I_DS (µA)", bx.x + 6, bx.y + 8, { size: 11, color: P.dim, weight: 700 });
+      T(ctx, "점선: DG-7 실제 모델", bx.x + bx.w - 4, bx.y + bx.h - 10, { size: 10.5, color: P.faint, align: "right" });
+    }, aopt("#cv-pinch", 0.42, 1.05, 560, { minHeight: 240, maxHeight: 420 }));
+    function upd() {
+      var ov = vgs - TK.vtn;
+      SB.stat("pn-vov", ov.toFixed(2) + "<small>V</small>");
+      SB.stat("pn-reg", ov <= 0 ? '<span class="bad-t">차단</span>' : vds < ov ? '<span class="ok-t">선형</span>' : '<span class="warn-t">포화</span>');
+      SB.stat("pn-i", htm(sq(vgs, vds), "A"));
+      cv.redraw();
+    }
+    SB.range("pn-vgs", function (v) { return v.toFixed(2) + " V"; }, function (v) { vgs = v; upd(); });
+    SB.range("pn-vds", function (v) { return v.toFixed(2) + " V"; }, function (v) { vds = v; upd(); });
+    upd();
+  })();
+
+  /* ==================================================================== SIM: I-V 곡선 */
+  (function () {
+    var st = { model: "a", type: "n", axis: "lin", vt: 0.30, al: 1.3, W: 1, lam: 0.35, vgs: 0.6, vds: 0.45 };
+    var VGS = [0.35, 0.45, 0.55, 0.65, 0.75];
+    var boxL = null, boxR = null, chL = null, dragging = false;
+    function mu() { return st.type === "p" ? TK.mu : 1; }
+    function aI(vg, vd) {
+      var k = TK.kn * Math.pow(0.45, TK.alpha) / Math.pow(0.45, st.al);
+      return DG.ids({ vgs: vg, vds: vd, type: st.type, W: st.W, vt: st.vt, tech: tech({ alpha: st.al, lambda: st.lam, kn: k }) });
+    }
+    function sI(vg, vd) {
+      var kSq = TK.kn * Math.pow(0.45, TK.alpha) / Math.pow(0.45, 2) * st.W / mu();
+      var ov = vg - st.vt; if (ov <= 0 || vd <= 0) return 0;
+      return (vd < ov ? kSq * (2 * ov * vd - vd * vd) : kSq * ov * ov) * (1 + st.lam * vd);
+    }
+    function I(vg, vd) { return st.model === "s" ? sI(vg, vd) : aI(vg, vd); }
+    function vdsat(vg) {
+      if (st.model === "s") return Math.max(0, vg - st.vt);
+      var vt0 = st.al * TK.ss / Math.LN10, vov = vt0 * Math.log(1 + Math.exp((vg - st.vt) / vt0));
+      return Math.max(1e-3, 0.9 * Math.pow(vov, st.al / 2) + 0.02);
+    }
+    function solveVgs(vd, target) {
+      var lo = 0, hi = VDD;
+      if (I(hi, vd) <= target) return hi;
+      for (var i = 0; i < 40; i++) { var m = (lo + hi) / 2; if (I(m, vd) > target) hi = m; else lo = m; }
+      return (lo + hi) / 2;
+    }
+    var cv = SB.canvas("#cv-iv", function (ctx, w, h) {
+      pal();
+      var narrow = w < 600, col = st.type === "p" ? P.pmos : P.nmos;
+      var L = narrow ? { x: 0, y: 0, w: w, h: h / 2 } : { x: 0, y: 0, w: w / 2, h: h };
+      var R = narrow ? { x: 0, y: h / 2, w: w, h: h / 2 } : { x: w / 2, y: 0, w: w / 2, h: h };
+      boxL = chartBox(L.x, L.y + 14, L.w, L.h - 14); boxR = chartBox(R.x, R.y + 14, R.w, R.h - 14);
+      var ym = niceMax(Math.max(aI(0.75, 0.75), st.model !== "a" ? sI(0.75, 0.75) : 0) * 1.12 * 1e6);
+      var ser = [];
+      VGS.forEach(function (vg, i) {
+        var a = [], s = [];
+        for (var v = 0; v <= VDD + 1e-9; v += 0.0075) { a.push([v, uA(aI(vg, v))]); s.push([v, uA(sI(vg, v))]); }
+        var t = 0.35 + 0.65 * i / (VGS.length - 1);
+        if (st.model !== "s") ser.push({ data: a, color: DG.alpha(col, t), width: 2 });
+        if (st.model !== "a") ser.push({ data: s, color: DG.alpha(P.accent2, t), width: 1.8, dash: st.model === "b" ? [5, 3] : [] });
+      });
+      // 포화 경계
+      var loc = [];
+      for (var vg = st.vt + 0.01; vg <= VDD + 1e-9; vg += 0.01) { var vs = vdsat(vg); if (vs <= VDD) loc.push([vs, uA(I(vg, vs))]); }
+      ser.push({ data: loc, color: P.faint, width: 1.2, dash: [2, 3] });
+      ser.push({ data: (function () { var o = []; for (var v = 0; v <= VDD + 1e-9; v += 0.0075) o.push([v, uA(I(st.vgs, v))]); return o; })(), color: P.accent, width: 1.4, dash: [6, 4] });
+      chL = SB.chart(ctx, boxL, { x: [0, VDD], y: [0, ym], xLabel: (st.type === "p" ? "|V_DS|" : "V_DS") + " (V)", xTicks: [0, 0.25, 0.5, 0.75], series: ser, points: [{ x: st.vds, y: uA(I(st.vgs, st.vds)), color: P.accent, r: 6 }] });
+      T(ctx, "출력 특성  I_DS (µA)", boxL.x, L.y + 10, { size: 11.5, color: P.dim, weight: 700 });
+      // 오른쪽 전달 특성
+      var log = st.axis === "log", a2 = [], s2 = [];
+      for (var g = 0; g <= VDD + 1e-9; g += 0.005) { a2.push([g, log ? aI(g, st.vds) : uA(aI(g, st.vds))]); s2.push([g, log ? sI(g, st.vds) : uA(sI(g, st.vds))]); }
+      var ser2 = [];
+      if (st.model !== "s") ser2.push({ data: a2, color: col, width: 2.2 });
+      if (st.model !== "a") ser2.push({ data: s2, color: P.accent2, width: 2, dash: st.model === "b" ? [5, 3] : [] });
+      var Iop = I(st.vgs, st.vds);
+      SB.chart(ctx, boxR, log ? {
+        x: [0, VDD], y: [1e-12, 1e-3], logY: true, xTicks: [0, 0.25, 0.5, 0.75], yTicks: decTicks(1e-12, 1e-3, narrow ? 3 : 1), yFmt: logFmt,
+        xLabel: (st.type === "p" ? "|V_GS|" : "V_GS") + " (V)", series: ser2, vlines: [{ x: st.vt, label: "V_t", color: P.faint }],
+        points: Iop > 0 ? [{ x: st.vgs, y: Iop, color: P.accent, r: 6 }] : [],
+      } : {
+        x: [0, VDD], y: [0, ym], xTicks: [0, 0.25, 0.5, 0.75], xLabel: (st.type === "p" ? "|V_GS|" : "V_GS") + " (V)", series: ser2,
+        vlines: [{ x: st.vt, label: "V_t", color: P.faint }], points: [{ x: st.vgs, y: uA(Iop), color: P.accent, r: 6 }],
+      });
+      T(ctx, "전달 특성 @ V_DS=" + st.vds.toFixed(2) + " V" + (log ? " (A)" : " (µA)"), boxR.x, R.y + 10, { size: 11.5, color: P.dim, weight: 700 });
+    }, aopt("#cv-iv", 0.46, 1.25, 600, { minHeight: 300, maxHeight: 640 }));
+    function upd() {
+      var vg = st.vgs, vd = st.vds, Id = I(vg, vd);
+      var reg = vg < st.vt - 0.02 ? '<span class="bad-t">부문턱</span>' : vd < vdsat(vg) ? '<span class="ok-t">선형</span>' : '<span class="warn-t">포화</span>';
+      SB.stat("iv-op", vg.toFixed(2) + ", " + vd.toFixed(2) + "<small>V</small>");
+      SB.stat("iv-reg", reg);
+      SB.stat("iv-id", htm(Id, "A"));
+      var d = 0.004;
+      SB.stat("iv-gm", htm((I(vg + d, vd) - I(Math.max(0, vg - d), vd)) / (vg + d - Math.max(0, vg - d)), "S"));
+      var gds = (I(vg, vd + d) - I(vg, Math.max(0, vd - d))) / (vd + d - Math.max(0, vd - d));
+      SB.stat("iv-ro", gds > 1e-12 ? htm(1 / gds, "Ω") : "∞");
+      var off = st.model === "s" ? 0 : I(0, VDD);
+      SB.stat("iv-ratio", off > 0 ? ratioStr(I(VDD, VDD) / off) : "∞ <small>(모델상)</small>");
+      cv.redraw();
+    }
+    var gVt = SB.range("iv-vt", function (v) { return v.toFixed(2) + " V"; }, function (v) { st.vt = v; upd(); });
+    var gAl = SB.range("iv-al", function (v) { return v.toFixed(2); }, function (v) { st.al = v; upd(); });
+    var gW = SB.range("iv-w", function (v) { return v.toFixed(1) + "×"; }, function (v) { st.W = v; upd(); });
+    var gL = SB.range("iv-lam", function (v) { return v.toFixed(2) + " /V"; }, function (v) { st.lam = v; upd(); });
+    SB.seg("iv-model", function (v) { st.model = v; upd(); });
+    SB.seg("iv-type", function (v) { st.type = v; upd(); });
+    SB.seg("iv-axis", function (v) { st.axis = v; upd(); });
+    document.getElementById("iv-reset").addEventListener("click", function () {
+      gVt.set(0.30); gAl.set(1.3); gW.set(1); gL.set(0.35); st.vgs = 0.6; st.vds = 0.45; upd();
+    });
+    function pick(x, y) {
+      if (!chL || !boxL) return;
+      var b = boxL;
+      var vd = SB.clamp((x - b.x) / b.w * VDD, 0, VDD);
+      var ymax = (b.y + b.h - chL.Y(1)) ; // px per µA
+      var target = SB.clamp((b.y + b.h - y) / ymax, 0, 1e9) * 1e-6;
+      st.vds = vd; st.vgs = solveVgs(vd, target); upd();
+    }
+    function inL(x, y) { return boxL && x >= boxL.x - 10 && x <= boxL.x + boxL.w + 10 && y >= boxL.y - 10 && y <= boxL.y + boxL.h + 10; }
+    DG.pointer(cv.canvas, {
+      down: function (x, y) { if (inL(x, y)) { dragging = true; pick(x, y); } },
+      move: function (x, y, down) { cv.canvas.style.cursor = inL(x, y) ? "crosshair" : "default"; if (down && dragging) pick(x, y); },
+      up: function () { dragging = false; },
+    }, { drag: true });
+    upd();
+  })();
+
+  /* ==================================================================== 3. 부문턱 기울기 */
+  (function () {
+    var tC = 25, n = 1.26;
+    function S() { return n * 8.617333e-5 * (tC + 273.15) * Math.LN10; }
+    function I(vg, ss) { return DG.ids({ vgs: vg, vds: VDD, tech: tech({ ss: ss }) }); }
+    var cv = SB.canvas("#cv-ss", function (ctx, w, h) {
+      pal();
+      var b = chartBox(0, 16, w, h - 16), ss = S(), ideal = 8.617333e-5 * 298.15 * Math.LN10;
+      var d1 = [], d0 = [], dr = [];
+      for (var v = 0; v <= VDD + 1e-9; v += 0.005) { d1.push([v, I(v, ss)]); d0.push([v, I(v, ideal)]); dr.push([v, I(v, TK.ss)]); }
+      var c = SB.chart(ctx, b, {
+        x: [0, VDD], y: [1e-13, 1e-3], logY: true, yFmt: logFmt, yTicks: decTicks(1e-13, 1e-3, w < 500 ? 2 : 1), xTicks: [0, 0.15, 0.3, 0.45, 0.6, 0.75],
+        xLabel: "V_GS (V)",
+        series: [{ data: dr, color: DG.alpha(P.nmos, 0.25), width: 1.4 }, { data: d0, color: P.faint, width: 1.4, dash: [5, 4] }, { data: d1, color: P.nmos, width: 2.4 }],
+        vlines: [{ x: TK.vtn, label: "V_t", color: P.faint }],
+        points: [{ x: 0, y: I(0, ss), color: P.bad, r: 5, label: "I_off" }, { x: VDD, y: I(VDD, ss), color: P.ok, r: 5 }],
+      });
+      // 1 decade 계단
+      var va = 0.08, ia = I(va, ss), vb = va + ss / 1000;
+      ctx.strokeStyle = P.accent2; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(c.X(va), c.Y(ia)); ctx.lineTo(c.X(vb), c.Y(ia)); ctx.lineTo(c.X(vb), c.Y(ia * 10)); ctx.stroke();
+      T(ctx, Math.round(ss * 1000) + " mV", (c.X(va) + c.X(vb)) / 2, c.Y(ia) + 10, { size: 11, color: P.accent2, align: "center", weight: 700 });
+      T(ctx, "×10", c.X(vb) + 4, (c.Y(ia) + c.Y(ia * 10)) / 2, { size: 11, color: P.accent2, weight: 700 });
+      T(ctx, "I_DS (A, 로그)  · 점선: 25 °C, n=1 (60 mV/dec)", b.x, 9, { size: 11, color: P.dim, weight: 700 });
+    }, aopt("#cv-ss", 0.45, 0.9, 500, { minHeight: 240, maxHeight: 420 }));
+    function upd() {
+      var ss = S();
+      SB.stat("ss-kt", (8.617333e-5 * (tC + 273.15) * 1000).toFixed(1) + "<small>mV</small>");
+      SB.stat("ss-s", (ss * 1000).toFixed(1) + "<small>mV/dec</small>");
+      SB.stat("ss-off", htm(I(0, ss), "A"));
+      SB.stat("ss-r", ratioStr(I(VDD, ss) / I(0, ss)));
+      cv.redraw();
+    }
+    SB.range("ss-t", function (v) { return v + " °C"; }, function (v) { tC = v; upd(); });
+    SB.range("ss-n", function (v) { return v.toFixed(2); }, function (v) { n = v; upd(); });
+    upd();
+  })();
+
+  /* ==================================================================== SIM: 문턱 전압 트레이드오프 */
+  (function () {
+    var vt = 0.30, vdd = 0.75;
+    var NTR = 1e9;
+    function ion(v, d) { return DG.ids({ vgs: d, vds: d, vt: v }); }
+    function ioff(v, d) { return DG.ids({ vgs: 0, vds: d, vt: v }); }
+    var I0 = ion(0.30, 0.75);
+    function fo4(v, d) { return TK.fo4 * (d / ion(v, d)) / (0.75 / I0); }
+    function pleak(v, d) { return 0.5 * NTR * ioff(v, d) * d; }
+    var flav = SB.seg("vt-flav", function (v) { setRange(gvt, Number(v)); });
+    var cv = SB.canvas("#cv-vt", function (ctx, w, h) {
+      pal();
+      var narrow = w < 600;
+      var L = narrow ? { x: 0, y: 0, w: w, h: h / 2 } : { x: 0, y: 0, w: w / 2, h: h };
+      var R = narrow ? { x: 0, y: h / 2, w: w, h: h / 2 } : { x: w / 2, y: 0, w: w / 2, h: h };
+      var bl = chartBox(L.x, L.y + 14, L.w, L.h - 14), br = chartBox(R.x + 6, R.y + 14, R.w - 6, R.h - 14);
+      var cur = [], ref = [];
+      for (var g = 0; g <= 0.9 + 1e-9; g += 0.005) { if (g <= vdd + 1e-9) cur.push([g, DG.ids({ vgs: g, vds: vdd, vt: vt })]); if (g <= 0.75 + 1e-9) ref.push([g, DG.ids({ vgs: g, vds: 0.75, vt: 0.30 })]); }
+      SB.chart(ctx, bl, {
+        x: [0, 0.9], y: [1e-12, 1e-3], logY: true, yFmt: logFmt, yTicks: decTicks(1e-12, 1e-3, narrow ? 3 : 1), xTicks: [0, 0.3, 0.6, 0.9], xLabel: "V_GS (V)",
+        series: [{ data: ref, color: DG.alpha(P.nmos, 0.3), width: 1.5 }, { data: cur, color: P.nmos, width: 2.4 }],
+        vlines: [{ x: vt, label: "V_t", color: P.faint }, { x: vdd, color: P.accent2, label: "V_DD" }],
+        points: [{ x: 0.001, y: ioff(vt, vdd), color: P.bad, r: 5, label: "I_off" }, { x: vdd, y: ion(vt, vdd), color: P.ok, r: 5 }],
+      });
+      T(ctx, "전달 특성 I_DS (A)", bl.x, L.y + 10, { size: 11.5, color: P.dim, weight: 700 });
+      // 트레이드오프 곡선
+      var tc = [], tr = [];
+      for (var v = 0.15; v <= 0.45 + 1e-9; v += 0.005) { tc.push([pleak(v, vdd), fo4(v, vdd) * 1e12]); tr.push([pleak(v, 0.75), fo4(v, 0.75) * 1e12]); }
+      var ymax = 30;
+      var flavPts = [0.20, 0.25, 0.30, 0.35].map(function (v, i) { return { x: pleak(v, vdd), y: Math.min(ymax, fo4(v, vdd) * 1e12), color: P.faint, r: 3, label: ["ULVT", "LVT", "SVT", "HVT"][i] }; });
+      flavPts.push({ x: pleak(vt, vdd), y: Math.min(ymax, fo4(vt, vdd) * 1e12), color: P.accent, r: 6.5 });
+      SB.chart(ctx, br, {
+        x: [1e-4, 1e2], y: [0, ymax], logX: true, xTicks: [1e-4, 1e-2, 1, 1e2], xFmt: function (v) { return SB.si(v, "W", 2).replace(" ", ""); },
+        xLabel: "누설 전력 (W, 로그)", series: [{ data: tr, color: P.faint, width: 1.4, dash: [5, 4] }, { data: tc, color: P.accent, width: 2.4 }],
+        points: flavPts,
+      });
+      T(ctx, "FO4 지연 (ps) ↔ 누설", br.x, R.y + 10, { size: 11.5, color: P.dim, weight: 700 });
+    }, aopt("#cv-vt", 0.46, 1.25, 600, { minHeight: 300, maxHeight: 640 }));
+    function upd() {
+      SB.stat("vt-on", htm(ion(vt, vdd), "A"));
+      SB.stat("vt-off", htm(ioff(vt, vdd), "A"));
+      SB.stat("vt-fo4", (fo4(vt, vdd) * 1e12).toFixed(1) + "<small>ps</small>");
+      SB.stat("vt-pl", htm(pleak(vt, vdd), "W"));
+      SB.stat("vt-e", ((vdd * vdd) / (0.75 * 0.75)).toFixed(2) + "<small>×</small>");
+      cv.redraw();
+    }
+    var gvt = SB.range("vt-vt", function (v) { return v.toFixed(3) + " V"; }, function (v) {
+      vt = v; var f = ["0.20", "0.25", "0.30", "0.35"].filter(function (s) { return Math.abs(Number(s) - v) < 1e-6; })[0];
+      document.querySelectorAll("#vt-flav button").forEach(function (b) { b.classList.toggle("on", b.dataset.value === f); });
+      upd();
+    });
+    SB.range("vt-vdd", function (v) { return v.toFixed(2) + " V"; }, function (v) { vdd = v; upd(); });
+    upd();
+  })();
+
+  /* ==================================================================== 4. 등가 저항 */
+  (function () {
+    var vgs = 0.75, W = 1;
+    function I(v) { return DG.ids({ vgs: vgs, vds: v, W: W }); }
+    function req() { var s = 0, N = 80; for (var i = 0; i < N; i++) { var v = VDD / 2 + (i + 0.5) / N * VDD / 2; s += v / I(v); } return s / N; }
+    function rlin() { var d = 0.005; return d / I(d); }
+    var cv = SB.canvas("#cv-ron", function (ctx, w, h) {
+      pal();
+      var b = chartBox(0, 16, w, h - 16), data = [];
+      for (var v = 0; v <= VDD + 1e-9; v += 0.005) data.push([v, uA(I(v))]);
+      var ym = niceMax(uA(DG.ids({ vgs: 0.75, vds: 0.75, W: W })) * 1.15);
+      var Rl = rlin(), Re = req(), Rs = VDD / I(VDD);
+      function line(R) { return [[0, 0], [VDD, uA(VDD / R)]]; }
+      SB.chart(ctx, b, {
+        x: [0, VDD], y: [0, ym], xLabel: "V_DS (V)", xTicks: [0, 0.25, 0.5, 0.75],
+        bands: [{ x0: VDD / 2, x1: VDD, color: DG.alpha(P.accent2, 0.1) }],
+        series: [{ data: line(Rl), color: P.faint, width: 1.3, dash: [3, 3] }, { data: line(Rs), color: P.dim, width: 1.3, dash: [6, 4] },
+          { data: line(Re), color: P.accent2, width: 2.4 }, { data: data, color: P.nmos, width: 2.6 }],
+        points: [{ x: VDD, y: uA(I(VDD)), color: P.nmos, r: 4.5 }],
+      });
+      T(ctx, "I_DS (µA)", b.x + 6, 9, { size: 11, color: P.dim, weight: 700 });
+      var lx = b.x + b.w - 4, ly = b.y + b.h - 54;
+      T(ctx, "··· 원점 접선 R_lin", lx, ly, { size: 11, color: P.faint, align: "right" });
+      T(ctx, "– – V_DD/I_on", lx, ly + 15, { size: 11, color: P.dim, align: "right" });
+      T(ctx, "━ R_eq (음영 구간 평균)", lx, ly + 30, { size: 11, color: P.accent2, align: "right", weight: 700 });
+    }, aopt("#cv-ron", 0.45, 0.85, 500, { minHeight: 240, maxHeight: 400 }));
+    function upd() {
+      SB.stat("ron-lin", htm(rlin(), "Ω"));
+      SB.stat("ron-eq", htm(req(), "Ω"));
+      SB.stat("ron-sat", htm(VDD / I(VDD), "Ω"));
+      cv.redraw();
+    }
+    SB.range("ron-vgs", function (v) { return v.toFixed(2) + " V"; }, function (v) { vgs = v; upd(); });
+    SB.range("ron-w", function (v) { return v.toFixed(1) + "×"; }, function (v) { W = v; upd(); });
+    upd();
+  })();
+
+  /* ==================================================================== 5. pMOS 폭 비율 */
+  (function () {
+    var wp = 1, tt = 0;
+    var Cl = 1.04e-15, Rn = 10.4e3;
+    function Rp() { return Rn * TK.mu / wp; }
+    var cv = SB.canvas("#cv-ratio", function (ctx, w, h) {
+      pal();
+      var narrow = w < 520;
+      var A = narrow ? { x: 0, y: 0, w: w, h: h * 0.42 } : { x: 0, y: 0, w: w * 0.36, h: h };
+      var B = narrow ? { x: 0, y: h * 0.42, w: w, h: h * 0.58 } : { x: w * 0.36, y: 0, w: w * 0.64, h: h };
+      // 회로: pMOS 위, nMOS 아래, 가운데 출력 + C
+      var cx = A.x + A.w * 0.42, s = Math.min(40, A.h * 0.22), yv = A.y + 18, yg = A.y + A.h - 16, ym = (yv + yg) / 2;
+      var pp = DG.mos(ctx, "p", cx + s * 0.3 - (-s * 0.3), ym - s * 0.95, { s: s, on: 0.7 });
+      var nn = DG.mos(ctx, "n", cx + s * 0.6, ym + s * 0.95, { s: s, on: 0.7 });
+      DG.vdd(ctx, pp.top[0], yv);
+      ctx.strokeStyle = P.text; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(pp.top[0], pp.top[1]); ctx.lineTo(pp.top[0], yv); ctx.moveTo(pp.bottom[0], pp.bottom[1]); ctx.lineTo(nn.top[0], nn.top[1]); ctx.moveTo(nn.bottom[0], nn.bottom[1]); ctx.lineTo(nn.bottom[0], yg); ctx.stroke();
+      DG.gnd(ctx, nn.bottom[0], yg);
+      var ox = pp.bottom[0];
+      ctx.beginPath(); ctx.moveTo(ox, ym); ctx.lineTo(ox + s * 0.9, ym); ctx.lineTo(ox + s * 0.9, ym + 6); ctx.moveTo(ox + s * 0.9 - 9, ym + 6); ctx.lineTo(ox + s * 0.9 + 9, ym + 6); ctx.moveTo(ox + s * 0.9 - 9, ym + 11); ctx.lineTo(ox + s * 0.9 + 9, ym + 11); ctx.stroke();
+      DG.dot(ctx, ox, ym, P.text);
+      T(ctx, "C", ox + s * 0.9 + 12, ym + 9, { size: 11, color: P.dim });
+      T(ctx, "W_p=" + wp.toFixed(2), pp.gate[0] - 4, pp.gate[1], { size: 11, mono: true, color: P.pmos, align: "right", weight: 700 });
+      T(ctx, "W_n=1", nn.gate[0] - 4, nn.gate[1], { size: 11, mono: true, color: P.nmos, align: "right", weight: 700 });
+      // 파형
+      var b = chartBox(B.x, B.y + 14, B.w, B.h - 14), tm = 25;
+      var up = [], dn = [], tcut = Math.min(tm, tt);
+      var tr = Rp() * Cl * 1e12, tf = Rn * Cl * 1e12;
+      for (var t = 0; t <= tcut + 1e-9; t += 0.1) { up.push([t, VDD * (1 - Math.exp(-t / tr))]); dn.push([t, VDD * Math.exp(-t / tf)]); }
+      SB.chart(ctx, b, {
+        x: [0, tm], y: [0, VDD], xLabel: "시간 (ps)", yTicks: [0, VDD / 2, VDD], yFmt: function (v) { return v.toFixed(2); },
+        hlines: [{ y: VDD / 2, color: P.faint }],
+        vlines: [{ x: 0.69 * tf, color: P.nmos, dash: [3, 3] }, { x: 0.69 * tr, color: P.pmos, dash: [3, 3] }],
+        series: [{ data: up, color: P.pmos, width: 2.4 }, { data: dn, color: P.nmos, width: 2.4 }],
+      });
+      T(ctx, "V_out (V): 상승(pMOS) · 하강(nMOS)", b.x, B.y + 10, { size: 11.5, color: P.dim, weight: 700 });
+    }, aopt("#cv-ratio", 0.4, 1.05, 520, { minHeight: 240, maxHeight: 420 }));
+    function upd() {
+      var ip = wp / TK.mu;
+      SB.stat("rt-r", ip.toFixed(2) + "<small>×</small>");
+      var tr = 0.69 * Rp() * Cl, tf = 0.69 * Rn * Cl;
+      SB.stat("rt-t", (tr * 1e12).toFixed(1) + " / " + (tf * 1e12).toFixed(1) + "<small>ps</small>");
+      SB.stat("rt-c", Math.round(wp / (1 + wp) * 100) + "<small>%</small>");
+      tt = 0; cv.redraw();
+    }
+    SB.range("rt-wp", function (v) { return v.toFixed(2); }, function (v) { wp = v; upd(); });
+    SB.loop(cv.canvas, function (dt) { if (tt < 25) { tt += dt * 18; cv.redraw(); } });
+    upd();
+  })();
+
+  /* ==================================================================== 6. 커패시턴스 구성 */
+  (function () {
+    var fo = 4, wl = 0, mil = 2;
+    var WT = 1 + TK.mu, Rn = 10.4e3;
+    function parts() {
+      return [
+        { k: "확산(자기)", v: WT * TK.cd, c: P.accent2 },
+        { k: "C_gd" + (mil === 2 ? "×2" : ""), v: WT * 0.02e-15 * mil, c: P.warn },
+        { k: "팬아웃 게이트", v: fo * WT * TK.cg, c: P.accent },
+        { k: "배선", v: wl * TK.wireC, c: P.dim },
+      ];
+    }
+    var cv = SB.canvas("#cv-caps", function (ctx, w, h) {
+      pal();
+      var narrow = w < 560, dk = SB.isDark();
+      var A = narrow ? { x: 8, y: 6, w: w - 16, h: h * 0.5 - 10 } : { x: 8, y: 8, w: w * 0.45, h: h - 16 };
+      var B = narrow ? { x: 8, y: h * 0.5, w: w - 16, h: h * 0.5 - 8 } : { x: w * 0.45 + 24, y: 8, w: w * 0.55 - 32, h: h - 16 };
+      // 단면 + 커패시터 표시
+      var sx = A.x, sw = A.w, top = A.y + A.h * 0.45, bot = A.y + A.h - 4;
+      ctx.fillStyle = dk ? "#262b36" : "#eef1f5"; ctx.fillRect(sx, top, sw, bot - top);
+      var rw = sw * 0.24, rh = (bot - top) * 0.42;
+      ctx.fillStyle = DG.alpha(P.nmos, 0.45);
+      DG.roundRect(ctx, sx + 4, top, rw, rh, 8); ctx.fill(); DG.roundRect(ctx, sx + sw - rw - 4, top, rw, rh, 8); ctx.fill();
+      var gx = sx + 4 + rw - 6, gw = sw - 2 * rw - 8 + 12, gy = top - 4 - 22;
+      ctx.fillStyle = dk ? "#8a95a8" : "#c9d3e0"; ctx.fillRect(gx, top - 4, gw, 4);
+      DG.box(ctx, gx, gy, gw, 22, dk ? "#5b6476" : "#7d8696", "G", { r: 4, size: 12 });
+      function cap(x, y, vert, label, color, hot) {
+        ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = hot ? 2.6 : 1.6;
+        ctx.beginPath();
+        if (vert) { ctx.moveTo(x - 7, y - 2.5); ctx.lineTo(x + 7, y - 2.5); ctx.moveTo(x - 7, y + 2.5); ctx.lineTo(x + 7, y + 2.5); }
+        else { ctx.moveTo(x - 2.5, y - 7); ctx.lineTo(x - 2.5, y + 7); ctx.moveTo(x + 2.5, y - 7); ctx.lineTo(x + 2.5, y + 7); }
+        ctx.stroke(); ctx.restore();
+        T(ctx, label, x, y + (vert ? 0 : -14), { size: 10.5, color: color, align: vert ? "left" : "center", weight: 700 });
+      }
+      cap(gx + 4, top - 10, false, "C_gs", P.dim, false);
+      cap(gx + gw - 4, top - 10, false, "C_gd", P.warn, mil === 2);
+      cap(sx + sw / 2, top + 8, true, "  C_gb·C_ch", P.accent, false);
+      cap(sx + 4 + rw / 2, top + rh + 7, true, "  C_sb", P.faint, false);
+      cap(sx + sw - rw / 2 - 4, top + rh + 7, true, "  C_db", P.accent2, true);
+      T(ctx, "S", sx + 4 + rw / 2, top + rh * 0.45, { size: 12, weight: 700, align: "center" });
+      T(ctx, "D (출력)", sx + sw - rw / 2 - 4, top + rh * 0.45, { size: 11, weight: 700, align: "center" });
+      // 쌓인 막대
+      var ps = parts(), tot = ps.reduce(function (a, p) { return a + p.v; }, 0);
+      var scale = Math.max(2.5e-15, tot * 1.05), bx = B.x, bw = B.w, by = B.y + 30, bh = Math.min(34, B.h * 0.22);
+      T(ctx, "출력 노드의 부하 C = " + (tot * 1e15).toFixed(2) + " fF", bx, B.y + 10, { size: 12, weight: 700, color: P.text });
+      var x = bx;
+      ps.forEach(function (p) { var ww = p.v / scale * bw; if (ww > 0) { ctx.fillStyle = p.c; ctx.fillRect(x, by, ww, bh); x += ww; } });
+      ctx.strokeStyle = P.border; ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh);
+      var ly = by + bh + 16;
+      ps.forEach(function (p, i) {
+        var col2 = narrow ? (i % 2) : 0, row = narrow ? Math.floor(i / 2) : i;
+        var xx = bx + col2 * bw / 2, yy = ly + row * 18;
+        ctx.fillStyle = p.c; ctx.fillRect(xx, yy - 5, 10, 10);
+        T(ctx, p.k + " " + (p.v * 1e15).toFixed(2) + " fF", xx + 14, yy, { size: 11, color: P.dim });
+      });
+      var d = 0.69 * Rn * tot;
+      var yy2 = ly + (narrow ? 2 : 4) * 18 + 4;
+      if (yy2 < B.y + B.h - 4) T(ctx, "지연 ≈ 0.69 × 10.4 kΩ × C = " + (d * 1e12).toFixed(1) + " ps", bx, yy2, { size: 11.5, color: P.accent, weight: 700 });
+    }, aopt("#cv-caps", 0.42, 1.1, 560, { minHeight: 250, maxHeight: 440 }));
+    function upd() {
+      var ps = parts(), tot = ps.reduce(function (a, p) { return a + p.v; }, 0);
+      SB.stat("cp-c", (tot * 1e15).toFixed(2) + "<small>fF</small>");
+      SB.stat("cp-self", Math.round((ps[0].v + ps[1].v) / tot * 100) + "<small>%</small>");
+      SB.stat("cp-d", (0.69 * Rn * tot * 1e12).toFixed(1) + "<small>ps</small>");
+      cv.redraw();
+    }
+    SB.range("cp-fo", function (v) { return v + "개"; }, function (v) { fo = v; upd(); });
+    SB.range("cp-wl", function (v) { return v + " µm"; }, function (v) { wl = v; upd(); });
+    SB.seg("cp-mil", function (v) { mil = Number(v); upd(); });
+    upd();
+  })();
+
+  /* ==================================================================== 7. 스위치-RC vs 실제 */
+  (function () {
+    var W = 1, C = 1.04e-15, tt = 0, real = [], Req = 0, tmax = 20;
+    function reqOf(w) { var s = 0, N = 80; for (var i = 0; i < N; i++) { var v = VDD / 2 + (i + 0.5) / N * VDD / 2; s += v / DG.ids({ vgs: VDD, vds: v, W: w }); } return s / N; }
+    function t50(arr) { for (var i = 1; i < arr.length; i++) if (arr[i][1] <= VDD / 2) { var a = arr[i - 1], b = arr[i]; return a[0] + (a[1] - VDD / 2) / (a[1] - b[1]) * (b[0] - a[0]); } return NaN; }
+    function sim() {
+      Req = reqOf(W); tmax = Math.max(4, Req * C * 3.2 * 1e12);
+      real = []; var v = VDD, dt = tmax / 2000 * 1e-12;
+      for (var k = 0; k <= 2000; k++) { if (k % 10 === 0) real.push([k * dt * 1e12, v]); v -= DG.ids({ vgs: VDD, vds: v, W: W }) * dt / C; if (v < 0) v = 0; }
+    }
+    var cv = SB.canvas("#cv-rc", function (ctx, w, h) {
+      pal();
+      var narrow = w < 520;
+      var A = narrow ? { x: 0, y: 0, w: w, h: 96 } : { x: 0, y: 0, w: w * 0.3, h: h };
+      var B = narrow ? { x: 0, y: 100, w: w, h: h - 100 } : { x: w * 0.3, y: 0, w: w * 0.7, h: h };
+      // 등가 회로: 출력 노드 → 스위치 → R → GND, 노드에 C
+      var on = tt > 0;
+      var cx = A.x + A.w * 0.5, y0 = A.y + (narrow ? 14 : A.h * 0.2);
+      var vnow = rcAt(Math.min(tt, tmax));
+      if (narrow) {
+        var xL = A.x + 30, xR = A.x + A.w - 40, yy = A.y + 40;
+        DG.wire(ctx, [[xL, yy], [xL + 50, yy]], vnow / VDD);
+        DG.dot(ctx, xL, yy, DG.lv(vnow / VDD), 4); T(ctx, "출력", xL, yy - 14, { size: 11, align: "center", color: P.dim });
+        ctx.strokeStyle = P.text; ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.moveTo(xL, yy); ctx.lineTo(xL, yy + 18); ctx.moveTo(xL - 9, yy + 18); ctx.lineTo(xL + 9, yy + 18); ctx.moveTo(xL - 9, yy + 23); ctx.lineTo(xL + 9, yy + 23); ctx.moveTo(xL, yy + 23); ctx.lineTo(xL, yy + 34); ctx.stroke();
+        DG.gnd(ctx, xL, yy + 34); T(ctx, "C", xL + 12, yy + 21, { size: 11, color: P.dim });
+        ctx.beginPath(); ctx.moveTo(xL + 50, yy); ctx.lineTo(xL + 64 + (on ? 22 : 18), yy - (on ? 0 : 10)); ctx.stroke();
+        var rx = xL + 96; ctx.beginPath(); ctx.moveTo(rx, yy);
+        for (var i = 0; i < 6; i++) ctx.lineTo(rx + 6 + i * 8, yy + (i % 2 ? 6 : -6)); ctx.lineTo(rx + 56, yy); ctx.lineTo(xR, yy); ctx.lineTo(xR, yy + 20); ctx.stroke();
+        DG.gnd(ctx, xR, yy + 20);
+        T(ctx, "R_eq", rx + 28, yy - 14, { size: 11, align: "center", color: P.accent2, weight: 700 });
+        T(ctx, on ? "닫힘" : "열림", xL + 70, yy + 16, { size: 10.5, align: "center", color: P.dim });
+      } else {
+        var ys = y0 + 30, yr = ys + 60, yb = yr + 70;
+        DG.dot(ctx, cx, y0, DG.lv(vnow / VDD), 4); T(ctx, "출력 V_out", cx, y0 - 14, { size: 11, align: "center", color: P.dim });
+        DG.wire(ctx, [[cx, y0], [cx, ys]], vnow / VDD);
+        ctx.strokeStyle = P.text; ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.moveTo(cx, ys); ctx.lineTo(cx + (on ? 0 : 12), ys + 26); ctx.moveTo(cx, ys + 28); ctx.lineTo(cx, yr); ctx.stroke();
+        DG.dot(ctx, cx, ys, P.text); DG.dot(ctx, cx, ys + 28, P.text);
+        T(ctx, on ? "스위치 닫힘" : "스위치 열림", cx + 16, ys + 14, { size: 10.5, color: P.dim });
+        ctx.beginPath(); ctx.moveTo(cx, yr);
+        for (var j = 0; j < 6; j++) ctx.lineTo(cx + (j % 2 ? 7 : -7), yr + 5 + j * 9); ctx.lineTo(cx, yr + 60); ctx.lineTo(cx, yb); ctx.stroke();
+        T(ctx, "R_eq", cx + 14, yr + 30, { size: 11, color: P.accent2, weight: 700 });
+        DG.gnd(ctx, cx, yb);
+        var cxx = cx - Math.min(48, A.w * 0.3);
+        ctx.beginPath(); ctx.moveTo(cx, y0); ctx.lineTo(cxx, y0); ctx.lineTo(cxx, yr + 20); ctx.moveTo(cxx - 10, yr + 20); ctx.lineTo(cxx + 10, yr + 20); ctx.moveTo(cxx - 10, yr + 26); ctx.lineTo(cxx + 10, yr + 26); ctx.moveTo(cxx, yr + 26); ctx.lineTo(cxx, yb); ctx.stroke();
+        DG.gnd(ctx, cxx, yb); T(ctx, "C", cxx - 14, yr + 23, { size: 11, color: P.dim, align: "right" });
+      }
+      var b = chartBox(B.x, B.y + 14, B.w, B.h - 14);
+      var tau = Req * C * 1e12, rcD = [], rd = real.filter(function (p) { return p[0] <= tt; });
+      for (var t = 0; t <= Math.min(tt, tmax) + 1e-9; t += tmax / 200) rcD.push([t, VDD * Math.exp(-t / tau)]);
+      var t5 = t50(real);
+      SB.chart(ctx, b, {
+        x: [0, tmax], y: [0, VDD], xLabel: "시간 (ps)", yTicks: [0, VDD / 2, VDD], yFmt: function (v) { return v.toFixed(2); },
+        hlines: [{ y: VDD / 2, color: P.faint, label: "50%" }],
+        vlines: tt >= tmax ? [{ x: t5, color: P.nmos, dash: [3, 3] }, { x: 0.69 * tau, color: P.accent2, dash: [3, 3] }] : [],
+        series: [{ data: rcD, color: P.accent2, width: 2, dash: [6, 4] }, { data: rd, color: P.nmos, width: 2.6 }],
+      });
+      T(ctx, "V_out (V): ━ 실제 I-V  ╌ RC 모델", b.x, B.y + 10, { size: 11.5, color: P.dim, weight: 700 });
+    }, aopt("#cv-rc", 0.4, 0.95, 520, { minHeight: 250, maxHeight: 400 }));
+    function rcAt(t) { if (!real.length || t <= 0) return VDD; var i = Math.min(real.length - 1, Math.round(t / tmax * (real.length - 1))); return real[i][1]; }
+    function upd() {
+      sim(); tt = 0;
+      var tau = Req * C;
+      SB.stat("rc-rc", (tau * 1e12).toFixed(2) + "<small>ps</small>");
+      SB.stat("rc-real", t50(real).toFixed(2) + "<small>ps</small>");
+      SB.stat("rc-mod", (0.69 * tau * 1e12).toFixed(2) + "<small>ps</small>");
+      cv.redraw();
+    }
+    SB.range("rc-w", function (v) { return v.toFixed(1) + "×"; }, function (v) { W = v; upd(); });
+    SB.range("rc-c", function (v) { return v.toFixed(2) + " fF"; }, function (v) { C = v * 1e-15; upd(); });
+    document.getElementById("rc-go").addEventListener("click", function () { tt = 0; cv.redraw(); });
+    SB.loop(cv.canvas, function (dt) { if (tt < tmax) { tt = Math.min(tmax, tt + dt * tmax / 2.2); cv.redraw(); } });
+    upd();
+  })();
+
+  /* ==================================================================== SIM: 패스 특성 */
+  (function () {
+    var st = { dev: "n", val: 1, C: 1e-15, g: 0.2 };
+    var curves = {}, tmax = 100, tt = 0;
+    function vtb(vsb) { return TK.vtn + st.g * (Math.sqrt(0.8 + Math.max(0, vsb)) - Math.sqrt(0.8)); }
+    function iN(va, vb) { var hi = Math.max(va, vb), lo = Math.min(va, vb); return Math.sign(va - vb) * DG.ids({ vgs: VDD - lo, vds: hi - lo, type: "n", vt: vtb(lo) }); }
+    function iP(va, vb) { var hi = Math.max(va, vb), lo = Math.min(va, vb); return Math.sign(va - vb) * DG.ids({ vgs: hi, vds: hi - lo, type: "p", vt: vtb(VDD - hi) }); }
+    function run(dev) {
+      var vin = st.val ? VDD : 0, v = st.val ? 0 : VDD, N = 3000, dt = tmax / N * 1e-12, out = [];
+      for (var k = 0; k <= N; k++) {
+        if (k % 10 === 0) out.push([k * dt * 1e12, v]);
+        var i = 0; if (dev !== "p") i += iN(vin, v); if (dev !== "n") i += iP(vin, v);
+        v += i * dt / st.C; v = SB.clamp(v, 0, VDD);
+      }
+      return out;
+    }
+    function recompute() { tmax = Math.max(40, 110 * st.C / 1e-15); curves = { n: run("n"), p: run("p"), tg: run("tg") }; tt = 0; }
+    function at(arr, t) { var i = Math.min(arr.length - 1, Math.max(0, Math.round(t / tmax * (arr.length - 1)))); return arr[i][1]; }
+    var cols = function () { return { n: P.nmos, p: P.pmos, tg: P.accent2 }; };
+    var cv = SB.canvas("#cv-pass", function (ctx, w, h) {
+      pal();
+      var narrow = w < 600, C = cols();
+      var A = narrow ? { x: 0, y: 0, w: w, h: 200 } : { x: 0, y: 0, w: w * 0.34, h: h };
+      var B = narrow ? { x: 0, y: 200, w: w, h: h - 200 } : { x: w * 0.34, y: 0, w: w * 0.66, h: h };
+      var vnow = curves[st.dev] ? at(curves[st.dev], Math.min(tt, tmax)) : 0, vin = st.val ? 1 : 0;
+      // 회로: 입력(위) → 문 → 노드(아래) → C
+      var cx = A.x + A.w * 0.45, yIn = A.y + 26, yNode = A.y + A.h * (narrow ? 0.7 : 0.62), s = Math.min(40, (yNode - yIn) * 0.5);
+      DG.box(ctx, cx - 34, yIn - 14, 68, 24, DG.lv(vin), "입력 " + vin, { r: 6, size: 12 });
+      var ym = (yIn + 10 + yNode) / 2;
+      ctx.lineWidth = 2;
+      if (st.dev === "tg") {
+        var a = DG.mos(ctx, "n", cx - s * 0.55, ym, { s: s, on: 1, gateLeft: true });
+        var b2 = DG.mos(ctx, "p", cx + s * 0.55, ym, { s: s, on: 1, gateLeft: false });
+        DG.wire(ctx, [[cx, yIn + 10], [cx, yIn + 18], [a.top[0], yIn + 18], [a.top[0], a.top[1]]], vin);
+        DG.wire(ctx, [[cx, yIn + 18], [b2.top[0], yIn + 18], [b2.top[0], b2.top[1]]], vin);
+        DG.wire(ctx, [[a.bottom[0], a.bottom[1]], [a.bottom[0], yNode - 8], [b2.bottom[0], yNode - 8], [b2.bottom[0], b2.bottom[1]]], vnow / VDD);
+        DG.wire(ctx, [[cx, yNode - 8], [cx, yNode]], vnow / VDD);
+        T(ctx, "1", a.gate[0] - 4, a.gate[1], { size: 11, mono: true, align: "right", color: P.hi, weight: 700 });
+        T(ctx, "0", b2.gate[0] + 4, b2.gate[1], { size: 11, mono: true, color: P.dim, weight: 700 });
+      } else {
+        var m = DG.mos(ctx, st.dev, cx + s * 0.3, ym, { s: s, on: 1 });
+        DG.wire(ctx, [[cx, yIn + 10], [cx, yIn + 18], [m.top[0], yIn + 18], [m.top[0], m.top[1]]], vin);
+        DG.wire(ctx, [[m.bottom[0], m.bottom[1]], [m.bottom[0], yNode - 8], [cx, yNode - 8], [cx, yNode]], vnow / VDD);
+        T(ctx, st.dev === "n" ? "G=1" : "G=0", m.gate[0] - 4, m.gate[1], { size: 11, mono: true, align: "right", color: st.dev === "n" ? P.hi : P.dim, weight: 700 });
+      }
+      DG.dot(ctx, cx, yNode, DG.lv(vnow / VDD), 4.5);
+      // 커패시터 + 수위
+      ctx.strokeStyle = P.text; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(cx, yNode); ctx.lineTo(cx, yNode + 12); ctx.moveTo(cx - 12, yNode + 12); ctx.lineTo(cx + 12, yNode + 12); ctx.moveTo(cx - 12, yNode + 18); ctx.lineTo(cx + 12, yNode + 18); ctx.moveTo(cx, yNode + 18); ctx.lineTo(cx, yNode + 28); ctx.stroke();
+      DG.gnd(ctx, cx, yNode + 28);
+      var tx = cx + 26, th = Math.min(60, A.y + A.h - yNode - 6), ty = yNode - th / 2;
+      if (th > 20) {
+        ctx.strokeStyle = P.border; ctx.strokeRect(tx + 0.5, ty + 0.5, 16, th);
+        ctx.fillStyle = DG.lv(vnow / VDD); ctx.fillRect(tx + 1, ty + th * (1 - vnow / VDD), 15, th * vnow / VDD);
+        T(ctx, vnow.toFixed(2) + " V", tx + 22, ty + th / 2, { size: 12, mono: true, weight: 700 });
+      }
+      // 그래프
+      var bx = chartBox(B.x, B.y + 14, B.w, B.h - 14), ser = [];
+      ["n", "p", "tg"].forEach(function (d) {
+        if (!curves[d]) return;
+        var data = curves[d].filter(function (p) { return d !== st.dev || p[0] <= tt; });
+        ser.push({ data: data, color: d === st.dev ? C[d] : DG.alpha(C[d], 0.28), width: d === st.dev ? 2.8 : 1.5 });
+      });
+      if (ser.length === 3) ser.push(ser.splice(["n", "p", "tg"].indexOf(st.dev), 1)[0]);
+      SB.chart(ctx, bx, {
+        x: [0, tmax], y: [0, VDD], xLabel: "시간 (ps)", yTicks: [0, 0.3, 0.45, 0.75], yFmt: function (v) { return v.toFixed(2); },
+        hlines: [{ y: VDD - TK.vtn, color: P.nmos, label: "V_DD − V_t" }, { y: TK.vtp, color: P.pmos, label: "|V_tp|" }],
+        series: ser,
+      });
+      T(ctx, "노드 전압 (V)  ━ nMOS ━ pMOS ━ TG", bx.x, B.y + 10, { size: 11.5, color: P.dim, weight: 700 });
+    }, aopt("#cv-pass", 0.44, 1.35, 600, { minHeight: 300, maxHeight: 640 }));
+    function upd() {
+      recompute();
+      var arr = curves[st.dev], vf = arr[arr.length - 1][1], target = st.val ? VDD : 0, swing = VDD;
+      var loss = Math.abs(target - vf);
+      SB.stat("ps-vf", vf.toFixed(3) + "<small>V</small>");
+      SB.stat("ps-loss", (loss * 1000).toFixed(0) + "<small>mV</small>");
+      var t90 = NaN;
+      for (var i = 0; i < arr.length; i++) { if (Math.abs(arr[i][1] - (st.val ? 0 : VDD)) >= 0.9 * swing) { t90 = arr[i][0]; break; } }
+      SB.stat("ps-t90", isNaN(t90) ? '<span class="bad-t">도달 못함</span>' : t90.toFixed(1) + "<small>ps</small>");
+      SB.stat("ps-j", loss < 0.05 ? '<span class="ok-t">강한 ' + st.val + "</span>" : '<span class="warn-t">약한 ' + st.val + "</span>");
+      cv.redraw();
+    }
+    SB.seg("ps-dev", function (v) { st.dev = v; upd(); });
+    SB.seg("ps-val", function (v) { st.val = Number(v); upd(); });
+    SB.range("ps-c", function (v) { return v.toFixed(2) + " fF"; }, function (v) { st.C = v * 1e-15; upd(); });
+    SB.range("ps-g", function (v) { return v.toFixed(2) + " V½"; }, function (v) { st.g = v; upd(); });
+    document.getElementById("ps-run").addEventListener("click", function () { tt = 0; cv.redraw(); });
+    SB.loop(cv.canvas, function (dt) { if (tt < tmax) { tt = Math.min(tmax, tt + dt * tmax / 3); cv.redraw(); } });
+    upd();
+  })();
+
+  /* ==================================================================== 8. 평면 · FinFET · GAA */
+  (function () {
+    var cur = "fin", Lg = 18;
+    var S3 = { planar: { lam: 6, W: 1, name: "평면" }, fin: { lam: 3, W: 1.8, name: "FinFET" }, gaa: { lam: 2.2, W: 2.4, name: "GAA" } };
+    function par(k) {
+      var e = Math.exp(-Lg / (2 * S3[k].lam));
+      var ss = 0.0595 * (1.05 + 3 * e), dibl = 0.6 * e, vt = 0.36 - dibl * VDD;
+      return { ss: ss, dibl: dibl, vt: vt, W: S3[k].W };
+    }
+    function I(k, vg) { var p = par(k); return DG.ids({ vgs: vg, vds: VDD, W: p.W, vt: p.vt, tech: tech({ ss: p.ss }) }); }
+    var cv = SB.canvas("#cv-gaa", function (ctx, w, h) {
+      pal();
+      var narrow = w < 560, dk = SB.isDark();
+      var A = narrow ? { x: 8, y: 6, w: w - 16, h: h * 0.42 } : { x: 8, y: 8, w: w * 0.38, h: h - 16 };
+      var B = narrow ? { x: 0, y: h * 0.44, w: w, h: h * 0.56 } : { x: w * 0.4, y: 0, w: w * 0.6, h: h };
+      var gcol = dk ? "#6b7385" : "#9aa3b2", sub = dk ? "#262b36" : "#e3e7ee", ch = DG.alpha(P.nmos, 0.85);
+      var cx = A.x + A.w / 2, base = A.y + A.h * 0.78, U = Math.min(A.w / 6, A.h / 4.2);
+      ctx.fillStyle = sub; ctx.fillRect(A.x, base, A.w, A.y + A.h - base);
+      T(ctx, "기판", A.x + 6, A.y + A.h - 8, { size: 10.5, color: P.faint });
+      if (cur === "planar") {
+        ctx.fillStyle = ch; ctx.fillRect(cx - U * 2, base - 2, U * 4, 7);
+        ctx.fillStyle = gcol; ctx.fillRect(cx - U * 2.1, base - U * 1.2, U * 4.2, U * 1.2 - 4);
+        ctx.fillStyle = P.warn; ctx.fillRect(cx - U * 2.1, base - 5, U * 4.2, 3);
+        T(ctx, "게이트는 윗면 하나만", cx, A.y + 12, { size: 11.5, align: "center", color: P.dim, weight: 700 });
+      } else if (cur === "fin") {
+        var fw = U * 0.55, fh = U * 2.2;
+        ctx.fillStyle = gcol; ctx.fillRect(cx - U * 1.7, base - fh - U * 0.6, U * 3.4, fh + U * 0.6);
+        ctx.fillStyle = P.warn; ctx.fillRect(cx - fw / 2 - 3, base - fh - 3, fw + 6, fh + 3);
+        ctx.fillStyle = ch; ctx.fillRect(cx - fw / 2, base - fh, fw, fh);
+        T(ctx, "게이트가 세 면을 감싼다", cx, A.y + 12, { size: 11.5, align: "center", color: P.dim, weight: 700 });
+      } else {
+        var sw = U * 2.4, sh = U * 0.32, gap = U * 0.36, top0 = base - 3 * (sh + gap) - U * 0.3;
+        ctx.fillStyle = gcol; ctx.fillRect(cx - sw / 2 - U * 0.5, top0 - U * 0.4, sw + U, base - top0 + U * 0.4);
+        for (var i = 0; i < 3; i++) {
+          var yy = top0 + i * (sh + gap) + gap / 2;
+          ctx.fillStyle = P.warn; ctx.fillRect(cx - sw / 2 - 3, yy - 3, sw + 6, sh + 6);
+          ctx.fillStyle = ch; ctx.fillRect(cx - sw / 2, yy, sw, sh);
+        }
+        T(ctx, "시트 3장을 네 면 모두 감싼다", cx, A.y + 12, { size: 11.5, align: "center", color: P.dim, weight: 700 });
+      }
+      T(ctx, "■ 게이트  ■ 채널  ■ 절연막", A.x + A.w / 2, base - (cur === "planar" ? U * 1.6 : cur === "fin" ? U * 3.1 : U * 2.7), { size: 10, align: "center", color: P.faint });
+      var b = chartBox(B.x, B.y + 14, B.w, B.h - 14), ser = [], cc = { planar: P.dim, fin: P.nmos, gaa: P.accent2 };
+      ["planar", "fin", "gaa"].forEach(function (k) {
+        var d = []; for (var v = 0; v <= VDD + 1e-9; v += 0.005) d.push([v, I(k, v)]);
+        ser.push({ data: d, color: k === cur ? cc[k] : DG.alpha(cc[k], 0.3), width: k === cur ? 2.6 : 1.4 });
+      });
+      SB.chart(ctx, b, {
+        x: [0, VDD], y: [1e-12, 1e-3], logY: true, yFmt: logFmt, yTicks: decTicks(1e-12, 1e-3, narrow ? 3 : 1), xTicks: [0, 0.25, 0.5, 0.75], xLabel: "V_GS (V)",
+        series: ser, points: [{ x: 0.002, y: I(cur, 0), color: P.bad, r: 5 }],
+      });
+      T(ctx, "I_DS @ V_DS=V_DD (A) — 회색 평면 · 파랑 핀 · 주황 GAA", b.x, B.y + 10, { size: narrow ? 10.5 : 11.5, color: P.dim, weight: 700 });
+    }, aopt("#cv-gaa", 0.42, 1.15, 560, { minHeight: 250, maxHeight: 460 }));
+    function upd() {
+      var p = par(cur);
+      SB.stat("ga-ss", (p.ss * 1000).toFixed(0) + "<small>mV/dec</small>");
+      SB.stat("ga-dibl", (p.dibl * 1000).toFixed(0) + "<small>mV/V</small>");
+      SB.stat("ga-off", htm(I(cur, 0), "A"));
+      SB.stat("ga-r", ratioStr(I(cur, VDD) / I(cur, 0)));
+      cv.redraw();
+    }
+    SB.seg("ga-st", function (v) { cur = v; upd(); });
+    SB.range("ga-l", function (v) { return v.toFixed(1) + " nm"; }, function (v) { Lg = v; upd(); });
+    upd();
+  })();
+
+  /* ==================================================================== 9. 변동과 온도 */
+  (function () {
+    var sig = 0.025, tC = 25, vdd = 0.75, Z = [], seed = 11, NDEV = 40;
+    function roll() { var r = SB.rng(seed++); Z = []; for (var i = 0; i < NDEV; i++) { var u1 = Math.max(1e-9, r()), u2 = r(); Z.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)); } }
+    function I(z, vg, t) {
+      var Tk = t + 273.15, mob = Math.pow(Tk / 298.15, -1.3);
+      var vt = TK.vtn - 0.0008 * (t - 25) + sig * z, ss = TK.ss * Tk / 298.15;
+      return DG.ids({ vgs: vg, vds: vdd, W: mob, vt: vt, tech: tech({ ss: ss }) });
+    }
+    function stats(t) {
+      var on = Z.map(function (z) { return I(z, vdd, t); }), off = Z.map(function (z) { return I(z, 0, t); });
+      var mean = function (a) { return a.reduce(function (s, x) { return s + x; }, 0) / a.length; };
+      return { on: on, off: off, mon: mean(on), moff: mean(off) };
+    }
+    var cv = SB.canvas("#cv-pvt", function (ctx, w, h) {
+      pal();
+      var b = chartBox(0, 16, w, h - 16), ser = [];
+      Z.forEach(function (z) {
+        var d = []; for (var v = 0; v <= vdd + 1e-9; v += 0.01) d.push([v, I(z, v, tC)]);
+        ser.push({ data: d, color: DG.alpha(P.nmos, 0.35), width: 1.1 });
+      });
+      var nom = []; for (var v = 0; v <= vdd + 1e-9; v += 0.01) nom.push([v, I(0, v, 25)]);
+      ser.push({ data: nom, color: P.accent2, width: 2, dash: [5, 4] });
+      SB.chart(ctx, b, {
+        x: [0, 0.9], y: [1e-13, 1e-3], logY: true, yFmt: logFmt, yTicks: decTicks(1e-13, 1e-3, w < 500 ? 2 : 1), xTicks: [0, 0.3, 0.6, 0.9], xLabel: "V_GS (V)",
+        series: ser, vlines: [{ x: vdd, color: P.faint, label: "V_DD" }],
+      });
+      T(ctx, "I_DS (A) — 40개 소자 · 주황 점선: 공칭 소자 25 °C", b.x, 9, { size: w < 500 ? 10.5 : 11.5, color: P.dim, weight: 700 });
+    }, aopt("#cv-pvt", 0.45, 0.95, 500, { minHeight: 240, maxHeight: 420 }));
+    function upd() {
+      var s = stats(tC), s0 = stats(25);
+      var mx = function (a) { return Math.max.apply(null, a); }, mn = function (a) { return Math.min.apply(null, a); };
+      SB.stat("pv-on", (mx(s.on) / mn(s.on)).toFixed(2) + "<small>×</small>");
+      SB.stat("pv-off", SB.fmt(mx(s.off) / mn(s.off), 3) + "<small>×</small>");
+      var r = s.mon / s0.mon;
+      SB.stat("pv-ont", '<span class="' + (r >= 1 ? "ok-t" : "warn-t") + '">' + r.toFixed(2) + "×</span>");
+      SB.stat("pv-offt", SB.fmt(s.moff / s0.moff, 3) + "<small>×</small>");
+      cv.redraw();
+    }
+    SB.range("pv-sig", function (v) { return v + " mV"; }, function (v) { sig = v / 1000; upd(); });
+    SB.range("pv-t", function (v) { return v + " °C"; }, function (v) { tC = v; upd(); });
+    SB.range("pv-vdd", function (v) { return v.toFixed(2) + " V"; }, function (v) { vdd = v; upd(); });
+    document.getElementById("pv-roll").addEventListener("click", function () { roll(); upd(); });
+    roll(); upd();
+  })();
+})();
+</script>
 </body>
 </html>

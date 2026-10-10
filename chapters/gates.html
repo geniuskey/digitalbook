@@ -563,7 +563,7 @@
       const gx = r.gate[0], gy = r.gate[1];
       if (!o.noLabel) {
         ctx.fillStyle = env[e.leaf.n] === 1 ? P.hi : env[e.leaf.n] === 0 ? P.dim : P.text;
-        ctx.font = SB.font(Math.max(11, s * 0.45), true, 700); ctx.textAlign = "right"; ctx.textBaseline = "middle";
+        ctx.font = SB.font(SB.clamp(s * 0.45, 11, 15), true, 700); ctx.textAlign = "right"; ctx.textBaseline = "middle";
         ctx.fillText(e.leaf.n, gx - 3, gy);
       }
       if (o.widths) {
@@ -685,7 +685,7 @@
     let pins = [], G;
     function build() { G = { pun: buildNet(GT[type], "or", "p"), pdn: buildNet(GT[type], "and", "n") }; }
     function geom(w) {
-      const s = SB.clamp(((w - 120) / Math.max(G.pun.sz.w, G.pdn.sz.w) - 16) / 1.55, 18, 30);
+      const s = SB.clamp(((w - 120) / Math.max(G.pun.sz.w, G.pdn.sz.w) - 16) / 1.55, 18, 40);
       return { s, H: 30 + (G.pun.sz.h + G.pdn.sz.h) * cellH(s) + 40 };
     }
     build();
@@ -737,7 +737,7 @@
     }
     function geom(w) {
       const mw = Math.max(G.pun.sz.w, G.pdn.sz.w);
-      const s = SB.clamp(((w - 90) / mw - 16 - (showW ? 16 : 0)) / 1.55, 15, 30);
+      const s = SB.clamp(((w - 90) / mw - 16 - (showW ? 16 : 0)) / 1.55, 15, 40);
       return { s, H: 34 + (G.pun.sz.h + G.pdn.sz.h) * cellH(s) + 36 };
     }
     build();
@@ -815,12 +815,12 @@
     let state = {};
     const cv = SB.canvas(cvEl, (ctx, w, h) => {
       const P = SB.palette(), meterW = 92, aw = w - meterW;
-      const s = SB.clamp((aw - 60) / (mode === "std" ? 3 : 2) / 1.55 - 8, 16, 28), ch = cellH(s);
+      const s = SB.clamp(Math.min(((aw - 40) / 3.6 - 16) / 1.55, (h - 70) / 4 / 1.3), 16, 34), ch = cellH(s);
       const yV = 30, yO = yV + 2 * ch, yG = yO + 2 * ch;
       let vout, y;
       if (mode === "std") {
         const cw = cellW(s);
-        const x1 = 10 + cw, x2 = Math.min(aw - cw / 2 - 30, x1 + 2.2 * cw);
+        const st = Math.max(4, (aw - 3.6 * cw) / 2 - 10), x1 = st + cw, x2 = st + 3.1 * cw;
         const r1 = drawStage(ctx, nand, { xc: x1, yV, yO, yG, s, env });
         const ex = Object.assign({}, env, { X: r1.val });
         const r2 = drawStage(ctx, inv, { xc: x2, yV: yV, yO, yG, s, env: ex, outX: aw - 12, noLabel: true });
@@ -833,7 +833,7 @@
         y = r2.val; vout = y ? T.vdd : 0;
         state = { n: "6 / 2단" };
       } else {
-        const xc = Math.min(aw / 2, 20 + cellW(s) * 1.2);
+        const xc = Math.max(cellW(s) + 4, aw / 2 - 40);
         const r = drawStage(ctx, dir, { xc, yV, yO, yG, s, env, outX: aw - 12 });
         y = r.val; vout = y ? T.vdd - T.vtn : T.vtp;
         ctx.fillStyle = P.bad; ctx.font = SB.font(11, false, 700); ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -887,7 +887,7 @@
       const schW = narrow ? w : w * 0.5;
       const mw = Math.max(G.pun.sz.w, G.pdn.sz.w), mh = G.pun.sz.h + G.pdn.sz.h;
       const schH = narrow ? h - 110 : h;
-      const s = SB.clamp(Math.min(((schW - 40) / mw - 32) / 1.55, (schH - 60) / mh / 1.3), 14, 28), ch = cellH(s);
+      const s = SB.clamp(Math.min(((schW - 40) / mw - 32) / 1.55, (schH - 60) / mh / 1.3), 14, 38), ch = cellH(s);
       const totH = mh * ch, yV = (schH - totH) / 2 + 6, yO = yV + G.pun.sz.h * ch, yG = yO + G.pdn.sz.h * ch;
       const WPm = new Map(), WNm = new Map();
       leavesObj(G.pun.tree).forEach((l) => WPm.set(l, wp())); leavesObj(G.pdn.tree).forEach((l) => WNm.set(l, wn()));
@@ -904,7 +904,7 @@
         ctx.fillText(fx(R) + " R" + (R > 4 ? " ▸" : ""), bx + sc * 4 + 6, y + 25);
       });
       ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = P.ok; ctx.lineWidth = 1.6;
-      ctx.beginPath(); ctx.moveTo(bx + sc, by + 10); ctx.lineTo(bx + sc, by + 84); ctx.stroke(); ctx.restore();
+      ctx.beginPath(); ctx.moveTo(bx + sc, by + 16); ctx.lineTo(bx + sc, by + 84); ctx.stroke(); ctx.restore();
       ctx.fillStyle = P.ok; ctx.font = SB.font(10.5, false, 700); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("단위 인버터 1 R", bx + sc, by + 86);
     }, { aspect: 0.45, minHeight: 300, maxHeight: 340 });
     function upd() {

@@ -1066,8 +1066,8 @@
       const P = SB.palette(), sm = sims[pos], narrow = w < 560, VDD = T.vdd;
       const v = at(sm, tCur);
       // 스택
-      const sw = narrow ? w : 220, s = 24, ch = 52, x = narrow ? w / 2 - 30 : 80, y0 = 30, y1 = y0 + 3 * ch;
-      ctx.fillStyle = P.dim; ctx.font = SB.font(11, true, 700); ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("출력 (pMOS 생략)", x - 10, y0 - 4);
+      const sw = narrow ? w : 230, s = 24, ch = 50, x = narrow ? w / 2 - 30 : 100, y0 = 40, y1 = y0 + 3 * ch;
+      ctx.fillStyle = P.dim; ctx.font = SB.font(11, true, 700); ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.textAlign = "center"; ctx.fillText("NAND3 풀다운 (pMOS 생략)", x + 30, 18);
       for (let m = 1; m <= 3; m++) {
         const cy = y1 - (m - 0.5) * ch, lx = x;
         const late = m === pos;

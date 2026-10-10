@@ -1139,7 +1139,7 @@
         hits.push([cx, cy, r + 6, k]);
       }
       txt(ctx, phase === "eval" ? "평가 중  t = " + te.toFixed(0) + " ps" : "프리차지: 모든 X = 1, 출력 = 0 (도미노가 서 있다)", 10, 14, { size: 12, weight: 700, color: phase === "eval" ? P.accent : P.dim });
-      txt(ctx, "초록 = 출력 1(넘어짐), 회색 = 출력 0", w - 10, h - 10, { size: 10.5, align: "right", color: P.faint, base: "bottom" });
+      if (w >= 560) txt(ctx, "초록 = 출력 1(넘어짐), 회색 = 출력 0", w - 10, h - 10, { size: 10.5, align: "right", color: P.faint, base: "bottom" });
     }, dynAspect("#cv-domino", function (w) { return w < 560 ? 0.62 : 0.34; }, { minHeight: 210 }));
     DG.pointer(document.getElementById("cv-domino"), {
       down: function (x, y) { hits.forEach(function (q) { if (q[3] < N() && Math.hypot(x - q[0], y - q[1]) <= q[2]) side[q[3]] = 1 - side[q[3]]; }); cv.redraw(); },

@@ -572,7 +572,7 @@
         else DG.dot(ctx, x, yC, DG.lv(R.c[i]), 4);
       }
       txt(ctx, "Cin", left + N * colW + 14, yC + 18, { size: 10, align: "center", color: P.dim });
-      txt(ctx, "Cout=" + R.c[N], left - 4, yC + 18, { size: 10, mono: true, align: "left", color: P.dim });
+      txt(ctx, "Cout=" + R.c[N], left - 4, yC - 11, { size: 10, mono: true, align: "left", color: P.dim });
       txt(ctx, "캐리는 오른쪽(LSB)에서 왼쪽(MSB)으로", left, h - 12, { size: 11, color: P.faint });
     }
     function upd() {
@@ -666,7 +666,7 @@
       ctx.strokeStyle = P.axis; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(left, cBot + 0.5); ctx.lineTo(left + N * colW, cBot + 0.5); ctx.stroke();
       const yt = cBot - (cBot - cTop) * (Math.min(t, maxT) / maxT);
       ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = P.accent2; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(left, yt); ctx.lineTo(left + N * colW, yt); ctx.stroke(); ctx.restore();
-      txt(ctx, "t = " + t.toFixed(1) + " t_c", left + N * colW + 2, Math.max(cTop + 4, yt), { size: 10, mono: true, align: "left", color: P.accent2 });
+      txt(ctx, "t = " + t.toFixed(1) + " t_c", w - 4, Math.max(cTop + 4, yt) - 9, { size: 10.5, mono: true, weight: 700, align: "right", color: P.accent2 });
       txt(ctx, narrow ? "합 확정 시각" : "합 비트 확정 시각 (t_c)", left, cTop - 12, { size: 11, color: P.dim });
       txt(ctx, "0", left - 6, cBot, { size: 10, mono: true, align: "right", color: P.faint });
       txt(ctx, String(maxT), left - 6, cTop, { size: 10, mono: true, align: "right", color: P.faint });
@@ -714,7 +714,7 @@
   (function () {
     const st = { A: 0b1011, B: 0b0110, c0: 1 };
     let L = null;
-    const cv = SB.canvas($("cv-cla"), draw, { height: 330 });
+    const cv = SB.canvas($("cv-cla"), draw, { height: 340 });
     function model() {
       const a = bitsOf(st.A, 4), b = bitsOf(st.B, 4), g = a.map((x, i) => x & b[i]), p = a.map((x, i) => x ^ b[i]);
       const rows = [];
@@ -749,14 +749,16 @@
       for (let i = 0; i < 4; i++) {
         bitBox(ctx, X(i) - cs / 2, yA, cs, M.a[i]); bitBox(ctx, X(i) - cs / 2, yB, cs, M.b[i]);
         const t = M.g[i] ? "G" : M.p[i] ? "P" : "K";
-        txt(ctx, `g${i}=${M.g[i]} p${i}=${M.p[i]}`, X(i), yT + 8, { size: narrow ? 8.5 : 10.5, mono: true, align: "center", color: tagCol(t) });
+        if (narrow) { txt(ctx, `g${i}=${M.g[i]}`, X(i), yT + 4, { size: 9.5, mono: true, align: "center", color: tagCol(t) }); txt(ctx, `p${i}=${M.p[i]}`, X(i), yT + 16, { size: 9.5, mono: true, align: "center", color: tagCol(t) }); }
+        else txt(ctx, `g${i}=${M.g[i]} p${i}=${M.p[i]}`, X(i), yT + 8, { size: 10.5, mono: true, align: "center", color: tagCol(t) });
       }
       circ(ctx, L.cinX, L.cinY, 11, st.c0); txt(ctx, "c0", L.cinX, L.cinY - 20, { size: 11, align: "center", color: P.dim });
       // 식
-      const top = yT + 26, rh = (h - top - 8) / 6;
+      const D = (t) => (narrow ? t.s.replace(/·/g, "") : t.s);
+      const top = yT + (narrow ? 32 : 26), rh = (h - top - 8) / 6;
       ctx.font = SB.font(12, true, 600);
-      const maxRowW = Math.max(...M.rows.map((r) => r.terms.reduce((s, t) => s + ctx.measureText(t.s).width + 14, 0) + ctx.measureText(" + ").width * (r.terms.length - 1)));
-      const labW = narrow ? 44 : 56, avail = w - labW - 40 - 10;
+      const maxRowW = Math.max(...M.rows.map((r) => r.terms.reduce((s, t) => s + ctx.measureText(D(t)).width + 14, 0) + ctx.measureText(" + ").width * (r.terms.length - 1)));
+      const labW = narrow ? 40 : 56, avail = w - labW - (narrow ? 34 : 40) - 10;
       const fs = Math.max(7, Math.min(12, 12 * avail / maxRowW));
       M.rows.forEach((r, k) => {
         const y = top + rh * (k + 0.5) + (r.grp ? 4 : 0);
@@ -766,11 +768,11 @@
         ctx.font = SB.font(fs, true, 600);
         r.terms.forEach((t, j) => {
           if (j) { txt(ctx, "+", x + fs * 0.35, y, { size: fs, mono: true, align: "center", color: P.faint }); x += fs * 0.9; }
-          const tw = ctx.measureText(t.s).width + fs * 0.9, th = Math.min(rh - 6, fs * 1.9);
+          const tw = ctx.measureText(D(t)).width + fs * 0.9, th = Math.min(rh - 6, fs * 1.9);
           ctx.save(); DG.roundRect(ctx, x, y - th / 2, tw, th, 5);
           ctx.fillStyle = t.v ? DG.alpha(P.accent2, 0.22) : "transparent"; ctx.fill();
           ctx.strokeStyle = t.v ? P.accent2 : P.border; ctx.lineWidth = t.v ? 1.6 : 1; ctx.stroke(); ctx.restore();
-          txt(ctx, t.s, x + tw / 2, y + 0.5, { size: fs, mono: true, weight: t.v ? 700 : 500, align: "center", color: t.v ? P.text : P.faint });
+          txt(ctx, D(t), x + tw / 2, y + 0.5, { size: fs, mono: true, weight: t.v ? 700 : 500, align: "center", color: t.v ? P.text : P.faint });
           x += tw;
         });
         circ(ctx, w - 22, y, Math.min(11, rh * 0.38), r.v);
@@ -829,13 +831,14 @@
         ctx.lineTo(bx1 - bw, by + bh + 8); ctx.lineTo(bx0 + 4, by + bh + 8);
       }
       ctx.stroke(); ctx.restore();
-      txt(ctx, st.mode === "skip" ? "주황: 첫 블록 리플 → 가운데 블록 건너뛰기 → 마지막 블록 리플" : "주황: 첫 블록 리플 → 블록마다 MUX 한 단 (파란 선 = 두 벌 미리 계산)", bx0, by + bh + 22, { size: 11, color: P.dim });
+      if (w < 520) txt(ctx, st.mode === "skip" ? "주황 = 임계 경로 (리플 → 건너뛰기 → 리플)" : "주황 = 임계 경로 (리플 → MUX 사슬)", bx0, by + bh + 22, { size: 11, color: P.dim });
+      else txt(ctx, st.mode === "skip" ? "주황: 첫 블록 리플 → 가운데 블록 건너뛰기 → 마지막 블록 리플" : "주황: 첫 블록 리플 → 블록마다 MUX 한 단 (파란 선 = 두 벌 미리 계산)", bx0, by + bh + 22, { size: 11, color: P.dim });
       // 그래프
       const box = { x: 54, y: by + bh + 44, w: w - 54 - 16, h: h - (by + bh + 44) - 44 };
       const K = 16, ymax = N + 6;
       const sk = [], se = []; for (let kk = 1; kk <= K; kk++) { sk.push([kk, Tskip(N, kk)]); se.push([kk, Tsel(N, kk)]); }
       SB.chart(ctx, box, {
-        x: [1, K], y: [0, ymax], xLabel: "블록 크기 k (비트)", yLabel: "최악 지연 (t_c)",
+        x: [1, K], y: [0, ymax], xTicks: [1, 2, 4, 6, 8, 10, 12, 14, 16], xLabel: "블록 크기 k (비트)", yLabel: "최악 지연 (t_c)",
         series: [{ data: [[1, N + 1], [K, N + 1]], color: P.dim, width: 1.6, dash: [5, 4] }, { data: sk, color: P.accent2, width: st.mode === "skip" ? 2.8 : 1.6 }, { data: se, color: P.accent, width: st.mode === "sel" ? 2.8 : 1.6 }],
         vlines: [{ x: k, color: P.faint }],
         points: [{ x: k, y: Tskip(N, k), color: P.accent2, r: 5 }, { x: k, y: Tsel(N, k), color: P.accent, r: 5 }],
@@ -1131,9 +1134,16 @@
         const x = C1.X(p.T), y = C1.Y(p.A), hl = st.hl === p.s.id || (st.hl === "rca" && p.s.id === "rca");
         ctx.beginPath(); ctx.arc(x, y, hl ? 7.5 : 5.5, 0, Math.PI * 2); ctx.fillStyle = structColor(p.s.id); ctx.fill();
         if (hl) { ctx.strokeStyle = P.text; ctx.lineWidth = 2; ctx.stroke(); }
-        let ly = y - 10; for (const q of placed) if (Math.abs(q.x - x) < 46 && Math.abs(q.y - ly) < 12) ly = q.y - 13;
-        placed.push({ x, y: ly });
-        txt(ctx, p.s.short, x + (x > b1.x + b1.w - 40 ? -8 : 8), ly, { size: 11, weight: 700, align: x > b1.x + b1.w - 40 ? "right" : "left", color: structColor(p.s.id) });
+        ctx.font = SB.font(11, false, 700); const tw = ctx.measureText(p.s.short).width;
+        const cands = [[8, -9], [8, 11], [-8 - tw, -9], [-8 - tw, 11], [8, -22], [-8 - tw, 22]];
+        let best = cands[0];
+        for (const c of cands) {
+          const bx = x + c[0], by = y + c[1] - 7;
+          if (bx + tw > b1.x + b1.w + 4) continue;
+          if (!placed.some((q) => bx < q.x + q.w && bx + tw > q.x && by < q.y + 14 && by + 14 > q.y)) { best = c; break; }
+        }
+        placed.push({ x: x + best[0], y: y + best[1] - 7, w: tw });
+        txt(ctx, p.s.short, x + best[0], y + best[1], { size: 11, weight: 700, align: "left", color: structColor(p.s.id) });
       });
       // 오른쪽: N에 따른 지연
       const Ns = [8, 16, 32, 64, 128];
@@ -1178,7 +1188,7 @@
       ctx.fillStyle = DG.alpha(M.V ? P.bad : P.accent, 0.08); ctx.fillRect(X(7) - colW / 2, yC - 12, colW, yS + cs + 6 - (yC - 12));
       txt(ctx, "부호", X(7), yS + cs + 16, { size: 10, align: "center", color: P.dim });
       const lab = (s, y) => txt(ctx, s, left - 6, y, { size: narrow ? 11 : 12, weight: 700, align: "right", color: P.dim });
-      lab("c", yC); lab("A", yA + cs / 2); lab(M.sub ? "~B" : "B", yB + cs / 2); lab("S", yS + cs / 2);
+      txt(ctx, "c", left - 14, yC, { size: 11, weight: 700, align: "right", color: P.dim }); lab("A", yA + cs / 2); lab(M.sub ? "~B" : "B", yB + cs / 2); lab("S", yS + cs / 2);
       for (let i = 0; i < 8; i++) {
         const x = X(i);
         bitBox(ctx, x - cs / 2, yA, cs, M.a[i]); bitBox(ctx, x - cs / 2, yB, cs, M.b[i]); bitBox(ctx, x - cs / 2, yS, cs, M.s[i]);
@@ -1216,7 +1226,7 @@
     const cv = SB.canvas($("cv-budget"), draw, { height: 190 });
     function parts() {
       const add = adderModel(st.type, st.N, true).T * FO4_PER_UNIT;
-      return [{ n: "플립플롭", v: 3, c: "dim" }, { n: "덧셈기", v: add, c: "accent" }, { n: "바이패스·배선", v: 3, c: "accent2" }, { n: "스큐·지터", v: 1.5, c: "warn" }];
+      return [{ n: "플립플롭", s: "FF", v: 3, c: "dim" }, { n: "덧셈기", s: "덧셈", v: add, c: "accent" }, { n: "바이패스·배선", s: "MUX", v: 3, c: "accent2" }, { n: "스큐·지터", s: "스큐", v: 1.5, c: "warn" }];
     }
     function draw(ctx, w, h) {
       const P = PAL(), ps = parts(), need = ps.reduce((a, p) => a + p.v, 0), cyc = 1000 / st.f / FO4ps;
@@ -1230,7 +1240,7 @@
         const lab = p.n + " " + p.v.toFixed(1);
         ctx.font = SB.font(11, false, 700);
         if (ctx.measureText(lab).width < xb - xa - 6) txt(ctx, lab, (xa + xb) / 2, y + bh / 2, { size: 11, weight: 700, align: "center", color: P.text });
-        else if (ctx.measureText(p.v.toFixed(0)).width < xb - xa - 2) txt(ctx, p.v.toFixed(0), (xa + xb) / 2, y + bh / 2, { size: 10, align: "center", color: P.text });
+        else { ctx.font = SB.font(10, false, 600); const l2 = [p.s + " " + p.v.toFixed(1), p.s, p.v.toFixed(1)].find((t) => ctx.measureText(t).width < xb - xa - 4); if (l2) txt(ctx, l2, (xa + xb) / 2, y + bh / 2, { size: 10, weight: 600, align: "center", color: P.text }); }
       });
       if (need > cyc) { DG.hatch(ctx, Xs(cyc), y - 6, Xs(need) - Xs(cyc), bh + 12, P.bad); }
       ctx.save(); ctx.setLineDash([6, 4]); ctx.strokeStyle = need > cyc ? P.bad : P.ok; ctx.lineWidth = 2; ctx.strokeRect(Xs(0), y - 8, Xs(cyc) - Xs(0), bh + 16); ctx.restore();

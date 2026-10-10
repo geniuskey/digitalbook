@@ -295,7 +295,7 @@
         <div class="stat"><span class="k">공진 주파수</span><span class="v" id="pd-f">—</span></div>
         <div class="stat"><span class="k">특성 임피던스 √(L/C)</span><span class="v" id="pd-z">—</span></div>
       </div>
-      <figcaption><b>그림 14-7.</b> <span class="try">해 보기</span>트랜지스터가 실제로 받는 전원 전압이다(0.75 V에서 출발). 시각 5 ns에 부하 전류가 \(\Delta I\)만큼 늘어난다. 상승 시간을 줄이면 \(di/dt\)가 커져 첫 처짐이 깊어지고, 디캡을 늘리면 처짐이 얕아지며 공진 주파수가 낮아진다. 점선은 흔히 쓰는 허용 한도(\(V_{DD}\)의 −10%)다. 패키지 저항 0.5 mΩ, 전원망 저항 1 mΩ, 디캡 직렬 저항 0.3 mΩ으로 둔 2차 회로 모델이다.</figcaption>
+      <figcaption><b>그림 14-7.</b> <span class="try">해 보기</span>트랜지스터가 실제로 받는 전원 전압이다(0.75 V에서 출발). 시각 5 ns에 부하 전류가 \(\Delta I\)만큼 늘어난다. 상승 시간을 줄이면 \(di/dt\)가 커져 첫 처짐이 깊어지고, 디캡을 늘리면 처짐이 얕아지며 공진 주파수가 낮아진다. 점선은 흔히 쓰는 허용 한도(\(V_{DD}\)의 −10%)다. 패키지 저항 0.5 mΩ, 전원망 저항 1 mΩ, 디캡 직렬 저항 2 mΩ으로 둔 2차 회로 모델이다.</figcaption>
     </figure>
     <p>그림의 처짐은 패키지 인덕턴스와 온칩 디캡이 만드는 LC 공진(수십~수백 MHz)에서 온다. 처짐의 깊이는 대략 \(\Delta I\sqrt{L/C}\)로, 전원망 설계는 이 임피던스를 목표 값(허용 강하 ÷ 최대 전류 변화) 아래로 누르는 일이다. 0.75 V 전원에서 10% 여유는 75 mV에 불과하다. 전원 전압이 내려갈수록 같은 전류를 쓰면 여유는 오히려 줄어든다. 전원망의 IR 강하 지도, 전력 밀도와 열의 관계는 <a href="https://socbook.euiyun.com/chapters/power.html">SoCBook의 전력 장</a>과 <a href="https://socbook.euiyun.com/chapters/thermal.html">열 장</a>에서, 회로 쪽 전력 절감은 <a href="power.html">15장</a>에서 이어진다.</p>
     <div class="callout deep"><strong>전원을 뒤로 돌리다: 후면 전력 공급</strong><p>지금까지는 신호선과 전원선이 같은 앞면 금속층 스택을 나눠 썼다. 전원선은 굵고 많아야 하니 귀한 하위층 트랙을 상당히 잡아먹고, 맨 위 범프에서 트랜지스터까지 열 몇 층의 비아를 거쳐 내려오며 IR 강하가 쌓인다. 최근 공정은 웨이퍼를 뒤집어 <b>실리콘 뒷면에 전원망을 따로 만드는</b> 후면 전력 공급<span class="en">(BSPDN, Backside Power Delivery Network)</span>을 도입하고 있다(약, 2025~2026년 양산 공정부터). 앞면 스택은 신호에만 쓰고, 전원은 짧고 굵은 경로로 트랜지스터 바로 밑까지 들어온다.</p></div>
@@ -316,7 +316,7 @@
         <div class="stat"><span class="k">1 mm, 리피터 없음</span><span class="v" id="nd-un">—</span></div>
         <div class="stat"><span class="k">1 mm, 최적 리피터</span><span class="v" id="nd-rp">—</span></div>
       </div>
-      <figcaption><b>그림 14-8.</b> <span class="try">해 보기</span>세대를 옮기며 세 곡선의 간격을 보자. 세로축은 로그 눈금이다. FO4(초록)는 꾸준히 내려가는데, 최소 피치 하위층 1 mm 선의 지연은 리피터가 없으면(주황) 수천 배로 치솟고, 최적 리피터를 넣어도(파랑) 오히려 늘어난다. 각 세대 대표값은 공개 자료를 바탕으로 한 대략값(약)이며, 7 nm 칸은 DG-7 하위층(약 90 Ω/µm)에 맞췄다. 실제 긴 선은 이보다 훨씬 위층으로 보낸다.</figcaption>
+      <figcaption><b>그림 14-8.</b> <span class="try">해 보기</span>세대를 옮기며 세 곡선의 간격을 보자. 세로축은 로그 눈금이다. FO4(초록)는 꾸준히 내려가는데, 최소 피치 하위층 1 mm 선의 지연은 리피터가 없으면(주황) 수천 배로 치솟고, 최적 리피터를 넣어도(파랑) 오히려 늘어난다. 각 세대 대표값은 공개 자료를 바탕으로 한 대략값(약)이며, 7 nm 칸은 DG-7 하위층(약 90 Ω/µm)에 맞췄다. 실제 긴 선은 이보다 훨씬 위층으로 보낸다. 선이 임계 길이보다 짧은 옛 세대에서는 리피터가 이득이 없으므로 두 곡선이 겹친다.</figcaption>
     </figure>
     <div class="table-wrap">
       <table>
@@ -557,10 +557,10 @@
       var C = comp(), tot = C.plate + C.fr + C.coup;
       var narrow = w < 560;
       var A = narrow ? { x: 8, y: 8, w: w - 16, h: h * 0.56 } : { x: 10, y: 10, w: w * 0.58, h: h - 20 };
-      var B = narrow ? { x: 14, y: h * 0.56 + 22, w: w - 28, h: h * 0.44 - 34 } : { x: w * 0.62, y: 30, w: w * 0.38 - 18, h: h - 60 };
+      var B = narrow ? { x: 14, y: h * 0.56 + 34, w: w - 28, h: h * 0.44 - 40 } : { x: w * 0.62, y: 30, w: w * 0.38 - 18, h: h - 60 };
       // 단면 (nm → px)
       var span = 3 * W + 2 * S + 60;
-      var sc = Math.min(A.w / span, (A.h - 20) / (Tk + 2 * H) * 0.95);
+      var sc = Math.min(A.w / span, (A.h - 56) / (Tk + 2 * H));
       var cx = A.x + A.w / 2, cy = A.y + A.h / 2;
       var pw = W * sc, ps = S * sc, pt = Tk * sc, ph = H * sc;
       var pl = DG.alpha(P.dim, 0.35);
@@ -854,7 +854,7 @@
       var lc = lcrit(Y) / 1000;
       var box = { x: 58, y: 16, w: w - 58 - 16, h: h - 16 - 46 };
       SB.chart(ctx, box, { x: [0, 2], y: [0, ymax], xLabel: "배선 길이 (mm)", series: [{ data: d1, color: P.accent2, width: 2.4 }, { data: d2, color: P.accent, width: 2.4 }],
-        vlines: [{ x: L / 1000, color: P.text, dash: [2, 3] }].concat(lc < 2 ? [{ x: lc, color: P.faint, label: "임계 길이" }] : []),
+        vlines: [{ x: L / 1000, color: P.text, dash: [2, 3] }].concat(lc < 2 ? [{ x: lc, color: P.faint }] : []),
         points: [{ x: L / 1000, y: Math.min(ymax, un(L, Y) * 1e12), color: P.accent2, r: 5 }, { x: L / 1000, y: rp(L, Y) * 1e12, color: P.accent, r: 5 }] });
       T(ctx, "지연 (ps)", box.x + 8, box.y + 8, { size: 11, color: P.dim, weight: 700 });
       T(ctx, "리피터 없음", box.x + box.w - 8, box.y + 10, { size: 11.5, color: P.accent2, align: "right", weight: 700 });
@@ -1031,7 +1031,7 @@
   /* ================================================ 7. 전원망 처짐 */
   (function () {
     var st = { I: 10, tr: 2e-9, L: 20e-12, C: 200e-9 };
-    var RP = 0.5e-3, RG = 1e-3, RE = 0.3e-3, TS = 5e-9, TM = 60e-9, res = null;
+    var RP = 0.5e-3, RG = 1e-3, RE = 2e-3, TS = 5e-9, TM = 60e-9, res = null;
     SB.range("pd-i", function (v) { return f1(v) + " A"; }, function (v) { st.I = v; upd(); });
     SB.range("pd-tr", function (v) { return f1(v) + " ns"; }, function (v) { st.tr = v * 1e-9; upd(); });
     SB.range("pd-l", function (v) { return v + " pH"; }, function (v) { st.L = v * 1e-12; upd(); });
@@ -1049,7 +1049,8 @@
         var k1 = f(t, iL, vc), k2 = f(t + dt / 2, iL + k1[0] * dt / 2, vc + k1[1] * dt / 2), k3 = f(t + dt / 2, iL + k2[0] * dt / 2, vc + k2[1] * dt / 2), k4 = f(t + dt, iL + k3[0] * dt, vc + k3[1] * dt);
         iL += dt / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]); vc += dt / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
       }
-      res = { d: out, vmin: vmin };
+      var vmax = VDD; out.forEach(function (q) { vmax = Math.max(vmax, q[1]); });
+      res = { d: out, vmin: vmin, vmax: vmax };
     }
     var cv = SB.canvas("#cv-pdn", function (ctx, w, h) {
       pal();
@@ -1057,7 +1058,7 @@
       var box = { x: 58, y: 16, w: w - 58 - 16, h: h - 16 - 46 };
       var ylo = Math.min(0.6, Math.floor((res.vmin - 0.02) * 20) / 20);
       var ir = st.I * (RP + RG);
-      SB.chart(ctx, box, { x: [0, 60], y: [ylo, 0.78], xLabel: "시간 (ns)", series: [{ data: res.d, color: P.accent, width: 2.2 }],
+      SB.chart(ctx, box, { x: [0, 60], y: [ylo, Math.ceil((res.vmax + 0.01) * 50) / 50], xLabel: "시간 (ns)", series: [{ data: res.d, color: P.accent, width: 2.2 }],
         hlines: [{ y: VDD, color: P.faint, label: "VDD 0.75 V" }, { y: 0.9 * VDD, color: P.bad, label: "−10%" }, { y: VDD - ir, color: P.ok, dash: [2, 3] }],
         vlines: [{ x: TS * 1e9, color: P.faint, label: "ΔI" }] });
       T(ctx, "트랜지스터가 받는 전압 (V)", box.x + 8, box.y + box.h - 12, { size: 11, color: P.dim, weight: 700 });
@@ -1088,7 +1089,7 @@
       { n: "5 nm", y: 2020, fo4: 6.5e-12, r: 200, c: 0.2e-15 },
       { n: "3 nm", y: 2022, fo4: 6e-12, r: 360, c: 0.2e-15 },
     ];
-    N.forEach(function (d) { d.un = 0.38 * d.r * d.c * 1e6; d.rp = 2.7 * Math.sqrt((d.fo4 / 5) * d.r * d.c) * 1000; });
+    N.forEach(function (d) { d.un = 0.38 * d.r * d.c * 1e6; d.rp = Math.min(d.un, 2.7 * Math.sqrt((d.fo4 / 5) * d.r * d.c) * 1000); });
     document.getElementById("nd-table").innerHTML = N.map(function (d) {
       return "<tr><td>" + d.n + " (" + d.y + ")</td><td class='num'>" + f1(d.fo4 * 1e12, 2) + " ps</td><td class='num'>" + f1(d.r, 2) + "</td><td class='num'>" + tplain(d.un) + "</td><td class='num'>" + tplain(d.rp) + "</td><td class='num'>" + f1(d.rp / d.fo4, 2) + "</td></tr>";
     }).join("");

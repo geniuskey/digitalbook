@@ -1003,7 +1003,7 @@
       const P = SB.palette(), e = eta() / 1000;
       const res = [1, 2, 3, 4].map((n) => stack(n, e)), cur = res[k - 1];
       // 스택 그림
-      const s = 26, ch = Math.min(44, (h - 60) / k), x = 70, y0 = 30, y1 = y0 + k * ch;
+      const s = 26, ch = Math.min(44, (h - 60) / k), x = w < 480 ? 46 : 70, y0 = 30, y1 = y0 + k * ch;
       ctx.strokeStyle = SB.color("vdd") || P.accent2; ctx.lineWidth = 2.2;
       ctx.beginPath(); ctx.moveTo(x - 14, y0); ctx.lineTo(x + 30, y0); ctx.stroke();
       ctx.fillStyle = SB.color("vdd") || P.accent2; ctx.font = SB.font(11, true, 700); ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("출력 = VDD", x - 14, y0 - 3);
@@ -1019,17 +1019,17 @@
       }
       DG.gnd(ctx, x + 8, y1 + 2, 18);
       // 막대 (로그)
-      const bx = Math.max(200, w * 0.42), bw = w - bx - 20, top = 30, rowH = Math.min(40, (h - 70) / 4);
-      const lmin = -3, Lx = (r) => bx + ((Math.log10(r) - lmin) / -lmin) * bw;
-      ctx.fillStyle = P.dim; ctx.font = SB.font(11.5, false, 600); ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("누설 전류 (단일 = 1, 로그)", bx, top - 6);
-      [1e-3, 1e-2, 1e-1, 1].forEach((t) => { const px = Lx(t); ctx.strokeStyle = P.grid; ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, top + 4 * rowH); ctx.stroke(); ctx.fillStyle = P.faint; ctx.font = SB.font(10, true); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(t >= 1 ? "1" : t.toExponential(0).replace("e", "e"), px, top + 4 * rowH + 4); });
+      const bx = w < 480 ? 168 : Math.max(220, w * 0.42), bw = w - bx - (w < 480 ? 46 : 70), top = 30, rowH = Math.min(40, (h - 70) / 4);
+      const lmin = -2, Lx = (r) => bx + ((Math.log10(r) - lmin) / -lmin) * bw;
+      ctx.fillStyle = P.dim; ctx.font = SB.font(11.5, false, 600); ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.textAlign = w < 480 ? "center" : "left"; ctx.fillText("누설 (단일 = 1, 로그)", w < 480 ? bx + bw / 2 - 20 : bx, top - 6);
+      [1e-2, 1e-1, 1].forEach((t) => { const px = Lx(t); ctx.strokeStyle = P.grid; ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, top + 4 * rowH); ctx.stroke(); ctx.fillStyle = P.faint; ctx.font = SB.font(10, true); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(t >= 1 ? "1" : t.toExponential(0).replace("e", "e"), px, top + 4 * rowH + 4); });
       res.forEach((r, i) => {
         const rel = r.I / res[0].I, y = top + i * rowH + 4, on = i === k - 1;
-        ctx.fillStyle = DG.alpha(P.nmos, on ? 0.85 : 0.3); ctx.fillRect(bx, y, Math.max(2, Lx(Math.max(rel, 1e-3)) - bx), rowH - 10);
+        ctx.fillStyle = DG.alpha(P.nmos, on ? 0.85 : 0.3); ctx.fillRect(bx, y, Math.max(2, Lx(Math.max(rel, 1e-2)) - bx), rowH - 10);
         ctx.fillStyle = on ? P.text : P.dim; ctx.font = SB.font(11, true, on ? 700 : 500); ctx.textAlign = "right"; ctx.textBaseline = "middle";
         ctx.fillText(`${i + 1}개`, bx - 6, y + (rowH - 10) / 2);
-        ctx.textAlign = "left"; const tx = Math.min(Lx(Math.max(rel, 1e-3)) + 4, w - 64);
-        ctx.fillStyle = on ? P.text : P.dim; ctx.fillText(i === 0 ? "1" : "1/" + fx(1 / rel, 2 - (1 / rel > 99 ? 1 : 0)), tx, y + (rowH - 10) / 2);
+        ctx.textAlign = "left"; const tx = Lx(Math.max(rel, 1e-2)) + 4;
+        ctx.fillStyle = on ? P.text : P.dim; ctx.fillText(i === 0 ? "1" : "1/" + (1 / rel >= 10 ? Math.round(1 / rel) : fx(1 / rel, 1)), tx, y + (rowH - 10) / 2);
       });
     }, { aspect: 0.42, minHeight: 240, maxHeight: 280 });
     SB.seg("st-k", (v) => { k = +v; cv.redraw(); });

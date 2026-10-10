@@ -703,8 +703,15 @@
     var net = d.net, nv = resolve(net);
     if (nv === n.nv[net]) return;
     var old = n.nv[net]; n.nv[net] = nv;
-    if ((old === 0 && nv === 1) || (old === 1 && nv === 0)) n.tg[net]++;
-    var tr = n.tr[net]; tr.push([e.t, nv]); if (tr.length > 5000) tr.splice(0, 1500);
+    var tr = n.tr[net], L = tr.length, bin = function (u, v) { return (u === 0 && v === 1) || (u === 1 && v === 0); };
+    if (L >= 2 && tr[L - 1][0] === e.t && tr[L - 2][1] === nv) {
+      // 같은 시각에 되돌아온 폭 0 펄스는 토글로 세지 않는다 (DG.Circuit과 같은 규칙)
+      if (bin(tr[L - 2][1], old)) n.tg[net]--;
+      tr.pop();
+    } else {
+      if (bin(old, nv)) n.tg[net]++;
+      tr.push([e.t, nv]);
+    } if (tr.length > 5000) tr.splice(0, 1500);
     S.lastEv = Math.max(S.lastEv, e.t);
     n.nets[net].sinks.forEach(function (s) { evalPart(s.part, e.t); });
   }

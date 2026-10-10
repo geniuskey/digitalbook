@@ -5,6 +5,30 @@
 <html lang="ko">
 <head>
 <!--head:start {"desc": "회로가 기억을 갖는 법. 인버터 두 개의 쌍안정 고리에서 SR·D 래치, 마스터-슬레이브 플립플롭, setup·hold·clk-to-Q 곡선, 메타안정성과 MTBF, 리셋·스캔·펄스 래치 같은 변종까지 직접 끌고 토글하며 익힌다."}-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>래치와 플립플롭 · DigitalBook</title>
+<meta name="description" content="회로가 기억을 갖는 법. 인버터 두 개의 쌍안정 고리에서 SR·D 래치, 마스터-슬레이브 플립플롭, setup·hold·clk-to-Q 곡선, 메타안정성과 MTBF, 리셋·스캔·펄스 래치 같은 변종까지 직접 끌고 토글하며 익힌다.">
+<link rel="canonical" href="https://digitalbook.euiyun.com/chapters/latch.html">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<meta name="theme-color" content="#1971c2">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="DigitalBook">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="래치와 플립플롭 · DigitalBook">
+<meta property="og:description" content="회로가 기억을 갖는 법. 인버터 두 개의 쌍안정 고리에서 SR·D 래치, 마스터-슬레이브 플립플롭, setup·hold·clk-to-Q 곡선, 메타안정성과 MTBF, 리셋·스캔·펄스 래치 같은 변종까지 직접 끌고 토글하며 익힌다.">
+<meta property="og:url" content="https://digitalbook.euiyun.com/chapters/latch.html">
+<meta property="og:image" content="https://digitalbook.euiyun.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Chapter","LearningResource"],"@id":"https://digitalbook.euiyun.com/chapters/latch.html#chapter","name":"래치와 플립플롭","headline":"래치와 플립플롭 · DigitalBook","description":"회로가 기억을 갖는 법. 인버터 두 개의 쌍안정 고리에서 SR·D 래치, 마스터-슬레이브 플립플롭, setup·hold·clk-to-Q 곡선, 메타안정성과 MTBF, 리셋·스캔·펄스 래치 같은 변종까지 직접 끌고 토글하며 익힌다.","url":"https://digitalbook.euiyun.com/chapters/latch.html","position":8,"inLanguage":"ko","isAccessibleForFree":true,"learningResourceType":"인터랙티브 교재","educationalLevel":"공대 학부","image":"https://digitalbook.euiyun.com/og.png","dateModified":"2026-10-10","isPartOf":{"@type":"Book","@id":"https://digitalbook.euiyun.com/#book","name":"DigitalBook · 디지털 회로 설계 교과서","url":"https://digitalbook.euiyun.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DigitalBook","item":"https://digitalbook.euiyun.com/"},{"@type":"ListItem","position":2,"name":"8. 래치와 플립플롭","item":"https://digitalbook.euiyun.com/chapters/latch.html"}]}]}</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/common.js"></script>
+<script src="../js/dig.js"></script>
 <!--head:end-->
 <style>
   .lt-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -381,6 +405,830 @@
     </div>
   </section>
 </main>
-<script>/*SCRIPT*/</script>
+<script>
+(function () {
+  "use strict";
+  let P = SB.palette();
+  SB.onTheme(() => { P = SB.palette(); });
+  const pal = () => (P = SB.palette());
+  const VDD = DG.TECH.vdd;
+
+  function T(ctx, s, x, y, o) {
+    o = o || {};
+    ctx.font = SB.font(o.size || 12, o.mono, o.weight);
+    ctx.fillStyle = o.color || P.text; ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "middle";
+    ctx.fillText(s, x, y);
+  }
+  /* 부모 폭에 따라 비율이 바뀌는 캔버스 옵션 */
+  function aopt(sel, wide, narrow, bp, extra) {
+    const el = document.querySelector(sel), o = Object.assign({}, extra || {});
+    Object.defineProperty(o, "aspect", { get: () => ((el.parentElement.clientWidth || 600) < (bp || 560) ? narrow : wide) });
+    return o;
+  }
+  const bitv = (v) => (v === 0 || v === 1 ? v : null);
+  function terminal(ctx, x, y, v, label, side) {
+    ctx.save();
+    ctx.fillStyle = SB.color("bg-elev"); ctx.strokeStyle = DG.lv(v); ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    T(ctx, v === 0 || v === 1 ? String(v) : "X", x, y + 0.5, { size: 11, mono: true, weight: 700, align: "center", color: DG.lv(v) });
+    if (label) T(ctx, label, side === "r" ? x + 14 : x - 14, y, { size: 12.5, weight: 700, align: side === "r" ? "left" : "right" });
+    ctx.restore();
+  }
+  const near = (x, y, px, py, r) => (x - px) * (x - px) + (y - py) * (y - py) <= r * r;
+  function lvSpan(v) { return v === 1 ? '<span class="lv hi">1</span>' : v === 0 ? '<span class="lv lo">0</span>' : '<span class="lv x">X</span>'; }
+
+  /* ================================================================ 1. 되먹임 */
+  (function () {
+    let A = 0, loop = true, Yl = 0;
+    const hist = [];
+    for (let i = 0; i < 24; i++) hist.push({ a: 0, yc: 0, yl: 0 });
+    let geo = [];
+    const btn = document.getElementById("fb-a");
+    function upd() {
+      Yl = loop ? (A | Yl) : A;
+      btn.innerHTML = "A = <b>" + A + "</b>";
+      btn.classList.toggle("on", A === 1);
+      cv.redraw();
+    }
+    const cv = SB.canvas("#cv-feedback", (ctx, w, h) => {
+      pal();
+      const narrow = w < 560, topH = h * (narrow ? 0.5 : 0.52);
+      geo = [];
+      for (let k = 0; k < 2; k++) {
+        const px = (w / 2) * k, pw = w / 2;
+        const gw = Math.min(110, pw * 0.42), gh = gw * 0.62;
+        const gx = px + pw * 0.3, gy = 34 + (topH - 34 - gh) * 0.35;
+        T(ctx, k ? "되먹임 OR (순차)" : "보통 OR (조합)", px + pw / 2, 14, { size: narrow ? 11.5 : 13, weight: 700, align: "center", color: k ? P.accent : P.dim });
+        const fb = k ? (loop ? Yl : 0) : 0, Y = k ? Yl : A;
+        const g = DG.gate(ctx, "OR", gx, gy, gw, gh, { inV: [A, fb], outV: Y });
+        const ax = px + 18;
+        DG.wire(ctx, [[ax + 9, g.inputs[0][1]], g.inputs[0]], A);
+        terminal(ctx, ax, g.inputs[0][1], A, "", "l");
+        T(ctx, "A", ax, g.inputs[0][1] - 18, { size: 12, weight: 700, align: "center" });
+        geo.push([ax, g.inputs[0][1]]);
+        const [ox, oy] = g.output, yx = px + pw - 22;
+        DG.wire(ctx, [g.output, [yx - 9, oy]], Y);
+        terminal(ctx, yx, oy, Y, "", "r");
+        T(ctx, "Y", yx, oy - 18, { size: 12, weight: 700, align: "center" });
+        const [ix, iy] = g.inputs[1];
+        if (k === 0 || !loop) {
+          DG.wire(ctx, [[ix - 14, iy], [ix, iy]], 0);
+          T(ctx, "0", ix - 18, iy, { size: 12, mono: true, weight: 700, align: "right", color: P.lo });
+        }
+        if (k === 1) {
+          const by = gy + gh + 16, rx = ox + (yx - 9 - ox) * 0.45;
+          if (loop) { DG.wire(ctx, [[rx, oy], [rx, by], [ix - 8, by], [ix - 8, iy], [ix, iy]], Y); DG.dot(ctx, rx, oy, DG.lv(Y)); }
+          else { ctx.save(); ctx.setLineDash([3, 4]); ctx.strokeStyle = P.faint; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(rx, oy); ctx.lineTo(rx, by); ctx.lineTo(ix - 30, by); ctx.stroke(); ctx.restore(); T(ctx, "✂", ix - 30, by, { size: 13, align: "center", color: P.faint }); }
+          T(ctx, loop ? "고리" : "끊김", (rx + ix) / 2, by + 11, { size: 11, color: P.dim, align: "center" });
+        }
+      }
+      ctx.strokeStyle = P.border; ctx.beginPath(); ctx.moveTo(w / 2, 6); ctx.lineTo(w / 2, topH - 6); ctx.stroke();
+      DG.wave(ctx, { x: 8, y: topH + 4, w: w - 16, h: h - topH - 10 }, {
+        cycles: hist.length, nameW: narrow ? 62 : 84, gridStep: 4,
+        signals: [
+          { name: "A", type: "bit", v: hist.map((e) => e.a) },
+          { name: "Y 조합", type: "bit", v: hist.map((e) => e.yc) },
+          { name: "Y 되먹임", type: "bit", v: hist.map((e) => e.yl), fill: true },
+        ],
+      });
+    }, aopt("#cv-feedback", 0.5, 0.95, 560, { minHeight: 280, maxHeight: 440 }));
+    btn.addEventListener("click", () => { A ^= 1; upd(); });
+    SB.seg("fb-loop", (v) => { loop = v === "on"; upd(); });
+    DG.pointer(cv.canvas, {
+      down: (x, y) => { if (geo.some(([px, py]) => near(x, y, px, py, 18))) { A ^= 1; upd(); } },
+      move: (x, y) => { cv.canvas.style.cursor = geo.some(([px, py]) => near(x, y, px, py, 18)) ? "pointer" : "default"; },
+    });
+    let acc = 0;
+    SB.loop(cv.canvas, (dt) => {
+      acc += dt; if (acc < 0.35) return; acc = 0;
+      hist.shift(); hist.push({ a: A, yc: A, yl: Yl }); cv.redraw();
+    });
+  })();
+
+  /* ================================================================ 2. 쌍안정 */
+  (function () {
+    const N = 301;
+    const mk = (curve) => (v) => { const u = SB.clamp(v / VDD, 0, 1) * (N - 1), i = Math.min(N - 2, Math.floor(u)), t = u - i; return curve[i][1] + (curve[i + 1][1] - curve[i][1]) * t; };
+    const f1 = mk(DG.vtc({ Wn: 1, Wp: DG.TECH.mu }, N));
+    let f2 = f1, wp = 1.6, x0 = 0.4, pts = [[0.4, 0]], prog = 0, U = [], xs = 0.37, gainVM = 0;
+    const gfun = (v) => f2(f1(v));
+    function rebuild() {
+      f2 = mk(DG.vtc({ Wn: 1, Wp: wp }, N));
+      let lo = 0.05, hi = 0.7;
+      for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (gfun(m) - m > 0) hi = m; else lo = m; }
+      xs = (lo + hi) / 2;
+      const e = 1e-4, s1 = (f1(xs + e) - f1(xs - e)) / (2 * e), y = f1(xs), s2 = (f2(y + e) - f2(y - e)) / (2 * e);
+      gainVM = s1 * s2;
+      U = [0]; const dv = VDD / (N - 1);
+      for (let i = 1; i < N; i++) { const v = i * dv; U.push(U[i - 1] + (v - gfun(v)) * dv); }
+      run();
+    }
+    function run() {
+      pts = [[x0, 0]]; let x = x0;
+      for (let i = 0; i < 16; i++) {
+        const y = f1(x); pts.push([x, y]);
+        const xn = f2(y); pts.push([xn, y]);
+        if (Math.abs(xn - x) < 1e-4 && i > 1) break;
+        x = xn;
+      }
+      prog = 0; stats();
+    }
+    function cur() {
+      const k = Math.min(pts.length - 1, Math.floor(prog)), t = prog - k;
+      if (k >= pts.length - 1) return pts[pts.length - 1];
+      return [SB.lerp(pts[k][0], pts[k + 1][0], t), SB.lerp(pts[k][1], pts[k + 1][1], t)];
+    }
+    function stats() {
+      const loops = (pts.length - 1) / 2, xf = pts[pts.length - 1][0];
+      SB.stat("bs-n", (loops >= 16 ? "16+" : String(Math.round(loops))) + "<small>바퀴</small>");
+      SB.stat("bs-q", Math.abs(xf - xs) < 0.02 ? '<span class="warn-t">아직 꼭대기</span>' : xf < xs ? "V₁=0, V₂=1" : "V₁=1, V₂=0");
+      SB.stat("bs-g", SB.fmt(Math.abs(gainVM), 3) + "<small>배/바퀴</small>");
+    }
+    let box = null;
+    const cv = SB.canvas("#cv-bistable", (ctx, w, h) => {
+      pal();
+      const narrow = w < 560;
+      const side = narrow ? Math.min(w - 70, h * 0.62 - 60) : Math.min(h - 60, w * 0.5 - 70);
+      const B = { x: 52, y: 22, w: side, h: side };
+      const H = narrow ? { x: 16, y: B.y + side + 52, w: w - 32, h: h - (B.y + side + 52) - 12 } : { x: B.x + side + 44, y: 30, w: w - (B.x + side + 44) - 16, h: h - 70 };
+      box = B;
+      const c1 = [], c2 = [];
+      for (let i = 0; i <= 150; i++) { const v = (VDD * i) / 150; c1.push([v, f1(v)]); c2.push([f2(v), v]); }
+      const ch = SB.chart(ctx, B, {
+        x: [0, VDD], y: [0, VDD], xLabel: "V₁ (V)  ← 끌어서 초기값", xTicks: [0, 0.25, 0.5, 0.75], yTicks: [0, 0.25, 0.5, 0.75],
+        series: [{ data: c1, color: P.accent, width: 2.4 }, { data: c2, color: P.accent2, width: 2.4 }],
+      });
+      T(ctx, "V₂ (V)", B.x + 6, B.y + 10, { size: 12, color: P.dim });
+      T(ctx, "인버터1: V₂=f(V₁)", B.x + B.w - 4, B.y + 10, { size: 11, color: P.accent, align: "right", weight: 700 });
+      T(ctx, "인버터2: V₁=f(V₂)", B.x + B.w - 4, B.y + 26, { size: 11, color: P.accent2, align: "right", weight: 700 });
+      // 경로
+      const c = cur(), k = Math.min(pts.length - 1, Math.floor(prog));
+      ctx.save(); ctx.strokeStyle = P.text; ctx.lineWidth = 1.4; ctx.beginPath();
+      for (let i = 0; i <= k; i++) { const px = ch.X(pts[i][0]), py = ch.Y(pts[i][1]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.lineTo(ch.X(c[0]), ch.Y(c[1])); ctx.stroke(); ctx.restore();
+      // 평형점
+      const eqs = [[f2(VDD), VDD], [xs, f1(xs)], [VDD, f1(VDD)]];
+      eqs.forEach((e, i) => { ctx.save(); ctx.fillStyle = i === 1 ? P.bad : P.ok; ctx.strokeStyle = SB.color("bg-elev"); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ch.X(e[0]), ch.Y(e[1]), 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore(); });
+      T(ctx, "불안정", ch.X(xs) + 9, ch.Y(f1(xs)) - 10, { size: 11, color: P.bad, weight: 700 });
+      DG.dot(ctx, ch.X(c[0]), ch.Y(c[1]), P.text, 4.5);
+      // 초기값 손잡이
+      ctx.save(); ctx.fillStyle = P.accent; ctx.beginPath(); const hx = ch.X(x0), hy = B.y + B.h; ctx.moveTo(hx, hy - 2); ctx.lineTo(hx - 7, hy + 10); ctx.lineTo(hx + 7, hy + 10); ctx.closePath(); ctx.fill(); ctx.restore();
+      // 언덕
+      let umin = Infinity, umax = -Infinity; U.forEach((u) => { umin = Math.min(umin, u); umax = Math.max(umax, u); });
+      const hx0 = H.x + 10, hw = H.w - 20, hy0 = H.y + 18, hh = Math.max(30, H.h - 40);
+      const HX = (v) => hx0 + (v / VDD) * hw, HY = (u) => hy0 + hh - ((u - umin) / (umax - umin || 1)) * hh;
+      T(ctx, "언덕 위의 공 (위치 = V₁)", H.x + H.w / 2, H.y + 2, { size: 12, weight: 700, align: "center", color: P.dim });
+      ctx.save(); ctx.beginPath();
+      U.forEach((u, i) => { const v = (VDD * i) / (U.length - 1); i ? ctx.lineTo(HX(v), HY(u)) : ctx.moveTo(HX(v), HY(u)); });
+      ctx.lineTo(HX(VDD), hy0 + hh + 8); ctx.lineTo(HX(0), hy0 + hh + 8); ctx.closePath();
+      ctx.fillStyle = DG.alpha(P.accent, 0.1); ctx.fill();
+      ctx.strokeStyle = P.dim; ctx.lineWidth = 2; ctx.beginPath();
+      U.forEach((u, i) => { const v = (VDD * i) / (U.length - 1); i ? ctx.lineTo(HX(v), HY(u)) : ctx.moveTo(HX(v), HY(u)); }); ctx.stroke();
+      const uAt = (v) => U[Math.round(SB.clamp(v / VDD, 0, 1) * (U.length - 1))];
+      const bv = c[0], br = 8;
+      ctx.fillStyle = P.accent; ctx.beginPath(); ctx.arc(HX(bv), HY(uAt(bv)) - br, br, 0, Math.PI * 2); ctx.fill();
+      T(ctx, "0", HX(0), hy0 + hh + 18, { size: 11, mono: true, align: "center", color: P.lo });
+      T(ctx, "V_M", HX(xs), hy0 + hh + 18, { size: 11, mono: true, align: "center", color: P.bad });
+      T(ctx, "V_DD", HX(VDD), hy0 + hh + 18, { size: 11, mono: true, align: "center", color: P.hi });
+    }, aopt("#cv-bistable", 0.52, 1.5, 560, { minHeight: 300, maxHeight: 620 }));
+    const getV0 = SB.range("bs-v0", (v) => v.toFixed(3) + " V", (v) => { x0 = v; run(); cv.redraw(); });
+    SB.range("bs-wp", (v) => v.toFixed(2), (v) => { wp = v; rebuild(); cv.redraw(); });
+    document.getElementById("bs-again").addEventListener("click", () => { run(); cv.redraw(); });
+    document.getElementById("bs-vm").addEventListener("click", () => { x0 = xs; getV0.el.value = xs; document.getElementById("bs-v0-out").textContent = xs.toFixed(3) + " V"; getV0.el.style.setProperty("--fill", (xs / VDD) * 100 + "%"); run(); cv.redraw(); });
+    function setFromX(x) {
+      if (!box) return;
+      const v = SB.clamp(((x - box.x) / box.w) * VDD, 0, VDD);
+      getV0.set(Math.round(v / 0.0005) * 0.0005);
+    }
+    let dragging = false;
+    DG.pointer(cv.canvas, {
+      down: (x, y) => { if (box && x >= box.x - 10 && x <= box.x + box.w + 10 && y >= box.y && y <= box.y + box.h + 30) { dragging = true; setFromX(x); } },
+      move: (x, y, d) => { if (d && dragging) setFromX(x); },
+      up: () => { dragging = false; },
+    }, { drag: true });
+    rebuild();
+    SB.loop(cv.canvas, (dt) => { if (prog < pts.length - 1) { prog = Math.min(pts.length - 1, prog + dt * 2.2); cv.redraw(); } });
+  })();
+
+  /* ================================================================ 3. SR 래치 */
+  (function () {
+    let type = "NOR", pS = 0, pR = 0, Q = 0, QB = 1;
+    const hist = [];
+    const snap = (q, qb) => ({ s: pS, r: pR, q: bitv(q), qb: bitv(qb) });
+    for (let i = 0; i < 24; i++) hist.push(snap(Q, QB));
+    const topExt = () => (type === "NOR" ? pR : pS), botExt = () => (type === "NOR" ? pS : pR);
+    function settle() {
+      let q = Q, qb = QB; const seq = [];
+      for (let i = 0; i < 12; i++) {
+        const nq = DG.eval3(type, [topExt(), qb]), nqb = DG.eval3(type, [botExt(), q]);
+        if (nq === q && nqb === qb) { Q = q; QB = qb; return seq; }
+        q = nq; qb = nqb; seq.push([q, qb]);
+      }
+      seq.length = Math.min(seq.length, 4); seq.push(["x", "x"]);
+      Q = "x"; QB = "x"; return seq;
+    }
+    function act() {
+      const seq = settle();
+      seq.forEach(([q, qb]) => { hist.shift(); hist.push(snap(q, qb)); });
+      if (!seq.length) { hist.shift(); hist.push(snap(Q, QB)); }
+      ui(); cv.redraw();
+    }
+    function ui() {
+      const nor = type === "NOR";
+      document.getElementById("sr-s-n").textContent = nor ? "S" : "S̄";
+      document.getElementById("sr-r-n").textContent = nor ? "R" : "R̄";
+      document.querySelector("#sr-s b").textContent = pS; document.querySelector("#sr-r b").textContent = pR;
+      const s = nor ? pS : 1 - pS, r = nor ? pR : 1 - pR;
+      let m = !s && !r ? "유지" : s && !r ? "셋 (Q←1)" : !s && r ? "리셋 (Q←0)" : '<span class="bad-t">금지</span>';
+      if (Q === "x" && !s && !r) m = '<span class="bad-t">경주 → X</span>';
+      SB.stat("sr-mode", m);
+      SB.stat("sr-q", lvSpan(Q) + " / " + lvSpan(QB));
+    }
+    let pins = [];
+    const cv = SB.canvas("#cv-sr", (ctx, w, h) => {
+      pal();
+      const narrow = w < 600;
+      const C = narrow ? { x: 0, y: 0, w: w, h: h * 0.52 } : { x: 0, y: 0, w: w * 0.5, h: h };
+      const Wb = narrow ? { x: 8, y: C.h + 6, w: w - 16, h: h - C.h - 12 } : { x: w * 0.5 + 8, y: 16, w: w * 0.5 - 20, h: h - 32 };
+      const gw = Math.min(120, C.w * 0.36), gh = gw * 0.62, gx = C.x + C.w * 0.36;
+      const y1 = C.y + C.h * 0.16, y2 = C.y + C.h * 0.84 - gh, my = (y1 + gh / 2 + y2 + gh / 2) / 2;
+      const g1 = DG.gate(ctx, type, gx, y1, gw, gh, { inV: [topExt(), QB], outV: Q });
+      const g2 = DG.gate(ctx, type, gx, y2, gw, gh, { inV: [Q, botExt()], outV: QB });
+      const ox = g1.output[0], tx = ox + 12, lx1 = gx - 12, lx2 = gx - 24;
+      DG.wire(ctx, [[tx, g1.output[1]], [tx, my - 10], [lx1, my + 10], [lx1, g2.inputs[0][1]], g2.inputs[0]], Q);
+      DG.wire(ctx, [[tx, g2.output[1]], [tx, my + 10], [lx2, my - 10], [lx2, g1.inputs[1][1]], g1.inputs[1]], QB);
+      DG.dot(ctx, tx, g1.output[1], DG.lv(Q)); DG.dot(ctx, tx, g2.output[1], DG.lv(QB));
+      const qx = Math.min(C.x + C.w - 34, ox + 52);
+      DG.wire(ctx, [g1.output, [qx - 9, g1.output[1]]], Q); DG.wire(ctx, [g2.output, [qx - 9, g2.output[1]]], QB);
+      terminal(ctx, qx, g1.output[1], bitv(Q), "Q", "r"); terminal(ctx, qx, g2.output[1], bitv(QB), "Q̄", "r");
+      const ix = C.x + 34, nor = type === "NOR";
+      DG.wire(ctx, [[ix + 9, g1.inputs[0][1]], g1.inputs[0]], topExt());
+      DG.wire(ctx, [[ix + 9, g2.inputs[1][1]], g2.inputs[1]], botExt());
+      terminal(ctx, ix, g1.inputs[0][1], topExt(), nor ? "R" : "S̄", "l");
+      terminal(ctx, ix, g2.inputs[1][1], botExt(), nor ? "S" : "R̄", "l");
+      pins = [[ix, g1.inputs[0][1], nor ? "r" : "s"], [ix, g2.inputs[1][1], nor ? "s" : "r"]];
+      DG.wave(ctx, Wb, {
+        cycles: hist.length, nameW: 46, gridStep: 4,
+        signals: [
+          { name: nor ? "S" : "S̄", type: "bit", v: hist.map((e) => e.s) },
+          { name: nor ? "R" : "R̄", type: "bit", v: hist.map((e) => e.r) },
+          { name: "Q", type: "bit", v: hist.map((e) => e.q), fill: true },
+          { name: "Q̄", type: "bit", v: hist.map((e) => e.qb) },
+        ],
+      });
+    }, aopt("#cv-sr", 0.42, 1.25, 600, { minHeight: 280, maxHeight: 520 }));
+    const tog = (k) => { if (k === "s") pS ^= 1; else pR ^= 1; act(); };
+    document.getElementById("sr-s").addEventListener("click", () => tog("s"));
+    document.getElementById("sr-r").addEventListener("click", () => tog("r"));
+    document.getElementById("sr-both").addEventListener("click", () => { pS ^= 1; pR ^= 1; act(); });
+    SB.seg("sr-type", (v) => { type = v; pS = pR = v === "NOR" ? 0 : 1; act(); });
+    DG.pointer(cv.canvas, {
+      down: (x, y) => { const p = pins.find((q) => near(x, y, q[0], q[1], 18)); if (p) tog(p[2]); },
+      move: (x, y) => { cv.canvas.style.cursor = pins.some((q) => near(x, y, q[0], q[1], 18)) ? "pointer" : "default"; },
+    });
+    let acc = 0;
+    SB.loop(cv.canvas, (dt) => { acc += dt; if (acc < 0.45) return; acc = 0; hist.shift(); hist.push(snap(Q, QB)); cv.redraw(); });
+    ui();
+  })();
+
+  /* ================================================================ 4. TG D 래치 */
+  function drawTG(ctx, cx, cy, L, on, nLbl, pLbl, vin) {
+    const a = cx - L / 2, b = cx + L / 2, d = 9;
+    ctx.save();
+    if (on) { ctx.fillStyle = DG.alpha(P.accent, 0.12); DG.roundRect(ctx, a - 12, cy - 30, L + 24, 60, 8); ctx.fill(); }
+    ctx.lineWidth = 1.8; ctx.strokeStyle = P.text;
+    ctx.beginPath(); ctx.moveTo(a - 12, cy); ctx.lineTo(a - 4, cy); ctx.moveTo(a - 4, cy - d); ctx.lineTo(a - 4, cy + d);
+    ctx.moveTo(b + 12, cy); ctx.lineTo(b + 4, cy); ctx.moveTo(b + 4, cy - d); ctx.lineTo(b + 4, cy + d); ctx.stroke();
+    [["p", cy - d, -1, pLbl], ["n", cy + d, 1, nLbl]].forEach(([t, y, s, lbl]) => {
+      const col = t === "p" ? P.pmos : P.nmos;
+      ctx.strokeStyle = col; ctx.lineWidth = on ? 4 : 1.8;
+      ctx.beginPath(); ctx.moveTo(a - 4, y); ctx.lineTo(b + 4, y); ctx.stroke();
+      ctx.strokeStyle = P.text; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(a + 2, y + s * 5); ctx.lineTo(b - 2, y + s * 5); ctx.stroke();
+      if (t === "p") { ctx.beginPath(); ctx.arc(cx, y - 8.5, 3, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx, y - 11.5); ctx.lineTo(cx, y - 17); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.moveTo(cx, y + 5); ctx.lineTo(cx, y + 17); ctx.stroke(); }
+      T(ctx, lbl, cx, y + s * 23, { size: 10.5, mono: true, align: "center", color: col, weight: 700 });
+    });
+    ctx.restore();
+  }
+  function polyLen(pts) { let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return L; }
+  function polyAt(pts, s) {
+    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); if (s <= l) { const t = l ? s / l : 0; return [SB.lerp(pts[i - 1][0], pts[i][0], t), SB.lerp(pts[i - 1][1], pts[i][1], t)]; } s -= l; }
+    return pts[pts.length - 1];
+  }
+  function flowDots(ctx, pts, phase, col) {
+    const L = polyLen(pts); if (L < 1) return;
+    ctx.save(); ctx.fillStyle = col;
+    for (let s = (phase * 60) % 22; s < L; s += 22) { const [x, y] = polyAt(pts, s); ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
+  (function () {
+    let clk = 1, d = 0, X = 0, auto = false, phase = 0;
+    const hist = [];
+    for (let i = 0; i < 28; i++) hist.push({ c: 1, d: 0, q: 0 });
+    function eval_() { if (clk) X = d; ui(); cv.redraw(); }
+    function ui() {
+      document.querySelector("#dl-clk b").textContent = clk; document.querySelector("#dl-d b").textContent = d;
+      document.getElementById("dl-clk").classList.toggle("on", clk === 1); document.getElementById("dl-d").classList.toggle("on", d === 1);
+      SB.stat("dl-mode", clk ? '<span class="ok-t">투명</span>' : '<span class="warn-t">유지</span>');
+      SB.stat("dl-tg", clk ? "TG1 (D 입력)" : "TG2 (되먹임)");
+      SB.stat("dl-q", lvSpan(X));
+    }
+    let hits = [];
+    const cv = SB.canvas("#cv-dlatch", (ctx, w, h) => {
+      pal();
+      const narrow = w < 560, topH = h * (narrow ? 0.6 : 0.62);
+      const ym = topH * 0.36, yb = topH * 0.8;
+      const xD = 22, xT1 = w * 0.22, xX = w * 0.36, xI1 = w * 0.42, iw = Math.max(34, Math.min(70, w * 0.1)), xQb = w * 0.59, xI2 = w * 0.64, xQn = w * 0.84, xQ = w - 24;
+      const L = Math.max(26, Math.min(56, w * 0.08));
+      const Qb = 1 - X;
+      // 배선
+      DG.wire(ctx, [[xD + 9, ym], [xT1 - L / 2 - 12, ym]], d);
+      DG.wire(ctx, [[xT1 + L / 2 + 12, ym], [xI1, ym]], X);
+      const i1 = DG.gate(ctx, "NOT", xI1, ym - iw * 0.3, iw, iw * 0.6, { inV: [X], outV: Qb, lead: 4 });
+      DG.wire(ctx, [i1.output, [xI2, ym]], Qb);
+      const i2 = DG.gate(ctx, "NOT", xI2, ym - iw * 0.3, iw, iw * 0.6, { inV: [Qb], outV: X, lead: 4 });
+      DG.wire(ctx, [i2.output, [xQ - 9, ym]], X);
+      const xT2 = (xX + xQn) / 2;
+      DG.wire(ctx, [[xQn, ym], [xQn, yb], [xT2 + L / 2 + 12, yb]], X);
+      DG.wire(ctx, [[xT2 - L / 2 - 12, yb], [xX, yb], [xX, ym]], X);
+      DG.dot(ctx, xQn, ym, DG.lv(X)); DG.dot(ctx, xX, ym, DG.lv(X));
+      drawTG(ctx, xT1, ym, L, clk === 1, "CLK", "CLK̄", d);
+      drawTG(ctx, xT2, yb, L, clk === 0, "CLK̄", "CLK", X);
+      T(ctx, "TG1", xT1, ym - 46, { size: 11, weight: 700, align: "center", color: clk ? P.accent : P.faint });
+      T(ctx, "TG2", xT2 - L / 2 - 20, yb - 22, { size: 11, weight: 700, align: "right", color: clk ? P.faint : P.accent });
+      T(ctx, "X", xX + 4, ym - 12, { size: 11.5, weight: 700, mono: true });
+      T(ctx, "Q̄", (i1.output[0] + xI2) / 2, ym - 12, { size: 11.5, weight: 700, mono: true, align: "center" });
+      terminal(ctx, xD, ym, d, "", "l"); T(ctx, "D", xD, ym - 18, { size: 12, weight: 700, align: "center" });
+      terminal(ctx, xQ, ym, X, "", "r"); T(ctx, "Q", xQ, ym - 18, { size: 12, weight: 700, align: "center" });
+      const cx = xD, cy = topH * 0.86;
+      terminal(ctx, cx, cy, clk, "CLK", "r");
+      hits = [[xD, ym, "d"], [cx, cy, "c"]];
+      // 흐름
+      const path = clk ? [[xD + 9, ym], [xQ - 9, ym]] : [[xX, ym], [xQn, ym], [xQn, yb], [xX, yb], [xX, ym]];
+      flowDots(ctx, path, phase, P.accent);
+      T(ctx, clk ? "투명: D가 곧장 Q로" : "유지: 고리 안에서 맴돈다", w - 10, topH * 0.95, { size: 12, weight: 700, align: "right", color: clk ? P.ok : P.warn });
+      DG.wave(ctx, { x: 8, y: topH + 2, w: w - 16, h: h - topH - 8 }, {
+        cycles: hist.length, nameW: 48, gridStep: 4,
+        signals: [
+          { name: "CLK", type: "bit", v: hist.map((e) => e.c), color: P.dim },
+          { name: "D", type: "bit", v: hist.map((e) => e.d) },
+          { name: "Q", type: "bit", v: hist.map((e) => e.q), fill: true },
+        ],
+        shade: hist.map((e, i) => (e.c ? { c0: i, c1: i + 1, color: DG.alpha(P.ok, 0.08) } : null)).filter(Boolean),
+      });
+    }, aopt("#cv-dlatch", 0.55, 1.05, 560, { minHeight: 300, maxHeight: 480 }));
+    document.getElementById("dl-clk").addEventListener("click", () => { clk ^= 1; eval_(); });
+    document.getElementById("dl-d").addEventListener("click", () => { d ^= 1; eval_(); });
+    SB.seg("dl-auto", (v) => { auto = v === "auto"; });
+    DG.pointer(cv.canvas, {
+      down: (x, y) => { const p = hits.find((q) => near(x, y, q[0], q[1], 18)); if (p) { if (p[2] === "d") d ^= 1; else clk ^= 1; eval_(); } },
+      move: (x, y) => { cv.canvas.style.cursor = hits.some((q) => near(x, y, q[0], q[1], 18)) ? "pointer" : "default"; },
+    });
+    let acc = 0, acc2 = 0;
+    SB.loop(cv.canvas, (dt) => {
+      phase += dt; acc += dt; acc2 += dt;
+      if (auto && acc2 > 1.4) { acc2 = 0; clk ^= 1; eval_(); }
+      if (acc > 0.3) { acc = 0; hist.shift(); hist.push({ c: clk, d: d, q: X }); }
+      cv.redraw();
+    });
+    ui();
+  })();
+
+  /* ================================================================ 5. 마스터-슬레이브 시뮬레이터 */
+  (function () {
+    const NW = 64;
+    let src = "auto", running = true, cmp = "both", p = 0.15, speed = 10;
+    let t = 0, clk = 0, d = 0, m = null, q = null, ql = null, nff = 0, nl = 0, hist = [];
+    const rnd = SB.rng(8);
+    function push(edge) { hist.push({ c: clk, d: d, m: m, q: q, ql: ql, e: edge }); if (hist.length > NW) hist.shift(); }
+    function evalNow() {
+      const oq = q, oql = ql;
+      if (clk === 0) m = d;
+      if (clk === 1) { q = m; ql = d; }
+      if ((oq === 0 || oq === 1) && (q === 0 || q === 1) && oq !== q) nff++;
+      if ((oql === 0 || oql === 1) && (ql === 0 || ql === 1) && oql !== ql) nl++;
+    }
+    function step() {
+      t++;
+      const pc = clk;
+      if (src === "auto") { clk = t % 8 >= 4 ? 1 : 0; if (rnd() < p) d ^= 1; }
+      evalNow(); push(pc === 0 && clk === 1);
+    }
+    function clear() {
+      m = q = ql = null; nff = nl = 0; hist = [];
+      for (let i = 0; i < NW; i++) push(false);
+    }
+    // 처음: 미리 채운다
+    clear();
+    for (let i = 0; i < NW; i++) step();
+    function ui() {
+      SB.stat("ms-m", clk ? '<span class="warn-t">유지</span> ' + lvSpan(m) : '<span class="ok-t">투명</span> ' + lvSpan(m));
+      SB.stat("ms-s", clk ? '<span class="ok-t">투명</span> ' + lvSpan(q) : '<span class="warn-t">유지</span> ' + lvSpan(q));
+      SB.stat("ms-nff", String(nff)); SB.stat("ms-nl", cmp === "both" ? String(nl) : "—");
+      const rb = document.getElementById("ms-run"); rb.textContent = running ? "❚❚ 정지" : "▶ 실행";
+    }
+    function latchBox(ctx, x, y, w, h, title, transp, phaseLbl) {
+      ctx.save();
+      DG.roundRect(ctx, x, y, w, h, 8);
+      ctx.fillStyle = transp ? DG.alpha(P.ok, 0.13) : DG.alpha(P.warn, 0.12); ctx.fill();
+      ctx.strokeStyle = transp ? P.ok : P.warn; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.restore();
+      T(ctx, title, x + w / 2, y + h * 0.3, { size: 12, weight: 700, align: "center" });
+      T(ctx, transp ? "투명" : "유지", x + w / 2, y + h * 0.58, { size: 12, weight: 700, align: "center", color: transp ? P.ok : P.warn });
+      T(ctx, phaseLbl, x + w / 2, y + h * 0.82, { size: 10, mono: true, align: "center", color: P.dim });
+    }
+    const opts = {};
+    const cvEl = document.getElementById("cv-msff");
+    Object.defineProperty(opts, "height", { get: () => { const w = cvEl.parentElement.clientWidth || 600; return (w < 560 ? 150 : 140) + (cmp === "both" ? 70 : 0) + (cmp === "both" ? 5 : 4) * (w < 560 ? 34 : 38) + 20; } });
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      pal();
+      const narrow = w < 560, cmpOn = cmp === "both";
+      const sH = (narrow ? 150 : 140) + (cmpOn ? 70 : 0);
+      const y0 = 26, bh = 64, bw = Math.min(150, w * 0.24);
+      const xD = 22, xMa = w * 0.2, xSl = w * 0.58, xQ = w - 30;
+      T(ctx, "D 플립플롭 (상승 에지)", 10, 12, { size: 12, weight: 700, color: P.accent });
+      latchBox(ctx, xMa, y0, bw, bh, "마스터", clk === 0, "CLK=0 투명");
+      latchBox(ctx, xSl, y0, bw, bh, "슬레이브", clk === 1, "CLK=1 투명");
+      const ym = y0 + bh / 2;
+      DG.wire(ctx, [[xD + 9, ym], [xMa, ym]], d);
+      DG.wire(ctx, [[xMa + bw, ym], [xSl, ym]], m);
+      T(ctx, "M", (xMa + bw + xSl) / 2, ym - 11, { size: 12, mono: true, weight: 700, align: "center" });
+      DG.wire(ctx, [[xSl + bw, ym], [xQ - 9, ym]], q);
+      terminal(ctx, xD, ym, d, "", "l"); T(ctx, "D", xD, ym - 18, { size: 12, weight: 700, align: "center" });
+      terminal(ctx, xQ, ym, q, "", "r"); T(ctx, "Q", xQ, ym - 18, { size: 12, weight: 700, align: "center" });
+      const yc = y0 + bh + 22;
+      DG.wire(ctx, [[xD, yc], [xSl + bw / 2, yc], [xSl + bw / 2, y0 + bh]], clk);
+      DG.wire(ctx, [[xMa + bw / 2, yc], [xMa + bw / 2, y0 + bh + 7]], clk);
+      ctx.save(); ctx.strokeStyle = DG.lv(clk); ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(xMa + bw / 2, y0 + bh + 4, 3.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      T(ctx, "CLK = " + clk, xMa + bw + 10, yc + 11, { size: 11.5, mono: true, weight: 700, color: DG.lv(clk) });
+      if (cmpOn) {
+        const y2 = yc + 26, bh2 = 44;
+        T(ctx, "비교: D 래치 하나 (CLK=1 투명)", 10, y2 - 6, { size: 12, weight: 700, color: P.accent2 });
+        ctx.save(); DG.roundRect(ctx, xMa, y2 + 6, bw, bh2, 8); ctx.fillStyle = clk ? DG.alpha(P.ok, 0.13) : DG.alpha(P.warn, 0.12); ctx.fill(); ctx.strokeStyle = clk ? P.ok : P.warn; ctx.lineWidth = 1.6; ctx.stroke(); ctx.restore();
+        T(ctx, "래치 · " + (clk ? "투명" : "유지"), xMa + bw / 2, y2 + 6 + bh2 / 2, { size: 12, weight: 700, align: "center", color: clk ? P.ok : P.warn });
+        const yl = y2 + 6 + bh2 / 2;
+        DG.wire(ctx, [[xD + 30, ym], [xD + 30, yl], [xMa, yl]], d); DG.dot(ctx, xD + 30, ym, DG.lv(d));
+        DG.wire(ctx, [[xMa + bw, yl], [xQ - 9, yl]], ql);
+        terminal(ctx, xQ, yl, ql, "", "r"); T(ctx, "Q", xQ - 14, yl - 16, { size: 11, weight: 700, align: "right", color: P.accent2 });
+      }
+      const sig = [
+        { name: "CLK", type: "bit", v: hist.map((e) => e.c), color: P.dim },
+        { name: "D", type: "bit", v: hist.map((e) => e.d) },
+        { name: "M", type: "bit", v: hist.map((e) => e.m) },
+        { name: "Q(FF)", type: "bit", v: hist.map((e) => e.q), fill: true },
+      ];
+      if (cmpOn) sig.push({ name: "Q(래치)", type: "bit", v: hist.map((e) => e.ql), color: P.accent2 });
+      const marks = []; hist.forEach((e, i) => { if (e.e) marks.push({ c: i, color: P.faint, dash: [3, 3] }); });
+      DG.wave(ctx, { x: 8, y: sH, w: w - 16, h: h - sH - 6 }, { cycles: NW, nameW: narrow ? 58 : 72, gridStep: 8, signals: sig, marks: marks, cursor: NW - 1 });
+    }, opts);
+    const pget = SB.range("ms-p", (v) => Math.round(v * 100) + "%", (v) => { p = v; });
+    SB.range("ms-sp", (v) => v + " 칸/초", (v) => { speed = v; });
+    SB.seg("ms-src", (v) => { src = v; });
+    const srcSeg = document.getElementById("ms-src");
+    function setManual() { if (src !== "man") { src = "man"; srcSeg.querySelectorAll("button").forEach((b) => { const on = b.dataset.value === "man"; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }); } }
+    SB.seg("ms-cmp", (v) => { cmp = v; cv.resize(); ui(); });
+    document.getElementById("ms-clk").addEventListener("click", () => { setManual(); clk ^= 1; step(); ui(); cv.redraw(); });
+    document.getElementById("ms-d").addEventListener("click", () => { d ^= 1; if (!running || src === "man") step(); else evalNow(); ui(); cv.redraw(); });
+    document.getElementById("ms-run").addEventListener("click", () => { running = !running; ui(); });
+    document.getElementById("ms-step").addEventListener("click", () => { step(); ui(); cv.redraw(); });
+    document.getElementById("ms-clear").addEventListener("click", () => { clear(); ui(); cv.redraw(); });
+    let acc = 0;
+    SB.loop(cvEl, (dt) => {
+      if (!running) return;
+      acc += dt * speed;
+      if (acc >= 1) { while (acc >= 1) { acc -= 1; step(); } ui(); cv.redraw(); }
+    });
+    void pget;
+    ui();
+  })();
+
+  /* ================================================================ 6. setup/hold 곡선 */
+  (function () {
+    const TCQ0 = 18, D0 = 3, TM = 4, H0 = 0.5, SH = 1.0;
+    let mode = "setup", tv = 20, tau = 2.5, sweep = null, chartGeo = null;
+    const sig = (z) => 1 / (1 + Math.exp(-z));
+    const xOf = (v) => (mode === "setup" ? (v > D0 ? 1 - Math.exp(-(v - D0) / TM) : 0) : sig((v - H0) / SH));
+    const tcqOf = (x) => (x > 0.5 ? TCQ0 + tau * Math.log(0.5 / (x - 0.5)) : Infinity);
+    const range = () => (mode === "setup" ? [-4, 40] : [-4, 20]);
+    function defPoint() {
+      const xd = 0.5 + 0.5 * Math.exp((-0.1 * TCQ0) / tau);
+      return mode === "setup" ? D0 - TM * Math.log(1 - xd) : H0 + SH * Math.log(xd / (1 - xd));
+    }
+    const crit = () => (mode === "setup" ? D0 + TM * Math.LN2 : H0);
+    function ui() {
+      const x = xOf(tv), cq = tcqOf(x);
+      SB.stat("su-cq", isFinite(cq) ? (cq > 99 ? "&gt;99" : cq.toFixed(1)) + "<small>ps</small>" : "—");
+      SB.stat("su-dq", mode === "setup" && isFinite(cq) ? (cq + tv > 140 ? "&gt;140" : (cq + tv).toFixed(1)) + "<small>ps</small>" : "—");
+      SB.stat("su-x", (x * 100).toFixed(0) + "<small>% 새 값 쪽</small>");
+      const okv = isFinite(cq) && cq <= TCQ0 * 1.1;
+      SB.stat("su-res", !isFinite(cq) ? '<span class="bad-t">' + (mode === "setup" ? "새 값 놓침" : "잘못된 값") + "</span>" : okv ? '<span class="ok-t">정상</span>' : cq - TCQ0 > 5 * tau ? '<span class="bad-t">메타안정</span>' : '<span class="warn-t">느려짐</span>');
+      document.getElementById("su-def-k").textContent = (mode === "setup" ? "setup" : "hold") + " 시간 (10% 정의)";
+      SB.stat("su-def-v", defPoint().toFixed(1) + "<small>ps</small>");
+    }
+    const cvEl = document.getElementById("cv-setup");
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      pal();
+      const narrow = w < 560;
+      const wH = h * (narrow ? 0.44 : 0.46);
+      // ---------- 파형
+      const nameW = narrow ? 34 : 70, tx0 = 8 + nameW, tw = w - tx0 - 14;
+      const t0 = -30, t1 = 60, TX = (t) => tx0 + ((t - t0) / (t1 - t0)) * tw;
+      const x = xOf(tv), cq = tcqOf(x), dl = x - 0.5;
+      const lanes = [
+        ["CLK", P.dim, (t) => sig(t / 0.8)],
+        ["D", P.text, mode === "setup" ? (t) => sig((t + tv) / 0.9) : (t) => sig((t + 40) / 0.9) * (1 - sig((t - tv) / 0.9))],
+        ["X", P.accent, (t) => {
+          if (t < 0) { if (mode === "setup") return t + tv > D0 ? 1 - Math.exp(-(t + tv - D0) / TM) : 0; return 1; }
+          const base = SB.clamp(0.5 + dl * Math.exp(t / tau), 0, 1);
+          return mode === "hold" && t < 1.5 ? SB.lerp(1, base, t / 1.5) : base;
+        }],
+        ["Q", P.ok, (t) => (isFinite(cq) ? sig((t - cq) / 1.0) : 0)],
+      ];
+      const lh = (wH - 26) / lanes.length;
+      ctx.strokeStyle = P.grid; ctx.lineWidth = 1;
+      for (let tt = -30; tt <= 60; tt += 10) { ctx.beginPath(); ctx.moveTo(TX(tt), 6); ctx.lineTo(TX(tt), wH - 18); ctx.stroke(); T(ctx, String(tt), TX(tt), wH - 9, { size: 10, mono: true, align: "center", color: P.faint }); }
+      T(ctx, "t (ps)", 10, wH - 9, { size: 10, color: P.faint });
+      lanes.forEach(([nm, col, f], i) => {
+        const top = 8 + i * lh + lh * 0.15, bot = 8 + (i + 1) * lh - lh * 0.15;
+        T(ctx, nm, 10, (top + bot) / 2, { size: 12, mono: true, weight: 700, color: P.dim });
+        if (nm === "X") { ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = P.faint; ctx.beginPath(); ctx.moveTo(tx0, (top + bot) / 2); ctx.lineTo(tx0 + tw, (top + bot) / 2); ctx.stroke(); ctx.restore(); }
+        ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+        for (let k = 0; k <= 300; k++) { const tt = t0 + ((t1 - t0) * k) / 300, v = f(tt), py = bot - SB.clamp(v, 0, 1) * (bot - top); k ? ctx.lineTo(TX(tt), py) : ctx.moveTo(TX(tt), py); }
+        ctx.stroke();
+      });
+      ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = P.accent2; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(TX(0), 4); ctx.lineTo(TX(0), wH - 18); ctx.stroke();
+      if (isFinite(cq) && cq < 60) { ctx.strokeStyle = P.ok; ctx.beginPath(); ctx.moveTo(TX(cq), 4); ctx.lineTo(TX(cq), wH - 18); ctx.stroke(); }
+      ctx.restore();
+      T(ctx, "에지", TX(0) + 3, 6, { size: 10.5, color: P.accent2, base: "top", weight: 700 });
+      if (isFinite(cq) && cq < 60) T(ctx, "Q 천이", TX(cq) + 3, 6, { size: 10.5, color: P.ok, base: "top", weight: 700 });
+      // ---------- 곡선
+      const [a, b] = range();
+      const B = { x: 54, y: wH + 14, w: w - 54 - 16, h: h - wH - 14 - 50 };
+      const s1 = [], s2 = [];
+      for (let k = 0; k <= 600; k++) {
+        const v = a + ((b - a) * k) / 600, c = tcqOf(xOf(v));
+        if (isFinite(c)) { s1.push([v, Math.min(c, 400)]); if (mode === "setup") s2.push([v, Math.min(c + v, 400)]); }
+      }
+      let best = null; s2.forEach((pt) => { if (!best || pt[1] < best[1]) best = pt; });
+      const dp = defPoint();
+      const ch = SB.chart(ctx, B, {
+        x: [a, b], y: [0, 80], xLabel: mode === "setup" ? "D 천이 → 클럭 에지 간격 t_DC (ps)" : "클럭 에지 → D 재천이 간격 (ps)",
+        series: [{ data: s1, color: P.accent, width: 2.4 }].concat(mode === "setup" ? [{ data: s2, color: P.accent2, width: 2, dash: [6, 4] }] : []),
+        bands: [{ x0: a, x1: crit(), color: DG.alpha(P.bad, 0.13) }],
+        hlines: [{ y: TCQ0 * 1.1, color: P.faint, label: "공칭 clk→Q +10%" }],
+        vlines: [{ x: dp, color: P.ok, label: mode === "setup" ? "setup" : "hold" }],
+        points: [{ x: tv, y: isFinite(cq) ? Math.min(cq, 80) : 0, color: isFinite(cq) ? P.accent : P.bad, r: 6 }].concat(best ? [{ x: best[0], y: best[1], color: P.accent2, r: 4, label: narrow ? "최소" : "D→Q 최소" }] : []),
+      });
+      chartGeo = { B: B, a: a, b: b };
+      T(ctx, "지연 (ps)", B.x + 6, B.y + 8, { size: 11, color: P.dim, weight: 700 });
+      T(ctx, "— clk→Q", B.x + B.w - 6, B.y + 22, { size: 11, color: P.accent, align: "right", weight: 700 });
+      if (mode === "setup") T(ctx, "- - D→Q", B.x + B.w - 6, B.y + 38, { size: 11, color: P.accent2, align: "right", weight: 700 });
+      T(ctx, "실패", ch.X(a) + 4, B.y + B.h - 10, { size: 11, color: P.bad, weight: 700 });
+    }, aopt("#cv-setup", 0.72, 1.55, 560, { minHeight: 420, maxHeight: 720 }));
+    const tget = SB.range("su-t", (v) => v.toFixed(1) + " ps", (v) => { tv = v; sweep = null; ui(); cv.redraw(); });
+    SB.range("su-tau", (v) => v.toFixed(1) + " ps", (v) => { tau = v; ui(); cv.redraw(); });
+    function setT(v) { const [a, b] = range(); tv = SB.clamp(v, a, b); tget.el.value = tv; tget.el.style.setProperty("--fill", ((tv - a) / (b - a)) * 100 + "%"); document.getElementById("su-t-out").textContent = tv.toFixed(1) + " ps"; ui(); cv.redraw(); }
+    SB.seg("su-mode", (v) => {
+      mode = v; sweep = null;
+      const [a, b] = range(); tget.el.min = a; tget.el.max = b;
+      document.getElementById("su-t-name").textContent = v === "setup" ? "에지 전 D 천이 시각 t_DC" : "에지 뒤 D 재천이 시각 t_CD";
+      setT(v === "setup" ? 20 : 10);
+    });
+    document.getElementById("su-def").addEventListener("click", () => { sweep = null; setT(defPoint()); });
+    document.getElementById("su-sweep").addEventListener("click", () => { sweep = range()[1]; });
+    let drag = false;
+    function fromX(x) { if (!chartGeo) return; const { B, a, b } = chartGeo; sweep = null; setT(a + ((x - B.x) / B.w) * (b - a)); }
+    DG.pointer(cvEl, {
+      down: (x, y) => { if (chartGeo && y >= chartGeo.B.y && y <= chartGeo.B.y + chartGeo.B.h + 20 && x >= chartGeo.B.x - 6) { drag = true; fromX(x); } },
+      move: (x, y, dn) => { if (dn && drag) fromX(x); },
+      up: () => { drag = false; },
+    }, { drag: true });
+    SB.loop(cvEl, (dt) => {
+      if (sweep == null) return;
+      const [a] = range(); sweep -= dt * 9;
+      if (sweep <= a) { setT(a); sweep = null; return; }
+      setT(sweep);
+    });
+    ui();
+  })();
+
+  /* ================================================================ 7. 결정 시간 분포 */
+  (function () {
+    const N = 20000;
+    let tau = 2.5, tr = 15, U = new Float64Array(N), anim = 0;
+    function regen() { for (let i = 0; i < N; i++) U[i] = Math.random() || 1e-9; }
+    regen();
+    const traces = []; for (let k = 0; k < 40; k++) traces.push((k % 2 ? 1 : -1) * 0.5 * Math.exp(-k * 0.33 - 0.15 * Math.random()));
+    function ui() {
+      let c = 0; for (let i = 0; i < N; i++) if (tau * Math.log(1 / U[i]) > tr) c++;
+      const th = Math.exp(-tr / tau);
+      SB.stat("mt-sim", c ? SB.fmt((c / N) * 100, 3) + "<small>%</small>" : "0 <small>(표본 부족)</small>");
+      SB.stat("mt-th", SB.fmt(th * 100, 3) + "<small>%</small>");
+      SB.stat("mt-gain", "1/e ≈ <small>2.7배 감소</small>");
+    }
+    const cv = SB.canvas("#cv-meta", (ctx, w, h) => {
+      pal();
+      const narrow = w < 560;
+      const A = narrow ? { x: 46, y: 22, w: w - 46 - 14, h: h * 0.5 - 60 } : { x: 46, y: 22, w: w * 0.5 - 46 - 18, h: h - 22 - 48 };
+      const B = narrow ? { x: 54, y: h * 0.5 + 18, w: w - 54 - 14, h: h * 0.5 - 18 - 48 } : { x: w * 0.5 + 54, y: 22, w: w * 0.5 - 54 - 14, h: h - 22 - 48 };
+      const tmax = 60, tn = Math.min(tmax, anim);
+      const ca = SB.chart(ctx, A, { x: [0, tmax], y: [0, 1], xLabel: "에지 뒤 시간 (ps)", yTicks: [0, 0.5, 1], yFmt: (v) => (v === 0.5 ? "V_M" : v ? "1" : "0"), vlines: [{ x: tr, color: P.accent2, label: "t_r" }], hlines: [{ y: 0.5, color: P.faint }] });
+      T(ctx, "고리 전압 궤적", A.x + 6, A.y - 10, { size: 11.5, weight: 700, color: P.dim });
+      ctx.save(); ctx.beginPath(); ctx.rect(A.x, A.y - 2, A.w, A.h + 4); ctx.clip();
+      traces.forEach((d0) => {
+        const res = tau * Math.log(0.5 / Math.abs(d0));
+        ctx.strokeStyle = DG.alpha(res > tr ? P.bad : d0 > 0 ? P.hi : P.lo, 0.85); ctx.lineWidth = 1.3; ctx.beginPath();
+        for (let k = 0; k <= 120; k++) { const t = (tn * k) / 120, v = SB.clamp(0.5 + d0 * Math.exp(t / tau), 0, 1); k ? ctx.lineTo(ca.X(t), ca.Y(v)) : ctx.moveTo(ca.X(t), ca.Y(v)); }
+        ctx.stroke();
+      });
+      ctx.restore();
+      // 생존 곡선
+      const ts = [], sim = [], th = [];
+      const res = new Float64Array(N); for (let i = 0; i < N; i++) res[i] = tau * Math.log(1 / U[i]);
+      res.sort();
+      for (let t = 0; t <= tmax; t += 0.5) {
+        let lo = 0, hi = N; while (lo < hi) { const m = (lo + hi) >> 1; if (res[m] <= t) lo = m + 1; else hi = m; }
+        const f = (N - lo) / N; if (f > 0) sim.push([t, f]); th.push([t, Math.exp(-t / tau)]); ts.push(t);
+      }
+      SB.chart(ctx, B, {
+        x: [0, tmax], y: [1e-5, 1], logY: true, xLabel: "기다린 시간 t_r (ps)",
+        yFmt: (v) => (v >= 1 ? "1" : "1e" + Math.round(Math.log10(v))),
+        series: [{ data: th, color: P.faint, width: 1.6, dash: [5, 4] }, { data: sim, color: P.accent, width: 2.4 }],
+        vlines: [{ x: tr, color: P.accent2 }],
+        points: [{ x: tr, y: Math.max(1e-5, Math.exp(-tr / tau)), color: P.accent2, r: 5 }],
+      });
+      T(ctx, "아직 미결정인 비율 (로그)", B.x + 6, B.y - 10, { size: 11.5, weight: 700, color: P.dim });
+    }, aopt("#cv-meta", 0.46, 1.3, 560, { minHeight: 280, maxHeight: 640 }));
+    SB.range("mt-tau", (v) => v.toFixed(1) + " ps", (v) => { tau = v; anim = 0; ui(); cv.redraw(); });
+    SB.range("mt-tr", (v) => v.toFixed(1) + " ps", (v) => { tr = v; ui(); cv.redraw(); });
+    document.getElementById("mt-new").addEventListener("click", () => { regen(); anim = 0; ui(); cv.redraw(); });
+    SB.loop(cv.canvas, (dt) => { if (anim < 75) { anim += dt * 25; cv.redraw(); } else if ((anim += dt * 25) > 100) anim = 0; });
+    ui();
+  })();
+
+  /* ================================================================ 8. MTBF */
+  (function () {
+    const T0 = 5e-12, OV = 26, LOG_E = Math.LOG10E;
+    let n = 1, f = 2, dexp = 8, tau = 10, slack = 10;
+    const UNIV = Math.log10(4.35e17);
+    function trOf(nn, ff) { const Tp = 1000 / ff; return (slack / 100) * Tp + (nn - 1) * Math.max(0, Tp - OV); }
+    function logM(nn, ff) { return (trOf(nn, ff) / tau) * LOG_E - Math.log10(T0 * ff * 1e9 * Math.pow(10, dexp)); }
+    function human(L) {
+      if (L > UNIV) return "우주 나이의 10<sup>" + (L - UNIV).toFixed(0) + "</sup>배";
+      const s = Math.pow(10, L);
+      if (s < 1) return SB.si(s, "s");
+      if (s < 3600) return s.toFixed(0) + "<small>초</small>";
+      if (s < 86400 * 2) return (s / 3600).toFixed(1) + "<small>시간</small>";
+      if (s < 3.156e7) return (s / 86400).toFixed(0) + "<small>일</small>";
+      const y = s / 3.156e7;
+      return (y < 1e4 ? SB.fmt(y, 3) : y.toExponential(1).replace("e+", "e")) + "<small>년</small>";
+    }
+    function ui() {
+      const L = logM(n, f);
+      SB.stat("mb-tr", trOf(n, f).toFixed(0) + "<small>ps</small>");
+      SB.stat("mb-mtbf", "10<sup>" + L.toFixed(1) + "</sup><small>s</small>");
+      SB.stat("mb-cmp", human(L));
+    }
+    const cv = SB.canvas("#cv-mtbf", (ctx, w, h) => {
+      pal();
+      const narrow = w < 560;
+      const B = { x: 52, y: 14, w: w - 52 - (narrow ? 12 : 80), h: h - 14 - 50 };
+      const series = [];
+      for (let k = 1; k <= 4; k++) {
+        const data = []; for (let ff = 0.2; ff <= 5.0001; ff += 0.05) data.push([ff, SB.clamp(logM(k, ff), -12, 50)]);
+        series.push({ data: data, color: k === n ? P.accent : DG.alpha(P.dim, 0.45), width: k === n ? 2.8 : 1.4 });
+      }
+      const refs = [[0, "1초"], [Math.log10(86400), "1일"], [Math.log10(3.156e7), "1년"], [Math.log10(3.156e8), "10년"], [UNIV, "우주 나이"]];
+      const ch = SB.chart(ctx, B, {
+        x: [0.2, 5], y: [-10, 40], xLabel: "클럭 주파수 f_clk (GHz)", yTicks: [-10, 0, 10, 20, 30, 40], yFmt: (v) => "1e" + v,
+        series: series,
+        hlines: refs.map(([y]) => ({ y: y, color: y === UNIV ? P.accent2 : P.faint })),
+        points: [{ x: f, y: SB.clamp(logM(n, f), -10, 40), color: P.accent, r: 6 }],
+      });
+      refs.forEach(([y, lbl], i) => {
+        if (narrow) { if (i === 1 || i === 3) return; T(ctx, lbl, B.x + B.w - 4, ch.Y(y) - 7, { size: 10.5, align: "right", color: y === UNIV ? P.accent2 : P.dim }); }
+        else T(ctx, lbl, B.x + B.w + 6, ch.Y(y) + (i === 2 ? 7 : i === 3 ? -7 : 0), { size: 11, color: y === UNIV ? P.accent2 : P.dim });
+      });
+      for (let k = 1; k <= 4; k++) { const v = logM(k, 0.6); if (v < 38 && v > -9) T(ctx, k + "단", ch.X(0.6), ch.Y(v) - 9, { size: 11, weight: 700, color: k === n ? P.accent : P.dim, align: "center" }); }
+      T(ctx, "MTBF (초, 로그)", B.x + 6, B.y + 8, { size: 11, color: P.dim, weight: 700 });
+    }, aopt("#cv-mtbf", 0.5, 1.0, 560, { minHeight: 280, maxHeight: 460 }));
+    const re = () => { ui(); cv.redraw(); };
+    SB.range("mb-n", (v) => v + "단", (v) => { n = v; re(); });
+    SB.range("mb-f", (v) => v.toFixed(2) + " GHz", (v) => { f = v; re(); });
+    SB.range("mb-d", (v) => SB.si(Math.pow(10, v), "Hz", 2), (v) => { dexp = v; re(); });
+    SB.range("mb-tau", (v) => v.toFixed(1) + " ps", (v) => { tau = v; re(); });
+    SB.range("mb-s", (v) => v + "%", (v) => { slack = v; re(); });
+    ui();
+  })();
+
+  /* ================================================================ 9. FF 변종 */
+  (function () {
+    const NC = 24;
+    let type = "base";
+    const rnd = SB.rng(21);
+    const S = { D: [], RST: [], EN: [], SE: [], SI: [] };
+    function defaults() {
+      const dpat = [0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0];
+      const sip = [1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1];
+      for (let c = 0; c < NC; c++) {
+        S.D[c] = dpat[c]; S.SI[c] = sip[c];
+        S.RST[c] = c === 2 || c === 3 || c === 14 || c === 15 ? 1 : 0;
+        S.EN[c] = c >= 8 && c <= 15 ? 0 : 1;
+        S.SE[c] = c >= 12 && c <= 19 ? 1 : 0;
+      }
+    }
+    defaults();
+    const rows = () => ({ base: ["D"], srst: ["D", "RST"], arst: ["D", "RST"], en: ["D", "EN"], scan: ["D", "SE", "SI"] }[type]);
+    function computeQ() {
+      const Q = []; let q = null;
+      for (let c = 0; c < NC; c++) {
+        if (type === "arst" && S.RST[c] === 1) q = 0;
+        else if (c % 2 === 1) {
+          const p = c - 1;
+          if (type === "srst") q = S.RST[p] ? 0 : S.D[p];
+          else if (type === "en") q = S.EN[p] ? S.D[p] : q;
+          else if (type === "scan") q = S.SE[p] ? S.SI[p] : S.D[p];
+          else q = S.D[p];
+        }
+        Q.push(q);
+      }
+      return Q;
+    }
+    let wgeo = null;
+    const cvEl = document.getElementById("cv-variants");
+    const opts = {};
+    Object.defineProperty(opts, "height", { get: () => 150 + (rows().length + 2) * 34 + 12 });
+    function mux(ctx, x, y, w, h, sel) {
+      ctx.save(); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y + h * 0.2); ctx.lineTo(x + w, y + h * 0.8); ctx.lineTo(x, y + h); ctx.closePath();
+      ctx.fillStyle = SB.color("bg-elev"); ctx.fill(); ctx.strokeStyle = P.text; ctx.lineWidth = 1.8; ctx.stroke(); ctx.restore();
+      T(ctx, "0", x + 5, y + h * 0.27, { size: 10, mono: true, color: P.dim }); T(ctx, "1", x + 5, y + h * 0.73, { size: 10, mono: true, color: P.dim });
+      T(ctx, sel, x + w / 2, y + h + 12, { size: 11, mono: true, weight: 700, align: "center", color: P.accent2 });
+    }
+    const cv = SB.canvas(cvEl, (ctx, w, h) => {
+      pal();
+      const Q = computeQ(), last = Q[NC - 1];
+      const fx = w * 0.56, fw = Math.min(110, w * 0.24), fy = 22, fh = 92, dy = fy + 30, qy = fy + 30;
+      // FF 상자
+      ctx.save(); DG.roundRect(ctx, fx, fy, fw, fh, 6); ctx.fillStyle = SB.color("bg-elev"); ctx.fill(); ctx.strokeStyle = P.text; ctx.lineWidth = 1.8; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(fx, fy + fh - 26); ctx.lineTo(fx + 10, fy + fh - 20); ctx.lineTo(fx, fy + fh - 14); ctx.stroke(); ctx.restore();
+      T(ctx, "D", fx + 6, dy, { size: 11, mono: true, weight: 700 }); T(ctx, "Q", fx + fw - 6, qy, { size: 11, mono: true, weight: 700, align: "right" });
+      T(ctx, "DFF", fx + fw / 2, fy + fh / 2 + 4, { size: 13, weight: 700, align: "center", color: P.dim });
+      DG.wire(ctx, [[fx - 40, fy + fh - 20], [fx, fy + fh - 20]], 0); T(ctx, "CLK", fx - 44, fy + fh - 20, { size: 11, mono: true, align: "right", color: P.dim });
+      DG.wire(ctx, [[fx + fw, qy], [w - 30, qy]], bitv(last)); T(ctx, "Q", w - 24, qy, { size: 12, weight: 700 });
+      const left = 14;
+      if (type === "base") { DG.wire(ctx, [[left + 22, dy], [fx, dy]], S.D[NC - 1]); T(ctx, "D", left, dy, { size: 12, weight: 700 }); }
+      else if (type === "srst") {
+        const gx = fx - 90; const g = DG.gate(ctx, "AND", gx, dy - 22, 70, 40, {});
+        DG.wire(ctx, [[left + 22, g.inputs[0][1]], g.inputs[0]], S.D[NC - 1]); T(ctx, "D", left, g.inputs[0][1], { size: 12, weight: 700 });
+        DG.wire(ctx, [[left + 34, g.inputs[1][1]], [g.inputs[1][0] - 7, g.inputs[1][1]]], S.RST[NC - 1]); T(ctx, "RST", left, g.inputs[1][1], { size: 12, weight: 700, color: P.accent2 });
+        ctx.save(); ctx.strokeStyle = P.text; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(g.inputs[1][0] - 3.5, g.inputs[1][1], 3.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+        DG.wire(ctx, [g.output, [fx, dy]], S.D[NC - 1] & (1 - S.RST[NC - 1]));
+        T(ctx, "D·RST̄", (g.output[0] + fx) / 2, dy - 10, { size: 10, mono: true, align: "center", color: P.dim });
+      } else if (type === "arst") {
+        DG.wire(ctx, [[left + 22, dy], [fx, dy]], S.D[NC - 1]); T(ctx, "D", left, dy, { size: 12, weight: 700 });
+        DG.wire(ctx, [[left + 34, fy + fh + 18], [fx + fw / 2, fy + fh + 18], [fx + fw / 2, fy + fh]], S.RST[NC - 1]);
+        T(ctx, "RST", left, fy + fh + 18, { size: 12, weight: 700, color: P.accent2 });
+        T(ctx, "즉시 Q←0", fx + fw / 2 + 6, fy + fh + 8, { size: 10.5, color: P.accent2 });
+      } else {
+        const mx = fx - 60, mw = 28, mh = 56, my = dy - mh * 0.27;
+        mux(ctx, mx, my, mw, mh, type === "en" ? "EN" : "SE");
+        DG.wire(ctx, [[mx + mw, dy], [fx, dy]], type === "en" ? (S.EN[NC - 1] ? S.D[NC - 1] : bitv(last)) : (S.SE[NC - 1] ? S.SI[NC - 1] : S.D[NC - 1]));
+        const y0 = my + mh * 0.27, y1 = my + mh * 0.73;
+        if (type === "en") {
+          DG.wire(ctx, [[fx + fw + 14, qy], [fx + fw + 14, fy - 8], [mx - 16, fy - 8], [mx - 16, y0], [mx, y0]], bitv(last)); DG.dot(ctx, fx + fw + 14, qy, DG.lv(bitv(last)));
+          DG.wire(ctx, [[left + 22, y1], [mx, y1]], S.D[NC - 1]); T(ctx, "D", left, y1, { size: 12, weight: 700 });
+          T(ctx, "EN=0 → Q 유지", mx - 12, fy + 2, { size: 10.5, color: P.dim, align: "right" });
+        } else {
+          DG.wire(ctx, [[left + 22, y0], [mx, y0]], S.D[NC - 1]); T(ctx, "D", left, y0, { size: 12, weight: 700 });
+          DG.wire(ctx, [[left + 22, y1], [mx, y1]], S.SI[NC - 1]); T(ctx, "SI", left, y1, { size: 12, weight: 700, color: P.accent2 });
+        }
+      }
+      // 파형
+      const rs = rows(), sig = [{ name: "CLK", type: "bit", v: Array.from({ length: NC }, (_, c) => c % 2), color: P.dim }];
+      rs.forEach((r) => sig.push({ name: r + " ✎", type: "bit", v: S[r].slice(), color: r === "D" || r === "SI" ? undefined : P.accent2 }));
+      sig.push({ name: "Q", type: "bit", v: Q, fill: true });
+      const box = { x: 8, y: 150, w: w - 16, h: h - 150 - 8 };
+      const g = DG.wave(ctx, box, { cycles: NC, nameW: 56, signals: sig, gridStep: 2 });
+      wgeo = { g: g, rs: rs };
+    }, opts);
+    SB.seg("vr-type", (v) => { type = v; cv.resize(); });
+    document.getElementById("vr-rand").addEventListener("click", () => { Object.keys(S).forEach((k) => { for (let c = 0; c < NC; c++) S[k][c] = rnd() < (k === "RST" ? 0.12 : k === "EN" ? 0.7 : k === "SE" ? 0.3 : 0.5) ? 1 : 0; }); cv.redraw(); });
+    document.getElementById("vr-zero").addEventListener("click", () => { Object.keys(S).forEach((k) => S[k].fill(k === "EN" ? 1 : 0)); cv.redraw(); });
+    function hit(x, y) {
+      if (!wgeo) return null;
+      const { g, rs } = wgeo, c = Math.floor(g.colAt(x));
+      if (c < 0 || c >= NC) return null;
+      for (let i = 0; i < rs.length; i++) { const [a, b] = g.rowY(i + 1); if (y >= a && y < b) return [rs[i], c]; }
+      return null;
+    }
+    DG.pointer(cvEl, {
+      down: (x, y) => { const r = hit(x, y); if (r) { S[r[0]][r[1]] ^= 1; cv.redraw(); } },
+      move: (x, y) => { cvEl.style.cursor = hit(x, y) ? "pointer" : "default"; },
+    });
+  })();
+})();
+</script>
 </body>
 </html>

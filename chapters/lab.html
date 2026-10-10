@@ -240,6 +240,15 @@
       </div>
       <figcaption><span class="try">해 보기</span>게이트 하나가 자기와 같은 게이트 h개를 구동할 때의 지연. 회색 막대는 기생 지연 \(p\tau\), 파란 막대는 부하 몫 \(g h \tau\)이다. NOR2는 pMOS가 직렬이라 g가 NAND2보다 크다(<a href="gates.html">5장</a>). XOR2는 g = 4라서 XOR이 XOR을 구동하는 사슬은 금방 느려진다.</figcaption>
     </figure>
+    <p>같은 기능도 어떤 게이트로 짓느냐에 따라 값이 달라진다. 도전 과제 1번의 주제인 XOR을 세 가지로 지어 비교해 보자. 표준 셀 라이브러리가 XOR을 따로 두는 이유가 여기 있다.</p>
+    <figure class="play" id="fig-impl">
+      <div class="play-view"><canvas id="cv-impl"></canvas></div>
+      <div class="play-ctrl">
+        <div class="seg" id="im-k"><button data-value="0" class="on">CMOS XOR2</button><button data-value="1">NAND2 ×4</button><button data-value="2">AND·OR·NOT</button></div>
+        <label class="ctrl"><span>출력 부하 (C<sub>inv</sub> 배수) <output id="im-h-out"></output></span><input type="range" id="im-h" min="1" max="8" step="1" value="4"></label>
+      </div>
+      <figcaption><span class="try">해 보기</span>위는 고른 구현의 회로, 아래는 세 구현의 트랜지스터 수와 가장 긴 경로의 지연이다. 전용 XOR 셀은 한 단이라 빠르고 작다. NAND 네 개짜리는 첫 NAND가 두 게이트를 구동한 뒤 두 단을 더 지나므로 세 단이다. AND·OR·NOT 구현은 인버터 두 개까지 더해 가장 크다. 부하가 커지면 마지막 단의 몫만 늘어나므로 차이는 고정된 기생 지연에서 온다.</figcaption>
+    </figure>
     <p>회로 전체의 속도는 가장 느린 길, <span class="term">임계 경로</span><span class="en">(Critical path)</span>가 정한다. 실험실은 입력 스위치와 플립플롭 출력에서 출발해 LED와 플립플롭 D 입력에 도착하는 모든 경로의 도착 시각을 계산하고(<a href="timing.html#sta">10장</a>의 정적 타이밍 분석과 같다), 가장 늦은 경로를 캔버스에 주황색으로 칠한다. 아래 그림은 그 경로를 게이트 단위로 펼친 것이다.</p>
     <figure class="play" id="fig-path">
       <div class="play-view"><canvas id="cv-path"></canvas></div>
@@ -250,7 +259,7 @@
       <figcaption><span class="try">해 보기</span>실험실에 놓인 회로의 임계 경로를 단(stage)별로 쌓은 막대. 각 칸의 연한 부분은 기생 지연, 진한 부분은 부하 지연이다. "4비트 리플 덧셈기"를 불러오면 캐리가 단마다 AND→OR 두 게이트씩 건너는 모습이, "2비트 카운터"에서는 clk→Q, XOR, setup이 차례로 쌓이는 모습이 보인다. 지연 모델을 "모두 1 FO4"로 바꾸면 막대 칸이 모두 같아진다.</figcaption>
     </figure>
     <div class="predict"><strong>카운터의 클럭 주기를 임계 경로보다 짧게 하면?</strong>
-      <p>"2비트 카운터"를 불러와 실행 중에 클럭 주기를 20 ps까지 줄여 보기 전에 예상하자. 실험실이 계산한 최소 주기는 약 45 ps다.</p>
+      <p>"2비트 카운터"를 불러와 실행 중에 클럭 주기를 20 ps까지 줄여 보기 전에 예상하자. 실험실이 계산한 최소 주기는 약 43 ps다.</p>
       <details><summary>답 보기</summary><p>카운터가 엉뚱하게 센다. 상승 에지 순간 플립플롭은 D에 걸려 있는 값을 잡는데, XOR이 새 값을 다 계산하기 전이라 <strong>지난 값</strong>을 잡는다. 이것이 setup 위반이다(<a href="timing.html#setup">10장</a>). 실제 플립플롭은 여기서 메타안정 상태에 빠질 수도 있지만 실험실은 그냥 이전 값을 잡는다. 경고창에도 "setup 위반"이 뜬다.</p></details>
     </div>
   </section>
@@ -903,7 +912,7 @@
     if (Date.now() - msgT < 2500 && msgText) t = msgText;
     else if (pending) t = "연결할 다른 핀을 누르자 (Esc 취소)";
     else if (!parts.length) t = "팔레트에서 부품을 골라 놓자";
-    else t = "핀을 끌어 배선 · 스위치를 눌러 토글 · 빈 곳을 끌어 이동";
+    else t = cvLab && cvLab.w < 480 ? "핀→핀 배선 · 스위치 탭 · 빈 곳 끌기" : "핀을 끌어 배선 · 스위치를 눌러 토글 · 빈 곳을 끌어 이동";
     hintEl.textContent = t;
   }
 
@@ -1306,7 +1315,6 @@
     if (S.running) setRun(false);
     if (S.clkNext < S.now) S.clkNext = S.now + period * 0.1;
     advance(period);
-    if (S.heap.a.length) { var ok = runTo(S.now + 10 * period, 4000); S.osc = !ok || S.heap.a.length > 0; S.now = Math.max(S.now, S.lastEv); }
     refreshState();
   });
   on("lab-reset", function () {
@@ -1497,7 +1505,7 @@
     if (!L.length || !NL || !NL.tr) { ctx.fillStyle = P.faint; ctx.font = SB.font(14); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("기록할 입력·출력이 없다. 실험실에 스위치나 LED를 놓자.", w / 2, h / 2); return; }
     var nameW = w < 480 ? 58 : 80, rowH = 26, box = { x: 8, y: 6, w: w - 16, h: L.length * rowH };
     var wsel = wvWin(), win = wsel === "z" ? 60 : Number(wsel) * period;
-    var tEnd = Math.max(S.now, S.lastEv), t0 = tEnd - win;
+    var tNow = Math.max(S.now, S.lastEv), t0 = Math.max(tNow - win, S.t0), tEnd = t0 + win;
     var Ns = SB.clamp(Math.floor((box.w - nameW) / 2), 40, 400), dt = win / Ns;
     var gridT = wsel === "z" ? 10 : wsel === "2" ? period / 2 : period;
     var signals = L.map(function (s) { return { name: s.name.length > 7 ? s.name.slice(0, 7) : s.name, type: "bit", v: sampleNet(s.net, t0, dt, Ns) }; });
@@ -1506,6 +1514,12 @@
       var xe = r.X(Math.min(Ns, (S.t0 - t0) / dt));
       ctx.fillStyle = DG.alpha(P.bg, 0.82); ctx.fillRect(box.x + nameW, box.y, xe - box.x - nameW, box.h);
       if (xe - box.x - nameW > 60) { ctx.fillStyle = P.faint; ctx.font = SB.font(12); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("기록 전", (box.x + nameW + xe) / 2, box.y + box.h / 2); }
+    }
+    if (tNow < tEnd - 1e-6) {
+      var xn = r.X((tNow - t0) / dt);
+      ctx.fillStyle = DG.alpha(P.bg, 0.7); ctx.fillRect(xn, box.y, box.x + box.w - xn, box.h);
+      ctx.strokeStyle = P.accent; ctx.setLineDash([3, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(xn, box.y); ctx.lineTo(xn, box.y + box.h); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = P.accent; ctx.font = SB.font(10.5, false, 700); ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("지금", xn + 3, box.y + 1);
     }
     // 시간 축
     ctx.fillStyle = P.dim; ctx.font = SB.font(10.5, true); ctx.textAlign = "center"; ctx.textBaseline = "top";
@@ -1623,10 +1637,10 @@
     var P = SB.palette(), t = gdT(), hh = gdH(), L = LIB[t], type = t.replace(/\d/, ""), n = t === "NOT" ? 1 : 2;
     var dP = TAU * L.p, dE = TAU * L.g * hh, d = dP + dE;
     SB.stat("gd-d", SB.fmt(d, 3) + " ps"); SB.stat("gd-f", SB.fmt(d / FO4, 2)); SB.stat("gd-n", String(L.tr));
-    var gw = Math.min(90, w * 0.2), gh = gw * 0.62, gx = w * 0.12, gy = 30;
+    var gw = Math.min(90, w * 0.2), gh = gw * 0.62, gx = w * 0.12, regT = 10, regB = h - 112, gy = (regT + regB) / 2 - gh / 2;
     var g = DG.gate(ctx, type, gx, gy, gw, gh, { n: n, outV: 1, inV: n === 1 ? [0] : [1, 1] });
     var ox = g.output[0], oy = g.output[1], lx = w * 0.62, lw = Math.min(46, w * 0.1), lh = lw * 0.62;
-    var span = Math.min(h - 120, hh * (lh + 4));
+    var span = Math.min(regB - regT - lh, (hh - 1) * (lh + 4));
     for (var i = 0; i < hh; i++) {
       var ly = oy - span / 2 + (hh === 1 ? span / 2 : i * span / (hh - 1)) - lh / 2;
       var gg = DG.gate(ctx, type, lx, ly, lw, lh, { n: n, inV: n === 1 ? [1] : [1, 1], lw: 1.3 });
@@ -1634,17 +1648,61 @@
       DG.wire(ctx, [[ox, oy], [(ox + lx) / 2, oy], [(ox + lx) / 2, ip[1]], ip], 1, 1.6);
     }
     ctx.fillStyle = P.dim; ctx.font = SB.font(12, true, 600); ctx.textAlign = "left"; ctx.textBaseline = "top";
-    ctx.fillText("부하 = h × g = " + hh + " × " + SB.fmt(L.g, 3) + " = " + SB.fmt(hh * L.g, 3) + " C_inv", 12, h - 82);
+    ctx.fillText("부하 = h × g = " + hh + " × " + SB.fmt(L.g, 3) + " = " + SB.fmt(hh * L.g, 3) + " C_inv", 12, h - 100);
     // 막대
     var bx = 12, bw = w - 24, by = h - 56, sc = bw / (TAU * (12 + 4 * 8)), barH = 20;
     ctx.fillStyle = DG.alpha(P.dim, 0.45); ctx.fillRect(bx, by, dP * sc, barH);
     ctx.fillStyle = P.accent; ctx.fillRect(bx + dP * sc, by, dE * sc, barH);
     ctx.strokeStyle = P.axis; ctx.lineWidth = 1;
     ctx.fillStyle = P.dim; ctx.font = SB.font(10.5, true); ctx.textAlign = "center"; ctx.textBaseline = "top";
-    for (var f = 0; f * FO4 <= TAU * 44 + 1e-6; f++) { var x = bx + f * FO4 * sc; ctx.beginPath(); ctx.moveTo(x, by + barH); ctx.lineTo(x, by + barH + 5); ctx.stroke(); if (w > 500 || f % 2 === 0) ctx.fillText(f + " FO4", x, by + barH + 7); }
+    for (var f = 0; f * FO4 <= TAU * 44 + 1e-6; f++) { var x = bx + f * FO4 * sc; ctx.beginPath(); ctx.moveTo(x, by + barH); ctx.lineTo(x, by + barH + 5); ctx.stroke(); if (w > 500 || f % 2 === 0) { ctx.textAlign = f ? "center" : "left"; ctx.fillText(f + " FO4", f ? x : bx, by + barH + 7); } }
     ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.font = SB.font(11.5, true, 700);
     ctx.fillText("p·τ " + SB.fmt(dP, 3) + " + g·h·τ " + SB.fmt(dE, 3) + " = " + SB.fmt(d, 3) + " ps", bx, by - 3);
   }, { aspect: 0.42, minHeight: 250, maxHeight: 320 });
+
+  /* ================================================================ 작은 그림: XOR 구현 비교 */
+  var IMPL = [
+    { nm: "CMOS XOR2", tr: 12, d: function (h) { return TAU * (4 + h); }, st: "XOR2 한 단" },
+    { nm: "NAND2 ×4", tr: 16, d: function (h) { return TAU * ((2 + 8 / 3) + (2 + 4 / 3) + (2 + h)); }, st: "NAND 세 단" },
+    { nm: "AND·OR·NOT", tr: 22, d: function (h) { return TAU * ((1 + 4 / 3) + (4 + 5 / 3) + (4 + h)); }, st: "NOT→AND→OR 세 단" },
+  ];
+  var imK = SB.seg("im-k", function () { imCv.redraw(); }), imH = SB.range("im-h", function (v) { return String(v); }, function () { imCv.redraw(); });
+  var imCv = SB.canvas(document.getElementById("cv-impl"), function (ctx, w, h) {
+    var P = SB.palette(), k = Number(imK()), hh = imH(), top = 14, sh = h - 128;
+    var u = Math.min((w - 40) / 13, sh / 6.2, 30), ox = (w - 13 * u) / 2, oy = top;
+    var gt = function (t, x, y, n) { var bh = n === 1 ? 1.6 * u : 2 / 0.62 * u; return DG.gate(ctx, t, ox + x * u, oy + (n === 1 ? y - 0.8 : y + 1 - bh / u / 2) * u, (n === 1 ? 2 : 3) * u, bh, { n: n, lw: 1.5 }); };
+    var wr = function (pts) { DG.wire(ctx, pts.map(function (q) { return [ox + q[0] * u, oy + q[1] * u]; }), null, 1.5); };
+    ctx.save(); ctx.strokeStyle = P.text;
+    var lab = function (t, x, y, al) { ctx.fillStyle = P.dim; ctx.font = SB.font(11, true, 700); ctx.textAlign = al || "right"; ctx.textBaseline = "middle"; ctx.fillText(t, ox + x * u, oy + y * u); };
+    var wl = function (pts) { ctx.strokeStyle = P.dim; ctx.lineWidth = 1.5; ctx.beginPath(); pts.forEach(function (q, i) { var X = ox + q[0] * u, Y = oy + q[1] * u; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.stroke(); };
+    if (k === 0) { gt("XOR", 5, 2, 2); wl([[1, 2], [5, 2]]); wl([[1, 4], [5, 4]]); wl([[8, 3], [11, 3]]); lab("A", 0.8, 2); lab("B", 0.8, 4); lab("Y", 11.2, 3, "left"); }
+    else if (k === 1) {
+      gt("NAND", 2.5, 2, 2); gt("NAND", 6.5, 0, 2); gt("NAND", 6.5, 4, 2); gt("NAND", 10, 2, 2);
+      wl([[0.6, 1.2], [1.5, 1.2], [1.5, 2], [2.5, 2]]); wl([[1.5, 1.2], [1.5, 0], [6.5, 0]]);
+      wl([[0.6, 4.8], [1.9, 4.8], [1.9, 4], [2.5, 4]]); wl([[1.9, 4.8], [1.9, 6], [6.5, 6]]);
+      wl([[5.5, 3], [6, 3], [6, 2], [6.5, 2]]); wl([[6, 3], [6, 4], [6.5, 4]]);
+      wl([[9.5, 1], [9.75, 1], [9.75, 2], [10, 2]]); wl([[9.5, 5], [9.75, 5], [9.75, 4], [10, 4]]);
+      lab("A", 0.5, 1.2); lab("B", 0.5, 4.8); lab("Y", 13.1, 3, "left");
+    } else {
+      gt("NOT", 2, 1, 1); gt("NOT", 2, 5, 1); gt("AND", 6, 0, 2); gt("AND", 6, 4, 2); gt("OR", 10, 2, 2);
+      wl([[0.6, 0], [6, 0]]); wl([[1.2, 0], [1.2, 1], [2, 1]]); wl([[4, 1], [4.5, 1], [4.5, 6], [6, 6]]);
+      wl([[0.6, 6.2], [1.4, 6.2], [1.4, 5], [2, 5]]); wl([[4, 5], [5, 5], [5, 2], [6, 2]]); wl([[1.4, 5], [1.4, 4], [6, 4]]);
+      wl([[9, 1], [9.5, 1], [9.5, 2], [10, 2]]); wl([[9, 5], [9.5, 5], [9.5, 4], [10, 4]]);
+      lab("A", 0.5, 0); lab("B", 0.5, 6.2); lab("Y", 13.1, 3, "left");
+    }
+    ctx.restore();
+    // 막대
+    var by = h - 108, maxD = TAU * 24, nameW = w < 480 ? 86 : 110, bw = (w - nameW - 24) / 2 - 8;
+    ctx.font = SB.font(11, true, 700); ctx.textBaseline = "middle";
+    ctx.fillStyle = P.dim; ctx.textAlign = "left"; ctx.fillText("트랜지스터", nameW + 4, by - 6); ctx.fillText("지연", nameW + bw + 20, by - 6);
+    IMPL.forEach(function (im, i) {
+      var y = by + 8 + i * 30, d = im.d(hh), c = i === k ? P.accent2 : DG.alpha(P.dim, 0.5);
+      ctx.fillStyle = i === k ? P.text : P.dim; ctx.textAlign = "right"; ctx.font = SB.font(11.5, false, i === k ? 700 : 500); ctx.fillText(im.nm, nameW - 4, y + 9);
+      ctx.fillStyle = c; ctx.fillRect(nameW + 4, y, bw * im.tr / 24, 18); ctx.fillRect(nameW + bw + 20, y, bw * d / maxD, 18);
+      ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.font = SB.font(10.5, true, 600);
+      ctx.fillText(String(im.tr), nameW + 8 + bw * im.tr / 24, y + 9); ctx.fillText(SB.fmt(d, 3) + " ps", nameW + bw + 24 + bw * d / maxD > w - 46 ? w - 50 : nameW + bw + 24 + bw * d / maxD, y + 9);
+    });
+  }, { aspect: 0.55, minHeight: 300, maxHeight: 400 });
 
   /* ================================================================ 작은 그림: X와 Z */
   var XZ = { a: 0, b: "x", s: 1 }, cyc = [0, 1, "x", "z"];
@@ -1714,6 +1772,7 @@
   xzUpd();
   refreshAll();
   fromHash();
+  if (/[?&]labdebug/.test(location.search)) window.__lab = { S: S, get NL() { return NL; }, get AN() { return AN; }, get parts() { return parts; }, toggle: function (lb) { var p = parts.filter(function (q) { return q.lb === lb; })[0]; if (p) toggleSw(p); }, grade: function () { return CHAL.map(grade); }, load: function (o) { loadObj(o, true); }, ex: EX, ser: ser };
   var acc = 0;
   SB.loop(simEl, function (dt) {
     if (!S.running || !NL) return;

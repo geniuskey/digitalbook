@@ -5,6 +5,30 @@
 <html lang="ko">
 <head>
 <!--head:start {"desc": "모든 레지스터가 같은 박자에 맞춰 움직인다는 약속을 지키는 법. setup·hold 조건, 정적 타이밍 분석의 도착·요구 시각과 여유, 클럭 스큐와 지터, 파이프라이닝·리타이밍·시간 빌림, 클럭 도메인 건너기까지 직접 만지며 익힌다."}-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>타이밍과 클럭 · DigitalBook</title>
+<meta name="description" content="모든 레지스터가 같은 박자에 맞춰 움직인다는 약속을 지키는 법. setup·hold 조건, 정적 타이밍 분석의 도착·요구 시각과 여유, 클럭 스큐와 지터, 파이프라이닝·리타이밍·시간 빌림, 클럭 도메인 건너기까지 직접 만지며 익힌다.">
+<link rel="canonical" href="https://digitalbook.euiyun.com/chapters/timing.html">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<meta name="theme-color" content="#1971c2">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="DigitalBook">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="타이밍과 클럭 · DigitalBook">
+<meta property="og:description" content="모든 레지스터가 같은 박자에 맞춰 움직인다는 약속을 지키는 법. setup·hold 조건, 정적 타이밍 분석의 도착·요구 시각과 여유, 클럭 스큐와 지터, 파이프라이닝·리타이밍·시간 빌림, 클럭 도메인 건너기까지 직접 만지며 익힌다.">
+<meta property="og:url" content="https://digitalbook.euiyun.com/chapters/timing.html">
+<meta property="og:image" content="https://digitalbook.euiyun.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Chapter","LearningResource"],"@id":"https://digitalbook.euiyun.com/chapters/timing.html#chapter","name":"타이밍과 클럭","headline":"타이밍과 클럭 · DigitalBook","description":"모든 레지스터가 같은 박자에 맞춰 움직인다는 약속을 지키는 법. setup·hold 조건, 정적 타이밍 분석의 도착·요구 시각과 여유, 클럭 스큐와 지터, 파이프라이닝·리타이밍·시간 빌림, 클럭 도메인 건너기까지 직접 만지며 익힌다.","url":"https://digitalbook.euiyun.com/chapters/timing.html","position":10,"inLanguage":"ko","isAccessibleForFree":true,"learningResourceType":"인터랙티브 교재","educationalLevel":"공대 학부","image":"https://digitalbook.euiyun.com/og.png","dateModified":"2026-10-10","isPartOf":{"@type":"Book","@id":"https://digitalbook.euiyun.com/#book","name":"DigitalBook · 디지털 회로 설계 교과서","url":"https://digitalbook.euiyun.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DigitalBook","item":"https://digitalbook.euiyun.com/"},{"@type":"ListItem","position":2,"name":"10. 타이밍과 클럭","item":"https://digitalbook.euiyun.com/chapters/timing.html"}]}]}</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/common.js"></script>
+<script src="../js/dig.js"></script>
 <!--head:end-->
 <style>
   .tm-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px 0; font-family: var(--mono); font-size: 12.5px; }
@@ -441,6 +465,815 @@
     </div>
   </section>
 </main>
-<!--SCRIPT-->
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  function tx(ctx, s, x, y, o) {
+    o = o || {};
+    ctx.font = SB.font(o.size || 12, o.mono, o.weight || 400);
+    ctx.fillStyle = o.color || SB.palette().text;
+    ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "middle";
+    ctx.fillText(s, x, y);
+  }
+  const r1 = (v) => (Math.round(v * 10) / 10).toString();
+  const slackHTML = (v) => !isFinite(v) ? "—" : `<span style="color:var(--${v >= 0 ? "ok" : "bad"})">${v >= 0 ? "+" : "−"}${r1(Math.abs(v))} ps</span>`;
+  const ghz = (ps) => (ps > 0 ? (1000 / ps).toFixed(2) + " GHz" : "—");
+  function dashV(ctx, x, y0, y1, col, dash) { ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 1.3; ctx.setLineDash(dash || [4, 3]); ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); ctx.restore(); }
+  /** 주기 per, 첫 상승 에지 off인 클럭을 [t0,t1] 구간에 그린다 (X: 시간→px) */
+  function clockWave(ctx, X, t0, t1, off, per, top, bot, col) {
+    ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.beginPath();
+    const half = per / 2;
+    let k = Math.floor((t0 - off) / half);
+    const lvl = (kk) => (((kk % 2) + 2) % 2 === 0 ? top : bot); // 짝수 반주기 = high
+    let t = t0; ctx.moveTo(X(t0), lvl(k));
+    while (true) {
+      const tn = off + (k + 1) * half;
+      if (tn >= t1) { ctx.lineTo(X(t1), lvl(k)); break; }
+      ctx.lineTo(X(tn), lvl(k)); ctx.lineTo(X(tn), lvl(k + 1));
+      k++; t = tn;
+    }
+    ctx.stroke(); ctx.restore();
+  }
+  function bar(ctx, x0, x1, y, h, col, label, P) {
+    if (x1 <= x0) return;
+    ctx.fillStyle = DG.alpha(col, 0.28); ctx.fillRect(x0, y, x1 - x0, h);
+    ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, h - 1);
+    if (label) { ctx.font = SB.font(11, false, 700); if (ctx.measureText(label).width < x1 - x0 - 6) tx(ctx, label, (x0 + x1) / 2, y + h / 2, { size: 11, weight: 700, color: P.text, align: "center" }); }
+  }
+  function axis(ctx, X, t0, t1, y, step, P, unit) {
+    ctx.strokeStyle = P.axis; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(t0), y); ctx.lineTo(X(t1), y); ctx.stroke();
+    for (let t = Math.ceil(t0 / step) * step; t <= t1; t += step) {
+      ctx.beginPath(); ctx.moveTo(X(t), y); ctx.lineTo(X(t), y + 4); ctx.stroke();
+      tx(ctx, String(t), X(t), y + 6, { size: 10, mono: true, color: P.faint, align: "center", base: "top" });
+    }
+    if (unit) tx(ctx, unit, X(t1), y - 3, { size: 10, color: P.faint, align: "right", base: "bottom" });
+  }
+
+  /* ================================================================ 그림 10-2: setup */
+  (function () {
+    const st = { tcq: 15, tlog: 200 };
+    let cv = null, drag = null, geo = null;
+    const rd = () => cv && cv.redraw();
+    const gT = SB.range("su-T", (v) => v + " ps", rd);
+    const gSu = SB.range("su-su", (v) => v + " ps", rd);
+    const gSk = SB.range("su-sk", (v) => (v > 0 ? "+" : "") + v + " ps", rd);
+    const gJ = SB.range("su-j", (v) => v + " ps", rd);
+    const t0 = -20, t1 = 470;
+    function draw(ctx, w, h) {
+      const P = SB.palette();
+      const T = gT(), tsu = gSu(), sk = gSk(), jit = gJ();
+      const nameW = w < 520 ? 0 : 74, x0 = nameW + 8, x1 = w - 10;
+      const X = (t) => x0 + ((t - t0) / (t1 - t0)) * (x1 - x0);
+      const iX = (x) => t0 + ((x - x0) / (x1 - x0)) * (t1 - t0);
+      const rows = [[0.08, 0.22], [0.38, 0.56], [0.70, 0.84]].map(([a, b]) => [h * a, h * b]);
+      const names = ["CLK @R1", "R2.D", "CLK @R2"];
+      names.forEach((n, i) => {
+        if (nameW) tx(ctx, n, 6, (rows[i][0] + rows[i][1]) / 2, { size: 11, mono: true, color: P.dim });
+        else tx(ctx, n, 4, rows[i][0] - 6, { size: 10, mono: true, color: P.faint });
+      });
+      const dl = T + sk - jit; // 마감(지터 반영 캡처 에지)
+      // 지터 띠
+      ctx.fillStyle = DG.alpha(P.bad, 0.14);
+      ctx.fillRect(X(T + sk - jit), rows[2][0] - 4, Math.max(1, X(T + sk + jit) - X(T + sk - jit)), rows[2][1] - rows[2][0] + 8);
+      clockWave(ctx, X, t0, t1, 0, T, rows[0][0], rows[0][1], P.dim);
+      clockWave(ctx, X, t0, t1, sk, T, rows[2][0], rows[2][1], P.dim);
+      // 데이터 막대
+      const arr = st.tcq + st.tlog, req = dl - tsu, slack = req - arr;
+      const by = rows[1][0], bh = rows[1][1] - rows[1][0];
+      // setup 창
+      DG.hatch(ctx, X(req), by - 4, X(dl) - X(req), bh + 8, P.warn);
+      ctx.strokeStyle = P.warn; ctx.lineWidth = 1; ctx.strokeRect(X(req) + 0.5, by - 4 + 0.5, X(dl) - X(req), bh + 8);
+      bar(ctx, X(0), X(st.tcq), by, bh, P.accent2, "clk→Q", P);
+      bar(ctx, X(st.tcq), X(arr), by, bh, slack >= 0 ? P.accent : P.bad, "로직 " + st.tlog + " ps", P);
+      dashV(ctx, X(0), rows[0][0], h * 0.9, P.faint);
+      dashV(ctx, X(dl), rows[0][1], rows[2][1], P.warn);
+      tx(ctx, "마감", X(dl) + 3, rows[0][1] + 8, { size: 10, color: P.warn });
+      // 여유 화살표
+      const ay = rows[1][1] + 10;
+      if (Math.abs(X(req) - X(arr)) > 4) {
+        DG.arrow(ctx, X(arr), ay, X(req), ay, slack >= 0 ? P.ok : P.bad, 1.6, 6);
+      }
+      tx(ctx, "여유 " + (slack >= 0 ? "+" : "−") + Math.abs(slack) + " ps", (X(arr) + X(req)) / 2, ay + 4, { size: 11, weight: 700, color: slack >= 0 ? P.ok : P.bad, align: "center", base: "top" });
+      // 손잡이
+      const hy = by + bh / 2;
+      geo = { X, iX, hs: [["tcq", X(st.tcq), hy], ["arr", X(arr), hy], ["edge", X(T + sk), rows[2][0]]] };
+      geo.hs.forEach(([k, x, y]) => { ctx.fillStyle = drag === k ? P.accent : SB.color("bg-elev"); ctx.strokeStyle = P.accent; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); ctx.stroke(); });
+      axis(ctx, X, 0, 450, h * 0.92, w < 520 ? 100 : 50, P, "ps");
+      SB.stat("su-arr", st.tcq + " + " + st.tlog + " = " + arr + " ps");
+      SB.stat("su-req", r1(req) + " ps");
+      SB.stat("su-slack", slackHTML(slack));
+      SB.stat("su-fmax", ghz(arr + tsu - sk + jit));
+    }
+    cv = SB.canvas($("cv-setup"), draw, { aspect: 0.42, minHeight: 250, maxHeight: 340 });
+    DG.pointer($("cv-setup"), {
+      down(x, y) {
+        if (!geo) return; let best = null, bd = 18;
+        geo.hs.forEach(([k, hx, hy]) => { const d = Math.hypot(x - hx, (y - hy) * 0.6); if (d < bd) { bd = d; best = k; } });
+        drag = best; cv.redraw();
+      },
+      move(x, y, down) {
+        if (!down || !drag || !geo) return;
+        const t = Math.round(geo.iX(x));
+        if (drag === "tcq") st.tcq = SB.clamp(t, 5, 60);
+        else if (drag === "arr") st.tlog = SB.clamp(t - st.tcq, 20, 400);
+        else if (drag === "edge") { gT.set(SB.clamp(t - gSk(), 150, 400)); return; }
+        cv.redraw();
+      },
+      up() { drag = null; cv.redraw(); },
+    }, { drag: true });
+  })();
+
+  /* ================================================================ 그림 10-3: hold */
+  (function () {
+    const tcq = 15, tmin = 4, th = 6, tbuf = 6, tmaxShort = 40, tsu = 8;
+    let nb = 0, cv = null;
+    const rd = () => cv && cv.redraw();
+    const gSk = SB.range("ho-sk", (v) => (v > 0 ? "+" : "") + v + " ps", rd);
+    const gT = SB.range("ho-T", (v) => v + " ps", rd);
+    $("ho-add").addEventListener("click", () => { nb = Math.min(6, nb + 1); rd(); });
+    $("ho-rm").addEventListener("click", () => { nb = Math.max(0, nb - 1); rd(); });
+    function draw(ctx, w, h) {
+      const P = SB.palette(), sk = gSk(), T = gT();
+      // --- 위: 회로도
+      const sy = h * 0.2, rw = 40, rh = 44;
+      const xa = 10, xb = w - 10 - rw;
+      DG.box(ctx, xa, sy - rh / 2, rw, rh, SB.color("surface"), "R1", { stroke: P.dim, color: P.text, size: 12 });
+      DG.box(ctx, xb, sy - rh / 2, rw, rh, SB.color("surface"), "R2", { stroke: P.dim, color: P.text, size: 12 });
+      const items = nb + 1, avail = xb - xa - rw - 20, iw = Math.min(54, avail / items), gap = (avail - iw * items) / (items + 1);
+      let x = xa + rw + 10 + gap;
+      ctx.strokeStyle = P.dim; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(xa + rw, sy); ctx.lineTo(xb, sy); ctx.stroke();
+      for (let i = 0; i < items; i++) {
+        if (i < nb) DG.gate(ctx, "BUF", x, sy - 11, iw, 22, { stroke: P.accent2 });
+        else DG.box(ctx, x, sy - 12, iw, 24, SB.color("bg-elev"), iw > 44 ? "로직 4" : "4", { stroke: P.accent, color: P.accent, size: 10.5 });
+        x += iw + gap;
+      }
+      // 클럭선
+      const cy = sy + rh / 2 + 18;
+      ctx.strokeStyle = P.faint; ctx.lineWidth = 1.4; ctx.beginPath();
+      ctx.moveTo(4, cy); ctx.lineTo(w - 30, cy); ctx.moveTo(xa + rw / 2, cy); ctx.lineTo(xa + rw / 2, sy + rh / 2);
+      ctx.moveTo(xb + rw / 2, cy); ctx.lineTo(xb + rw / 2, sy + rh / 2); ctx.stroke();
+      DG.box(ctx, xb - 46, cy - 9, 34, 18, DG.alpha(P.accent2, 0.2), "δ", { stroke: P.accent2, color: P.accent2, size: 11 });
+      tx(ctx, "CLK", 6, cy - 8, { size: 10, mono: true, color: P.faint });
+      tx(ctx, "버퍼 " + nb + "개", (xa + xb + rw) / 2, sy - rh / 2 - 6, { size: 11, color: P.dim, align: "center", base: "bottom" });
+      // --- 아래: 확대 타이밍
+      const t0 = -10, t1 = 75, nameW = w < 480 ? 0 : 64, X0 = nameW + 8, X1 = w - 10;
+      const X = (t) => X0 + ((t - t0) / (t1 - t0)) * (X1 - X0);
+      const rows = [[0.47, 0.56], [0.63, 0.75], [0.82, 0.9]].map(([a, b]) => [h * a, h * b]);
+      ["CLK @R1", "R2.D", "CLK @R2"].forEach((n, i) => {
+        if (nameW) tx(ctx, n, 6, (rows[i][0] + rows[i][1]) / 2, { size: 11, mono: true, color: P.dim });
+        else tx(ctx, n, 4, rows[i][0] - 5, { size: 10, mono: true, color: P.faint });
+      });
+      clockWave(ctx, X, t0, t1, 0, T, rows[0][0], rows[0][1], P.dim);
+      clockWave(ctx, X, t0, t1, sk, T, rows[2][0], rows[2][1], P.dim);
+      const arr = tcq + tmin + nb * tbuf, wEnd = sk + th, slack = arr - wEnd;
+      const by = rows[1][0], bh = rows[1][1] - rows[1][0];
+      // hold 창
+      DG.hatch(ctx, X(sk), by - 3, X(wEnd) - X(sk), bh + 6, P.warn);
+      bar(ctx, X(t0), X(Math.min(arr, t1)), by, bh, P.lo, "이전 값", P);
+      if (arr < t1) bar(ctx, X(arr), X(t1), by, bh, slack >= 0 ? P.accent : P.bad, "새 값", P);
+      dashV(ctx, X(0), rows[0][0], rows[1][0], P.faint);
+      dashV(ctx, X(sk), rows[1][1], rows[2][1], P.warn);
+      if (slack < 0) { ctx.strokeStyle = P.bad; ctx.lineWidth = 2; ctx.strokeRect(X(Math.max(sk, arr)), by - 3, Math.max(2, X(wEnd) - X(Math.max(sk, arr))), bh + 6); }
+      tx(ctx, "hold 창", X(sk) + 2, by - 6, { size: 10, color: P.warn, base: "bottom" });
+      axis(ctx, X, -10, 70, h * 0.94, w < 480 ? 20 : 10, P, "ps");
+      tx(ctx, "다음 에지: " + T + " ps 뒤 (화면 밖)", X1, rows[0][0] - 4, { size: 10, color: P.faint, align: "right", base: "bottom" });
+      SB.stat("ho-arr", tcq + " + " + (tmin + nb * tbuf) + " = " + arr + " ps");
+      SB.stat("ho-win", sk + " + " + th + " = " + wEnd + " ps");
+      SB.stat("ho-slack", slackHTML(slack));
+      SB.stat("ho-sslack", slackHTML(T + sk - tsu - (tcq + tmaxShort + nb * tbuf)));
+    }
+    cv = SB.canvas($("cv-hold"), draw, { aspect: 0.48, minHeight: 300, maxHeight: 360 });
+  })();
+
+  /* ================================================================ 시뮬레이터: STA */
+  (function () {
+    const TCQ = 15, TSU = 8;
+    const N = [
+      { id: "R1", k: "src", c: 0, r: 0 }, { id: "R2", k: "src", c: 0, r: 1 }, { id: "R3", k: "src", c: 0, r: 2 }, { id: "R4", k: "src", c: 0, r: 3 },
+      { id: "g1", t: "NAND", d: 20, c: 1, r: 0, in: ["R1", "R2"] },
+      { id: "g2", t: "NOR", d: 28, c: 1, r: 1.5, in: ["R2", "R3"] },
+      { id: "g3", t: "INV", d: 12, c: 1, r: 3, in: ["R4"] },
+      { id: "g6", t: "AND", d: 26, c: 2, r: 0, in: ["R1", "g1"] },
+      { id: "g4", t: "XOR", d: 40, c: 2, r: 1.15, in: ["g1", "g2"] },
+      { id: "g5", t: "NAND", d: 22, c: 2, r: 2.3, in: ["g2", "g3"] },
+      { id: "g7", t: "NOR", d: 30, c: 3, r: 1.5, in: ["g4", "g5"] },
+      { id: "g8", t: "NAND", d: 16, c: 3, r: 3, in: ["g5", "g3"] },
+      { id: "g9", t: "NAND", d: 24, c: 4, r: 0.5, in: ["g6", "g7"] },
+      { id: "g10", t: "XOR", d: 38, c: 4, r: 2, in: ["g7", "g8"] },
+      { id: "g11", t: "BUF", d: 18, c: 5, r: 0.5, in: ["g9"] },
+      { id: "g12", t: "NAND", d: 22, c: 5, r: 2.5, in: ["g10", "g8"] },
+      { id: "g13", t: "OR", d: 32, c: 6, r: 1.5, in: ["g11", "g12"] },
+      { id: "C1", k: "dst", c: 7, r: 0.5, in: ["g11"] }, { id: "C2", k: "dst", c: 7, r: 1.5, in: ["g13"] }, { id: "C3", k: "dst", c: 7, r: 2.5, in: ["g12"] },
+    ];
+    const AREA = { INV: 1, BUF: 2, NAND: 1.5, NOR: 1.5, AND: 2, OR: 2, XOR: 3 };
+    const byId = {}; N.forEach((n) => { byId[n.id] = n; n.in = n.in || []; n.fo = []; n.s = 1; });
+    N.forEach((n) => n.in.forEach((i) => byId[i].fo.push(n.id)));
+    const gates = N.filter((n) => n.t);
+    const area1 = gates.reduce((a, g) => a + AREA[g.t], 0);
+    let falseOn = false, stepK = 2 * N.length, timer = 0, cv = null, boxes = [];
+    const isFalse = (a, b) => falseOn && a === "g4" && b === "g7";
+    const rd = () => cv && cv.redraw();
+    const gF = SB.range("st-f", (v) => v.toFixed(2) + " GHz", rd);
+    const gShow = SB.seg("st-show", rd);
+    function delay(n) {
+      if (!n.t) return 0;
+      const fo = n.fo.map((j) => byId[j]);
+      const extra = fo.reduce((a, j) => a + (j.s - 1), 0) / Math.max(1, fo.length);
+      return n.d * (0.35 + (0.65 * (1 + 0.45 * extra)) / n.s);
+    }
+    function analyze() {
+      const T = 1000 / gF();
+      const A = {}, R = {}, D = {}, from = {};
+      N.forEach((n) => { D[n.id] = delay(n); });
+      N.forEach((n) => {
+        if (n.k === "src") { A[n.id] = TCQ; return; }
+        let m = -Infinity, arg = null;
+        n.in.forEach((i) => { if (isFalse(i, n.id)) return; if (A[i] > m) { m = A[i]; arg = i; } });
+        A[n.id] = m + D[n.id]; from[n.id] = arg;
+      });
+      for (let k = N.length - 1; k >= 0; k--) {
+        const n = N[k];
+        if (n.k === "dst") { R[n.id] = T - TSU; continue; }
+        let m = Infinity;
+        n.fo.forEach((j) => { if (isFalse(n.id, j)) return; const v = R[j] - D[j]; if (v < m) m = v; });
+        R[n.id] = m;
+      }
+      const S = {}; N.forEach((n) => (S[n.id] = R[n.id] - A[n.id]));
+      const dsts = N.filter((n) => n.k === "dst");
+      let worst = dsts[0]; dsts.forEach((d) => { if (S[d.id] < S[worst.id]) worst = d; });
+      const crit = new Set(); let cur = worst.id;
+      while (cur) { crit.add(cur); const nx = from[cur]; if (nx) crit.add(nx + ">" + cur); cur = nx; }
+      const wns = S[worst.id];
+      const tns = dsts.reduce((a, d) => a + Math.min(0, S[d.id]), 0);
+      const tmin = Math.max(...dsts.map((d) => A[d.id] + TSU));
+      const area = gates.reduce((a, g) => a + AREA[g.t] * g.s, 0) / area1;
+      return { T, A, R, D, S, crit, wns, tns, tmin, area, from };
+    }
+    const nN = N.length;
+    function known(id) {
+      const i = N.findIndex((n) => n.id === id);
+      return { a: i < stepK, r: nN - 1 - i < stepK - nN };
+    }
+    function describe(an) {
+      const el = $("st-desc"); if (!el) return;
+      const f = (v) => r1(v);
+      if (stepK === 0) { el.innerHTML = "<b>시작</b>: 아직 아무 값도 계산하지 않았다. \"한 단계\"를 눌러 출발 레지스터부터 도착 시각을 채워 나가자."; return; }
+      if (stepK <= nN) {
+        const n = N[stepK - 1];
+        if (n.k === "src") el.innerHTML = `<b>앞으로 훑기</b> · ${n.id}: 출발 레지스터의 출력은 클럭 에지 뒤 t<sub>cq</sub>에 나온다. A = <b>${TCQ} ps</b>`;
+        else {
+          const ins = n.in.map((i) => isFalse(i, n.id) ? `${i}(거짓 경로, 제외)` : `A(${i})=${f(an.A[i])}`).join(", ");
+          el.innerHTML = `<b>앞으로 훑기</b> · ${n.id}: A = max(${ins})` + (n.t ? ` + d=${f(an.D[n.id])}` : " (도착 레지스터 입력)") + ` = <b>${f(an.A[n.id])} ps</b>`;
+        }
+        if (stepK === nN) el.innerHTML += " — 앞으로 훑기 끝. 이제 도착 레지스터에서 거꾸로 요구 시각을 채운다.";
+        return;
+      }
+      const n = N[nN - 1 - (stepK - nN - 1)];
+      if (n.k === "dst") el.innerHTML = `<b>뒤로 훑기</b> · ${n.id}: 도착 레지스터는 다음 에지보다 setup만큼 먼저 데이터를 받아야 한다. R = T − t<sub>setup</sub> = ${f(an.T)} − ${TSU} = <b>${f(an.R[n.id])} ps</b>`;
+      else {
+        const outs = n.fo.map((j) => isFalse(n.id, j) ? `${j}(거짓 경로, 제외)` : `R(${j})−d(${j})=${f(an.R[j] - an.D[j])}`).join(", ");
+        el.innerHTML = `<b>뒤로 훑기</b> · ${n.id}: R = min(${outs}) = <b>${isFinite(an.R[n.id]) ? f(an.R[n.id]) + " ps" : "제약 없음"}</b>` + (isFinite(an.S[n.id]) ? `, 여유 S = R − A = <b style="color:var(--${an.S[n.id] >= 0 ? "ok" : "bad"})">${f(an.S[n.id])} ps</b>` : "");
+      }
+      if (stepK === 2 * nN) el.innerHTML += " — 계산 끝. 여유가 가장 작은 길이 임계 경로다.";
+    }
+    function draw(ctx, w, h) {
+      const P = SB.palette(), an = analyze(), mode = gShow();
+      const pad = 6, top = 14, bot = 10;
+      const colW = (w - 2 * pad) / 8, rowH = (h - top - bot) / 4;
+      const bw = Math.min(64, colW * 0.78), bh = Math.min(30, rowH * 0.42);
+      const pos = (n) => [pad + colW * (n.c + 0.5), top + rowH * (n.r + 0.5) - 6];
+      const done = stepK >= 2 * nN;
+      // 간선
+      N.forEach((n) => n.in.forEach((i) => {
+        const a = byId[i], [ax, ay] = pos(a), [bx2, by2] = pos(n);
+        const x0 = ax + bw / 2, x1 = bx2 - bw / 2, mx = (x0 + x1) / 2;
+        const fl = isFalse(i, n.id), crit = done && an.crit.has(i + ">" + n.id);
+        ctx.save();
+        ctx.strokeStyle = fl ? P.faint : crit ? P.accent2 : DG.alpha(P.dim, 0.55);
+        ctx.lineWidth = crit ? 3 : 1.4; if (fl) ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(x0, ay); ctx.bezierCurveTo(mx, ay, mx, by2, x1, by2); ctx.stroke();
+        ctx.restore();
+        if (fl) tx(ctx, "false", mx, (ay + by2) / 2 - 7, { size: 9.5, mono: true, color: P.faint, align: "center" });
+      }));
+      // 노드
+      boxes = [];
+      const curId = stepK === 0 ? null : stepK <= nN ? N[stepK - 1].id : N[nN - 1 - (stepK - nN - 1)].id;
+      const small = colW < 60;
+      N.forEach((n) => {
+        const [cx, cy] = pos(n), x = cx - bw / 2, y = cy - bh / 2, kn = known(n.id);
+        const s = an.S[n.id], hasS = kn.a && kn.r && isFinite(s);
+        let fill = SB.color("bg-elev"), stroke = P.dim;
+        if (n.k) { fill = SB.color("surface"); }
+        if (hasS && s < 0) { fill = DG.alpha(P.bad, 0.22); stroke = P.bad; }
+        else if (done && an.crit.has(n.id)) stroke = P.accent2;
+        if (n.id === curId && !done) { stroke = P.accent; }
+        DG.roundRect(ctx, x, y, bw, bh, n.k ? 3 : 7); ctx.fillStyle = fill; ctx.fill();
+        ctx.lineWidth = n.id === curId && !done ? 2.6 : 1.5; ctx.strokeStyle = stroke; ctx.stroke();
+        const lab = n.k ? n.id : (small ? n.id : n.id + " " + n.t);
+        tx(ctx, lab, cx, cy, { size: small ? 9.5 : 11, weight: 700, mono: true, align: "center", color: P.text });
+        if (n.t && n.s > 1) { DG.box(ctx, x + bw - 16, y - 8, 20, 13, P.accent, n.s + "×", { size: 9, color: "#fff", r: 4 }); }
+        // 값
+        let val = "", col = P.dim;
+        if (mode === "d") { if (n.t) val = r1(an.D[n.id]); }
+        else if (mode === "arr") { if (kn.a && n.k !== "dst" || (n.k === "dst" && kn.a)) val = r1(an.A[n.id]); }
+        else if (mode === "req") { if (kn.r) val = isFinite(an.R[n.id]) ? r1(an.R[n.id]) : "∞"; }
+        else { if (hasS) { val = (s >= 0 ? "+" : "−") + r1(Math.abs(s)); col = s >= 0 ? P.ok : P.bad; } else if (kn.a && kn.r) val = "∞"; }
+        if (val) tx(ctx, val, cx, y + bh + 3, { size: small ? 9.5 : 11, mono: true, weight: 600, color: col, align: "center", base: "top" });
+        if (n.t) boxes.push({ n, x, y, w: bw, h: bh });
+      });
+      const lbl = { arr: "도착 시각 A (ps)", req: "요구 시각 R (ps)", slack: "여유 S = R − A (ps)", d: "게이트 지연 d (ps)" }[mode];
+      tx(ctx, lbl + " · 단계 " + stepK + "/" + 2 * nN, w - 6, 3, { size: 10.5, color: P.faint, align: "right", base: "top" });
+      SB.stat("st-wns", slackHTML(an.wns));
+      SB.stat("st-tns", an.tns < 0 ? `<span style="color:var(--bad)">−${r1(-an.tns)} ps</span>` : "0 ps");
+      SB.stat("st-fmax", ghz(an.tmin));
+      SB.stat("st-area", an.area.toFixed(2) + "×");
+      describe(an);
+    }
+    cv = SB.canvas($("cv-sta"), draw, { aspect: 0.5, minHeight: 300, maxHeight: 430 });
+    DG.pointer($("cv-sta"), {
+      down(x, y) {
+        const b = boxes.find((q) => x >= q.x - 4 && x <= q.x + q.w + 4 && y >= q.y - 4 && y <= q.y + q.h + 4);
+        if (b) { b.n.s = b.n.s === 1 ? 2 : b.n.s === 2 ? 4 : 1; rd(); }
+      },
+    });
+    const stopAuto = () => { if (timer) { clearInterval(timer); timer = 0; } $("st-auto").textContent = "자동 재생"; };
+    $("st-reset").addEventListener("click", () => { stopAuto(); stepK = 0; rd(); });
+    $("st-step").addEventListener("click", () => { stopAuto(); stepK = Math.min(2 * nN, stepK + 1); rd(); });
+    $("st-all").addEventListener("click", () => { stopAuto(); stepK = 2 * nN; rd(); });
+    $("st-auto").addEventListener("click", () => {
+      if (timer) { stopAuto(); return; }
+      if (stepK >= 2 * nN) stepK = 0;
+      $("st-auto").textContent = "멈춤";
+      timer = setInterval(() => { stepK++; if (stepK >= 2 * nN) { stepK = 2 * nN; stopAuto(); } rd(); }, 650);
+      rd();
+    });
+    $("st-false").addEventListener("click", () => {
+      falseOn = !falseOn;
+      $("st-false").textContent = falseOn ? "거짓 경로 지정 해제" : "g4→g7 거짓 경로 지정";
+      rd();
+    });
+    $("st-unsize").addEventListener("click", () => { gates.forEach((g) => (g.s = 1)); rd(); });
+  })();
+
+  /* ================================================================ 그림 10-4: 클럭 트리 */
+  (function () {
+    let seed = 3, cv = null;
+    const rd = () => cv && cv.redraw();
+    const gMode = SB.seg("tr-mode", rd);
+    const gSig = SB.range("tr-sig", (v) => v + " %", rd);
+    $("tr-new").addEventListener("click", () => { seed++; rd(); });
+    const KW = 80, KB = 12, T0 = 10, TMAX = 200; // ps/mm, ps/버퍼, 루트 지연
+    function build(mode, sig) {
+      const rng = SB.rng(seed * 7919 + (mode === "h" ? 1 : 2));
+      const gauss = () => { const u = Math.max(1e-9, rng()), v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+      const segs = [], leaves = [];
+      const add = (x0, y0, x1, y1, t0, lvl) => {
+        const len = Math.hypot(x1 - x0, y1 - y0);
+        const t = t0 + len * KW * (1 + sig * gauss()) + KB * (1 + sig * gauss());
+        segs.push({ x0, y0, x1, y1, t0, t: Math.max(t0, t), lvl });
+        return Math.max(t0, t);
+      };
+      if (mode === "h") {
+        const rec = (x, y, t, lvl, span) => {
+          if (lvl === 4) { leaves.push({ x, y, t }); return; }
+          const horiz = lvl % 2 === 0, d = span / 2;
+          [-1, 1].forEach((s) => {
+            const x1 = horiz ? x + s * d : x, y1 = horiz ? y : y + s * d;
+            rec(x1, y1, add(x, y, x1, y1, t, lvl), lvl + 1, horiz ? span : span / 2);
+          });
+        };
+        rec(0.5, 0.5, T0, 0, 0.5);
+      } else {
+        let t = T0, x = 0;
+        for (let i = 0; i < 4; i++) {
+          const xi = (i + 0.5) / 4;
+          t = add(x, 0.5, xi, 0.5, t, 0); x = xi;
+          [0.25, 0.75].forEach((yb) => {
+            const tb = add(xi, 0.5, xi, yb, t, 1);
+            [-0.125, 0.125].forEach((dy) => { leaves.push({ x: xi, y: yb + dy, t: add(xi, yb, xi, yb + dy, tb, 2) }); });
+          });
+        }
+      }
+      return { segs, leaves };
+    }
+    function draw(ctx, w, h) {
+      const P = SB.palette(), mode = gMode(), sig = gSig() / 100;
+      const { segs, leaves } = build(mode, sig);
+      const wide = w >= 600;
+      const S = wide ? Math.min(h - 40, w * 0.5) : Math.min(w - 40, h * 0.58);
+      const ox = wide ? 20 : (w - S) / 2, oy = 24;
+      const px = (x) => ox + x * S, py = (y) => oy + y * S;
+      ctx.strokeStyle = P.border; ctx.lineWidth = 1; ctx.strokeRect(ox + 0.5, oy + 0.5, S, S);
+      tx(ctx, "1 mm × 1 mm", ox, oy - 8, { size: 10.5, color: P.faint });
+      for (let i = 0; i < 16; i++) { const gx = (i % 4) / 4, gy = Math.floor(i / 4) / 4; ctx.strokeStyle = DG.alpha(P.grid, 0.6); ctx.strokeRect(px(gx) + 3, py(gy) + 3, S / 4 - 6, S / 4 - 6); }
+      segs.forEach((s) => {
+        ctx.strokeStyle = DG.heat(s.t / TMAX); ctx.lineWidth = Math.max(1.5, 4.5 - s.lvl * 0.8); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(px(s.x0), py(s.y0)); ctx.lineTo(px(s.x1), py(s.y1)); ctx.stroke();
+      });
+      const root = mode === "h" ? [0.5, 0.5] : [0, 0.5];
+      DG.box(ctx, px(root[0]) - 13, py(root[1]) - 9, 26, 18, P.accent, "PLL", { size: 8.5, color: "#fff", r: 4 });
+      leaves.forEach((l) => { ctx.fillStyle = DG.heat(l.t / TMAX); ctx.strokeStyle = P.text; ctx.lineWidth = 1; ctx.fillRect(px(l.x) - 5, py(l.y) - 5, 10, 10); ctx.strokeRect(px(l.x) - 5, py(l.y) - 5, 10, 10); });
+      // 타임라인
+      const ts = leaves.map((l) => l.t), mn = Math.min(...ts), mx = Math.max(...ts);
+      let bx, bw2, byy;
+      if (wide) { bx = ox + S + 50; bw2 = w - bx - 20; byy = oy + S * 0.5; }
+      else { bx = 24; bw2 = w - 48; byy = oy + S + (h - oy - S) * 0.5; }
+      const X = (t) => bx + (t / TMAX) * bw2;
+      // 열 지도 막대
+      for (let i = 0; i < bw2; i += 2) { ctx.fillStyle = DG.heat(i / bw2); ctx.fillRect(bx + i, byy + 16, 2, 5); }
+      axis(ctx, X, 0, TMAX, byy + 24, wide ? 40 : 50, P, "ps");
+      tx(ctx, "리프에 클럭이 도착하는 시각", bx, byy - 46, { size: 11.5, color: P.dim, weight: 600 });
+      ctx.fillStyle = DG.alpha(P.accent2, 0.18); ctx.fillRect(X(mn), byy - 28, Math.max(2, X(mx) - X(mn)), 40);
+      ts.forEach((t, i) => { ctx.fillStyle = DG.heat(t / TMAX); ctx.strokeStyle = P.text; ctx.beginPath(); ctx.arc(X(t), byy - 20 + (i % 4) * 8, 3.5, 0, 7); ctx.fill(); ctx.stroke(); });
+      tx(ctx, "스큐 " + r1(mx - mn) + " ps", X(mx) + 4 > bx + bw2 - 70 ? X(mn) - 4 : X(mx) + 6, byy - 8, { size: 11.5, weight: 700, color: P.accent2, align: X(mx) + 4 > bx + bw2 - 70 ? "right" : "left" });
+      const mean = ts.reduce((a, b) => a + b, 0) / ts.length;
+      SB.stat("tr-ins", r1(mean) + " ps");
+      SB.stat("tr-skew", r1(mx - mn) + " ps");
+      SB.stat("tr-pct", ((100 * (mx - mn)) / 250).toFixed(1) + " %");
+    }
+    cv = SB.canvas($("cv-tree"), draw, { aspect: 0.5, minHeight: 360, maxHeight: 420 });
+  })();
+
+  /* ================================================================ 그림 10-5: 유용한 스큐 */
+  (function () {
+    const tcq = 15, tsu = 8, th = 5, A = 270, Amin = 70, B = 150;
+    let cv = null;
+    const rd = () => cv && cv.redraw();
+    const gD = SB.range("us-d", (v) => (v > 0 ? "+" : "") + v + " ps", rd);
+    const gT = SB.range("us-T", (v) => v + " ps", rd);
+    function draw(ctx, w, h) {
+      const P = SB.palette(), d = gD(), T = gT();
+      const t0 = -50, t1 = 700, nameW = w < 520 ? 0 : 70, X0 = nameW + 8, X1 = w - 10;
+      const X = (t) => X0 + ((t - t0) / (t1 - t0)) * (X1 - X0);
+      const rows = [[0.07, 0.17], [0.3, 0.4], [0.52, 0.64], [0.74, 0.86]].map(([a, b]) => [h * a, h * b]);
+      ["CLK R1·R3", "CLK R2", "단 1", "단 2"].forEach((n, i) => {
+        if (nameW) tx(ctx, n, 6, (rows[i][0] + rows[i][1]) / 2, { size: 11, mono: true, color: P.dim });
+        else tx(ctx, n, 4, rows[i][0] - 5, { size: 10, mono: true, color: P.faint });
+      });
+      clockWave(ctx, X, t0, t1, 0, T, rows[0][0], rows[0][1], P.dim);
+      clockWave(ctx, X, t0, t1, d, T, rows[1][0], rows[1][1], P.accent2);
+      const s1 = T + d - (tcq + A + tsu), s2 = T - d - (tcq + B + tsu), hs = tcq + Amin - th - d;
+      // 단 1
+      let y = rows[2][0], bh = rows[2][1] - rows[2][0];
+      bar(ctx, X(0), X(tcq), y, bh, P.accent2, "", P);
+      bar(ctx, X(tcq), X(tcq + A), y, bh, s1 >= 0 ? P.accent : P.bad, "로직 270", P);
+      DG.hatch(ctx, X(T + d - tsu), y - 3, X(T + d) - X(T + d - tsu), bh + 6, P.warn);
+      dashV(ctx, X(T + d), rows[1][1], rows[2][1] + 4, P.accent2);
+      // 짧은 경로(hold)
+      ctx.fillStyle = hs >= 0 ? P.dim : P.bad; ctx.fillRect(X(0), rows[2][1] + 3, X(tcq + Amin) - X(0), 3);
+      DG.hatch(ctx, X(d), rows[2][1] + 1, Math.max(2, X(d + th) - X(d)), 7, P.warn);
+      // 단 2
+      y = rows[3][0]; bh = rows[3][1] - rows[3][0];
+      bar(ctx, X(T + d), X(T + d + tcq), y, bh, P.accent2, "", P);
+      bar(ctx, X(T + d + tcq), X(T + d + tcq + B), y, bh, s2 >= 0 ? P.accent : P.bad, "로직 150", P);
+      DG.hatch(ctx, X(2 * T - tsu), y - 3, X(2 * T) - X(2 * T - tsu), bh + 6, P.warn);
+      dashV(ctx, X(2 * T), rows[0][1], rows[3][1] + 4, P.dim);
+      dashV(ctx, X(T), rows[0][1], rows[1][0], P.dim);
+      tx(ctx, "여유 " + (s1 >= 0 ? "+" : "−") + Math.abs(s1), X(tcq + A) + 4 + (X(T + d) - X(tcq + A) > 0 ? X(T + d) - X(tcq + A) : 0), (rows[2][0] + rows[2][1]) / 2, { size: 11, weight: 700, color: s1 >= 0 ? P.ok : P.bad });
+      tx(ctx, "여유 " + (s2 >= 0 ? "+" : "−") + Math.abs(s2), Math.min(X(2 * T) + 4, X1 - 60), (rows[3][0] + rows[3][1]) / 2, { size: 11, weight: 700, color: s2 >= 0 ? P.ok : P.bad });
+      tx(ctx, "짧은 경로 70 ps", X(tcq + Amin) + 4, rows[2][1] + 5, { size: 9.5, color: hs >= 0 ? P.faint : P.bad });
+      axis(ctx, X, 0, 700, h * 0.93, w < 520 ? 200 : 100, P, "ps");
+      SB.stat("us-s1", slackHTML(s1));
+      SB.stat("us-s2", slackHTML(s2));
+      SB.stat("us-h", slackHTML(hs));
+      const Tm = Math.max(tcq + A + tsu - d, tcq + B + tsu + d);
+      SB.stat("us-f", hs < 0 ? '<span style="color:var(--bad)">hold 위반</span>' : ghz(Tm));
+    }
+    cv = SB.canvas($("cv-useful"), draw, { aspect: 0.42, minHeight: 260, maxHeight: 330 });
+  })();
+
+  /* ================================================================ 시뮬레이터: 파이프라인 */
+  (function () {
+    const FO = 7.5;
+    let cv = null;
+    const rd = () => cv && cv.redraw();
+    const gN = SB.range("pp-N", (v) => v + "단", rd);
+    const gL = SB.range("pp-L", (v) => v + " FO4", rd);
+    const gO = SB.range("pp-o", (v) => v + " FO4", rd);
+    const gG = SB.range("pp-g", (v) => v.toFixed(3), rd);
+    const Tc = (n, L, o) => L / n + o;
+    const perf = (n, L, o, g) => 1 / (Tc(n, L, o) * (1 + g * (n - 1)));
+    function opt(L, o, g) { let b = 1, bv = 0; for (let n = 1; n <= 60; n++) { const v = perf(n, L, o, g); if (v > bv + 1e-12) { bv = v; b = n; } } return b; }
+    $("pp-opt").addEventListener("click", () => gN.set(Math.min(24, opt(gL(), gO(), gG()))));
+    function draw(ctx, w, h) {
+      const P = SB.palette(), N = gN(), L = gL(), o = gO(), g = gG();
+      const T = Tc(N, L, o), lat = N * T, p1 = perf(1, L, o, 0), nOpt = opt(L, o, g);
+      // 위 막대
+      const bx = 12, bw = w - 24, maxLat = L + 24 * o, sc = bw / maxLat, by = 26, bh = 22;
+      tx(ctx, "일 하나가 지나는 길: 지연 " + r1(lat) + " FO4 (≈ " + Math.round(lat * FO) + " ps)", bx, 12, { size: 11.5, color: P.dim, weight: 600 });
+      let x = bx;
+      for (let i = 0; i < N; i++) {
+        const lw = (L / N) * sc, ow = o * sc;
+        ctx.fillStyle = DG.alpha(P.accent, 0.35); ctx.fillRect(x, by, lw, bh);
+        ctx.fillStyle = P.accent2; ctx.fillRect(x + lw, by - 3, Math.max(1.5, ow), bh + 6);
+        x += lw + ow;
+      }
+      ctx.strokeStyle = P.border; ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+      // 차트
+      const wide = w >= 620, top = by + bh + 22;
+      const ch = wide ? h - top - 6 : (h - top - 10) / 2;
+      const boxA = wide ? { x: 50, y: top + 16, w: w / 2 - 70, h: ch - 50 } : { x: 50, y: top + 16, w: w - 66, h: ch - 46 };
+      const boxB = wide ? { x: w / 2 + 40, y: top + 16, w: w / 2 - 56, h: ch - 50 } : { x: 50, y: top + ch + 26, w: w - 66, h: ch - 46 };
+      const Ns = []; for (let n = 1; n <= 24; n++) Ns.push(n);
+      const ideal = Ns.map((n) => [n, perf(n, L, o, 0) / p1]), real = Ns.map((n) => [n, perf(n, L, o, g) / p1]);
+      const ymax = Math.max(...ideal.map((q) => q[1])) * 1.08;
+      SB.chart(ctx, boxA, {
+        x: [1, 24], y: [0, ymax], xTicks: [1, 4, 8, 12, 16, 20, 24],
+        series: [{ data: ideal, color: P.faint, dash: [5, 4], width: 1.6 }, { data: real, color: P.accent, width: 2.4 }],
+        vlines: [{ x: nOpt <= 24 ? nOpt : 24, color: P.ok, label: "최적 " + nOpt }],
+        points: [{ x: N, y: perf(N, L, o, g) / p1, color: P.accent2, r: 5 }],
+      });
+      tx(ctx, "실효 성능 (N=1 대비 배)", boxA.x, boxA.y - 8, { size: 11, color: P.dim, weight: 600 });
+      tx(ctx, "단 수 N", boxA.x + boxA.w, boxA.y + boxA.h + 22, { size: 10.5, color: P.faint, align: "right", base: "top" });
+      const ovs = Ns.map((n) => [n, o / Tc(n, L, o)]), lats = Ns.map((n) => [n, (L + n * o) / (L + o)]);
+      const ymB = Math.max(1.2, Math.max(...lats.map((q) => q[1])) * 1.08);
+      SB.chart(ctx, boxB, {
+        x: [1, 24], y: [0, ymB], xTicks: [1, 4, 8, 12, 16, 20, 24],
+        series: [{ data: ovs, color: P.accent2, width: 2.4 }, { data: lats, color: P.dim, dash: [5, 4], width: 1.8 }],
+        points: [{ x: N, y: o / T, color: P.accent2, r: 5 }, { x: N, y: lat / (L + o), color: P.dim, r: 4 }],
+      });
+      tx(ctx, "오버헤드 비율 (실선) · 지연 배수 (점선)", boxB.x, boxB.y - 8, { size: 11, color: P.dim, weight: 600 });
+      tx(ctx, "단 수 N", boxB.x + boxB.w, boxB.y + boxB.h + 22, { size: 10.5, color: P.faint, align: "right", base: "top" });
+      SB.stat("pp-f", ghz(T * FO) + " <small>(" + r1(T) + " FO4)</small>");
+      SB.stat("pp-lat", Math.round(lat * FO) + " ps");
+      SB.stat("pp-ov", Math.round((100 * o) / T) + " %");
+      SB.stat("pp-perf", (perf(N, L, o, g) / p1).toFixed(2) + "×");
+      SB.stat("pp-nopt", nOpt + "단 / " + r1(L / nOpt) + " FO4");
+    }
+    cv = SB.canvas($("cv-pipe"), draw, { aspect: 0.5, minHeight: 440, maxHeight: 460 });
+  })();
+
+  /* ================================================================ 그림 10-6: 리타이밍 */
+  (function () {
+    const D = [40, 15, 20, 55, 10, 35], OV = 23;
+    const st = { a: 1, b: 2 };
+    let cv = null, drag = null, geo = null;
+    const rd = () => cv && cv.redraw();
+    const stages = () => [D.slice(0, st.a), D.slice(st.a, st.b), D.slice(st.b)].map((s) => s.reduce((p, q) => p + q, 0));
+    $("rt-init").addEventListener("click", () => { st.a = 1; st.b = 2; rd(); });
+    $("rt-opt").addEventListener("click", () => {
+      let best = null;
+      for (let a = 1; a <= 4; a++) for (let b = a + 1; b <= 5; b++) { const s = [D.slice(0, a), D.slice(a, b), D.slice(b)].map((q) => q.reduce((p, r) => p + r, 0)); const m = Math.max(...s); if (!best || m < best[0]) best = [m, a, b]; }
+      st.a = best[1]; st.b = best[2]; rd();
+    });
+    function draw(ctx, w, h) {
+      const P = SB.palette();
+      const pad = 14, gap = 16, total = D.reduce((p, q) => p + q, 0);
+      const sc = (w - 2 * pad - gap * 7) / total;
+      const bx = []; let x = pad + gap / 2;
+      for (let k = 0; k <= 6; k++) { bx.push(x); if (k < 6) x += gap + D[k] * sc; }
+      const gy = h * 0.32, gh = 36;
+      // 배선
+      ctx.strokeStyle = P.dim; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(bx[0], gy + gh / 2); ctx.lineTo(bx[6], gy + gh / 2); ctx.stroke();
+      for (let k = 0; k < 6; k++) {
+        const x0 = bx[k] + gap / 2, ww = D[k] * sc;
+        DG.box(ctx, x0, gy, ww, gh, SB.color("bg-elev"), String(D[k]), { stroke: P.accent, color: P.text, size: 11.5, mono: true });
+      }
+      tx(ctx, "게이트 지연 (ps), 폭 ∝ 지연", pad, 14, { size: 11, color: P.faint });
+      const regs = [[0, "in", false], [st.a, "a", true], [st.b, "b", true], [6, "out", false]];
+      geo = { bx, regs };
+      regs.forEach(([k, id, mv]) => {
+        const rx = bx[k] - 6, col = mv ? P.accent2 : P.dim;
+        DG.roundRect(ctx, rx, gy - 16, 12, gh + 32, 3);
+        ctx.fillStyle = mv ? DG.alpha(P.accent2, drag === id ? 0.7 : 0.35) : SB.color("surface"); ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.stroke();
+        if (mv) { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(rx + 6, gy - 22); ctx.lineTo(rx, gy - 30); ctx.lineTo(rx + 12, gy - 30); ctx.closePath(); ctx.fill(); }
+      });
+      const s = stages(), mx = Math.max(...s);
+      const sy = gy + gh + 30;
+      [[0, st.a], [st.a, st.b], [st.b, 6]].forEach(([k0, k1], i) => {
+        const x0 = bx[k0] + 8, x1 = bx[k1] - 8, col = s[i] === mx ? P.bad : P.ok;
+        ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, sy); ctx.lineTo(x0, sy + 6); ctx.lineTo(x1, sy + 6); ctx.lineTo(x1, sy); ctx.stroke();
+        tx(ctx, "단 " + (i + 1) + ": " + s[i], (x0 + x1) / 2, sy + 10, { size: 11, weight: 700, color: col, align: "center", base: "top" });
+      });
+      // 단별 막대 비교
+      const by = h * 0.8, bw = (w - 2 * pad) / 3 - 10;
+      s.forEach((v, i) => {
+        const x0 = pad + i * (bw + 15), len = (v / 175) * bw;
+        ctx.fillStyle = DG.alpha(v === mx ? P.bad : P.accent, 0.35); ctx.fillRect(x0, by, len, 14);
+        ctx.strokeStyle = P.border; ctx.strokeRect(x0 + 0.5, by + 0.5, bw, 14);
+      });
+      tx(ctx, "단별 로직 (막대 끝 = 175 ps 전체)", pad, by - 8, { size: 10.5, color: P.faint });
+      SB.stat("rt-st", s.join(" / ") + " ps");
+      SB.stat("rt-T", (mx + OV) + " ps");
+      SB.stat("rt-f", ghz(mx + OV));
+    }
+    cv = SB.canvas($("cv-retime"), draw, { aspect: 0.36, minHeight: 230, maxHeight: 280 });
+    DG.pointer($("cv-retime"), {
+      down(x) {
+        if (!geo) return;
+        let best = null, bd = 20;
+        geo.regs.forEach(([k, id, mv]) => { if (mv && Math.abs(x - geo.bx[k]) < bd) { bd = Math.abs(x - geo.bx[k]); best = id; } });
+        drag = best; rd();
+      },
+      move(x, y, down) {
+        if (!down || !drag || !geo) return;
+        let k = 1, bd = Infinity;
+        for (let i = 1; i <= 5; i++) { const d = Math.abs(x - geo.bx[i]); if (d < bd) { bd = d; k = i; } }
+        if (drag === "a") st.a = SB.clamp(k, 1, st.b - 1); else st.b = SB.clamp(k, st.a + 1, 5);
+        rd();
+      },
+      up() { drag = null; rd(); },
+    }, { drag: true });
+  })();
+
+  /* ================================================================ 그림 10-7: 시간 빌림 */
+  (function () {
+    const T = 250, tcq = 15, tsu = 8, tdq = 18;
+    let cv = null;
+    const rd = () => cv && cv.redraw();
+    const gM = SB.seg("bo-mode", rd);
+    const gA = SB.range("bo-a", (v) => v + " ps", rd);
+    const gB = SB.range("bo-b", (v) => v + " ps", rd);
+    function draw(ctx, w, h) {
+      const P = SB.palette(), latch = gM() === "latch", a = gA(), b = gB();
+      const t0 = -15, t1 = 540, nameW = w < 520 ? 0 : 64, X0 = nameW + 8, X1 = w - 10;
+      const X = (t) => X0 + ((t - t0) / (t1 - t0)) * (X1 - X0);
+      const rows = [[0.08, 0.2], [0.36, 0.5], [0.64, 0.78]].map(([p, q]) => [h * p, h * q]);
+      ["CLK", "단 1", "단 2"].forEach((n, i) => {
+        if (nameW) tx(ctx, n, 6, (rows[i][0] + rows[i][1]) / 2, { size: 11, mono: true, color: P.dim });
+        else tx(ctx, n, 4, rows[i][0] - 5, { size: 10, mono: true, color: P.faint });
+      });
+      const arr = tcq + a, close = T + T / 2 - tsu;
+      if (latch) {
+        ctx.fillStyle = DG.alpha(P.ok, 0.13); ctx.fillRect(X(T), rows[0][0], X(T + T / 2) - X(T), rows[2][1] - rows[0][0]);
+        tx(ctx, "래치 투명", X(T) + 3, rows[0][1] + 10, { size: 10, color: P.ok });
+        dashV(ctx, X(close), rows[0][1], rows[1][1] + 4, P.warn);
+      } else {
+        ctx.fillStyle = P.text; ctx.fillRect(X(T) - 1.5, rows[0][1] + 2, 3, rows[2][1] - rows[0][1]);
+        tx(ctx, "FF 벽", X(T) + 4, rows[0][1] + 10, { size: 10, color: P.dim });
+      }
+      clockWave(ctx, X, t0, t1, 0, T, rows[0][0], rows[0][1], P.dim);
+      let ok1, depart, borrow = 0, s1;
+      if (latch) { ok1 = arr <= close; depart = arr <= T ? T + tcq : arr + tdq; borrow = Math.max(0, arr - T); s1 = close - arr; }
+      else { s1 = T - tsu - arr; ok1 = s1 >= 0; depart = T + tcq; }
+      const s2 = 2 * T - tsu - (depart + b);
+      let y = rows[1][0], bh = rows[1][1] - rows[1][0];
+      bar(ctx, X(0), X(tcq), y, bh, P.accent2, "", P);
+      bar(ctx, X(tcq), X(arr), y, bh, ok1 ? P.accent : P.bad, "로직 " + a, P);
+      if (!latch) DG.hatch(ctx, X(T - tsu), y - 3, X(T) - X(T - tsu), bh + 6, P.warn);
+      if (borrow > 0 && ok1) { ctx.fillStyle = DG.alpha(P.ok, 0.5); ctx.fillRect(X(T), y + bh + 3, X(arr) - X(T), 4); tx(ctx, "빌린 " + borrow + " ps", X(T), y + bh + 9, { size: 10, color: P.ok, base: "top" }); }
+      y = rows[2][0]; bh = rows[2][1] - rows[2][0];
+      ctx.globalAlpha = ok1 ? 1 : 0.35;
+      bar(ctx, X(depart - (latch && arr > T ? tdq : tcq)), X(depart), y, bh, P.accent2, "", P);
+      bar(ctx, X(depart), X(depart + b), y, bh, s2 >= 0 ? P.accent : P.bad, "로직 " + b, P);
+      ctx.globalAlpha = 1;
+      DG.hatch(ctx, X(2 * T - tsu), y - 3, X(2 * T) - X(2 * T - tsu), bh + 6, P.warn);
+      dashV(ctx, X(2 * T), rows[0][1], rows[2][1] + 4, P.dim);
+      axis(ctx, X, 0, 500, h * 0.9, w < 520 ? 125 : 50, P, "ps");
+      SB.stat("bo-arr", arr + " ps");
+      SB.stat("bo-bor", latch ? (ok1 ? borrow + " ps" : "한도 초과") : "— (FF는 빌릴 수 없음)");
+      SB.stat("bo-s2", ok1 ? slackHTML(s2) : "—");
+      const okAll = ok1 && s2 >= 0;
+      SB.stat("bo-ok", `<span style="color:var(--${okAll ? "ok" : "bad"})">${okAll ? "통과" : !ok1 ? "단 1 실패" : "단 2 실패"}</span>`);
+    }
+    cv = SB.canvas($("cv-borrow"), draw, { aspect: 0.38, minHeight: 230, maxHeight: 300 });
+  })();
+
+  /* ================================================================ 그림 10-8: 펄스 건너기 */
+  (function () {
+    const NS = 30, PH = 0.37;
+    let seed = 11, cv = null;
+    const rd = () => cv && cv.redraw();
+    const gMode = SB.seg("pu-mode", rd);
+    const gR = SB.range("pu-r", (v) => v.toFixed(2), rd);
+    const gP = SB.range("pu-p", (v) => Math.round(v * 100) + " %", rd);
+    $("pu-new").addEventListener("click", () => { seed++; rd(); });
+    function draw(ctx, w, h) {
+      const P = SB.palette(), mode = gMode(), r = gR(), p = gP();
+      const rng = SB.rng(seed);
+      const pulses = [], kmax = NS - 3 * r - 2;
+      for (let k = 1; k < NS; k++) { const u = rng(); if (k < kmax && u < p) pulses.push(k); }
+      const edges = []; for (let t = PH; t < NS; t += r) edges.push(t);
+      const lost = new Set(); let got = 0; const outs = [];
+      if (mode === "pulse") {
+        pulses.forEach((k) => { const e = edges.find((t) => t >= k && t < k + 1); if (e != null) { got++; outs.push(e); } else lost.add(k); });
+      } else {
+        const lvl = (t) => pulses.filter((k) => k + 1 <= t).length % 2;
+        for (let m = 1; m < edges.length; m++) {
+          const inInt = pulses.filter((k) => k + 1 > edges[m - 1] && k + 1 <= edges[m]);
+          const n = inInt.length;
+          if (n % 2 === 1) { got++; if (m + 2 < edges.length) outs.push(edges[m + 2]); else outs.push(edges[m] + 2 * r); inInt.slice(0, -1).forEach((k) => lost.add(k)); }
+          else inInt.forEach((k) => lost.add(k));
+        }
+        void lvl;
+      }
+      const tog = mode === "toggle";
+      const names = tog ? ["src CLK", "펄스", "토글", "dst CLK", "받은 펄스"] : ["src CLK", "펄스", "dst CLK", "받은 펄스"];
+      const nameW = w < 480 ? 54 : 74, X0 = nameW, X1 = w - 8;
+      const X = (t) => X0 + (t / NS) * (X1 - X0);
+      const nr = names.length, rh = (h - 18) / nr;
+      const row = (i) => [10 + i * rh + rh * 0.22, 10 + (i + 1) * rh - rh * 0.22];
+      names.forEach((n, i) => tx(ctx, n, 4, (row(i)[0] + row(i)[1]) / 2, { size: w < 480 ? 9.5 : 11, mono: true, color: P.dim }));
+      let i = 0;
+      clockWave(ctx, X, 0, NS, 0, 1, row(i)[0], row(i)[1], P.faint); i++;
+      // 펄스
+      const [pt, pb] = row(i);
+      ctx.strokeStyle = P.lo; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(X(0), pb); ctx.lineTo(X(NS), pb); ctx.stroke();
+      pulses.forEach((k) => {
+        const L = lost.has(k);
+        ctx.fillStyle = DG.alpha(L ? P.bad : P.hi, 0.3); ctx.fillRect(X(k), pt, X(k + 1) - X(k), pb - pt);
+        ctx.strokeStyle = L ? P.bad : P.hi; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(X(k), pb); ctx.lineTo(X(k), pt); ctx.lineTo(X(k + 1), pt); ctx.lineTo(X(k + 1), pb); ctx.stroke();
+        if (L) tx(ctx, "✗", X(k + 0.5), pt - 2, { size: 11, weight: 700, color: P.bad, align: "center", base: "bottom" });
+      });
+      i++;
+      if (tog) {
+        const [tt, tb] = row(i); let v = 0, last = 0;
+        ctx.lineWidth = 1.8; ctx.beginPath();
+        const ys = (vv) => (vv ? tt : tb);
+        ctx.moveTo(X(0), ys(0));
+        pulses.forEach((k) => { ctx.lineTo(X(k + 1), ys(v)); v ^= 1; ctx.lineTo(X(k + 1), ys(v)); last = k + 1; });
+        ctx.lineTo(X(NS), ys(v)); ctx.strokeStyle = P.accent; ctx.stroke(); void last;
+        i++;
+      }
+      clockWave(ctx, X, 0, NS, PH, r, row(i)[0], row(i)[1], P.accent2);
+      edges.forEach((t) => dashV(ctx, X(t), row(1)[0], row(i)[0], DG.alpha(P.accent2, 0.35), [2, 3]));
+      i++;
+      const [ot, ob] = row(i);
+      ctx.strokeStyle = P.lo; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(X(0), ob); ctx.lineTo(X(NS), ob); ctx.stroke();
+      outs.forEach((t) => {
+        const t2 = Math.min(NS, t + r);
+        if (t >= NS) return;
+        ctx.fillStyle = DG.alpha(P.hi, 0.3); ctx.fillRect(X(t), ot, X(t2) - X(t), ob - ot);
+        ctx.strokeStyle = P.hi; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(X(t), ob); ctx.lineTo(X(t), ot); ctx.lineTo(X(t2), ot); ctx.lineTo(X(t2), ob); ctx.stroke();
+      });
+      SB.stat("pu-sent", pulses.length + "개");
+      SB.stat("pu-got", got + "개");
+      SB.stat("pu-lost", `<span style="color:var(--${pulses.length - got ? "bad" : "ok"})">${pulses.length - got}개</span>`);
+    }
+    cv = SB.canvas($("cv-pulse"), draw, { aspect: 0.4, minHeight: 230, maxHeight: 300 });
+  })();
+
+  /* ================================================================ 그림 10-9: 버스 샘플링 */
+  (function () {
+    const rng = SB.rng(2026), W = 40;
+    const gray = (b) => b ^ (b >> 1);
+    const g2b = (g) => { let b = 0; for (let i = 3; i >= 0; i--) b |= (((b >> (i + 1)) & 1) ^ ((g >> i) & 1)) << i; return b; };
+    let cv = null, stats = null, last = null, hist = [];
+    const rd = () => cv && cv.redraw();
+    const gCode = SB.seg("bu-code", () => { clear(); sample(7); rd(); });
+    const gSk = SB.range("bu-sk", (v) => "±" + v + " ps", rd);
+    function clear() { stats = { n: 0, ok: 0, bad: 0, err: 0 }; hist = []; last = null; }
+    const cd = (a, b) => { const d = Math.abs(a - b) % 16; return Math.min(d, 16 - d); };
+    function sample(force) {
+      const isG = gCode() === "gray", sk = gSk();
+      const v = force != null ? force : Math.floor(rng() * 16), nv = (v + 1) % 16;
+      const enc = (x) => (isG ? gray(x) : x);
+      const oE = enc(v), nE = enc(nv);
+      const off = [0, 1, 2, 3].map(() => (rng() * 2 - 1) * sk);
+      const ts = force != null ? 3 : (rng() * 2 - 1) * W;
+      let cE = 0;
+      for (let i = 0; i < 4; i++) { const ob = (oE >> i) & 1, nb = (nE >> i) & 1; cE |= (ob === nb ? ob : ts >= off[i] ? nb : ob) << i; }
+      const cap = isG ? g2b(cE) : cE, ok = cE === oE || cE === nE;
+      const err = ok ? 0 : Math.min(cd(cap, v), cd(cap, nv));
+      stats.n++; ok ? stats.ok++ : stats.bad++; stats.err = Math.max(stats.err, err);
+      last = { v, nv, oE, nE, off, ts, cE, cap, ok, isG };
+      hist.push(ok); if (hist.length > 40) hist.shift();
+    }
+    clear(); sample(7);
+    $("bu-one").addEventListener("click", () => { sample(); rd(); });
+    $("bu-many").addEventListener("click", () => { for (let i = 0; i < 200; i++) sample(); rd(); });
+    $("bu-clr").addEventListener("click", () => { clear(); sample(7); rd(); });
+    function draw(ctx, w, h) {
+      const P = SB.palette(), L = last;
+      const nameW = 44, capW = 44, X0 = nameW, X1 = w - capW - 8;
+      const X = (t) => X0 + ((t + 50) / 100) * (X1 - X0);
+      const top = 22, rh = (h * 0.62 - top) / 4;
+      tx(ctx, (L.isG ? "그레이 " : "이진 ") + SB.bin(L.oE, 4) + " → " + SB.bin(L.nE, 4) + "  (" + L.v + " → " + L.nv + ")", X0, 10, { size: 11.5, mono: true, weight: 700, color: P.text });
+      tx(ctx, "잡힌 값", w - 6, 10, { size: 10.5, color: P.faint, align: "right" });
+      for (let r = 0; r < 4; r++) {
+        const i = 3 - r, y0 = top + r * rh + rh * 0.2, y1 = top + (r + 1) * rh - rh * 0.2;
+        tx(ctx, "b" + i, 8, (y0 + y1) / 2, { size: 11, mono: true, color: P.dim });
+        const ob = (L.oE >> i) & 1, nb = (L.nE >> i) & 1, tsw = ob === nb ? 60 : L.off[i];
+        const yv = (v) => (v ? y0 : y1);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = DG.lv(ob); ctx.beginPath(); ctx.moveTo(X(-50), yv(ob)); ctx.lineTo(X(Math.min(50, tsw)), yv(ob)); ctx.stroke();
+        if (ob !== nb) { ctx.strokeStyle = DG.lv(nb); ctx.beginPath(); ctx.moveTo(X(tsw), yv(ob)); ctx.lineTo(X(tsw), yv(nb)); ctx.lineTo(X(50), yv(nb)); ctx.stroke(); }
+        const cb = (L.cE >> i) & 1;
+        const changed = ob !== nb;
+        DG.box(ctx, w - capW - 2, (y0 + y1) / 2 - 10, capW - 6, 20, DG.alpha(DG.lv(cb), 0.25), String(cb), { stroke: changed ? (cb === nb ? P.ok : P.warn) : P.border, color: P.text, size: 12, mono: true });
+      }
+      const sy0 = top - 4, sy1 = top + 4 * rh;
+      ctx.save(); ctx.strokeStyle = P.accent; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(L.ts), sy0); ctx.lineTo(X(L.ts), sy1); ctx.stroke(); ctx.restore();
+      tx(ctx, "샘플", X(L.ts) + 3, sy1 + 2, { size: 10, color: P.accent, base: "top" });
+      axis(ctx, X, -40, 40, sy1 + 16, 20, P, "ps");
+      // 결과 문장
+      const ry = h * 0.8;
+      const msg = "잡힌 값 " + SB.bin(L.cE, 4) + " → " + L.cap + (L.ok ? "  ✓ 유효(옛 값 또는 새 값)" : "  ✗ 존재한 적 없는 값");
+      tx(ctx, msg, X0, ry, { size: w < 480 ? 11 : 12.5, weight: 700, color: L.ok ? P.ok : P.bad });
+      // 최근 기록
+      const cw = Math.min(14, (w - X0 - 10) / 40);
+      hist.forEach((ok, k) => { ctx.fillStyle = ok ? DG.alpha(P.ok, 0.7) : P.bad; ctx.fillRect(X0 + k * cw, h - 18, cw - 2, 10); });
+      tx(ctx, "최근", 6, h - 13, { size: 10, color: P.faint });
+      SB.stat("bu-n", stats.n + "");
+      SB.stat("bu-ok", stats.ok + "");
+      SB.stat("bu-bad", `<span style="color:var(--${stats.bad ? "bad" : "ok"})">${stats.bad} (${((100 * stats.bad) / Math.max(1, stats.n)).toFixed(0)}%)</span>`);
+      SB.stat("bu-err", stats.err + " 칸");
+    }
+    cv = SB.canvas($("cv-bus"), draw, { aspect: 0.48, minHeight: 280, maxHeight: 340 });
+  })();
+})();
+</script>
 </body>
 </html>

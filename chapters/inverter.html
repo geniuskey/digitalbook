@@ -82,7 +82,7 @@
     <figure class="play" id="fig-loadline">
       <div class="play-view"><canvas id="cv-ll"></canvas></div>
       <div class="play-ctrl">
-        <label class="ctrl"><span>입력 전압 \(V_{in}\) <output id="ll-vin-out"></output></span><input type="range" id="ll-vin" min="0" max="0.75" step="0.005" value="0.2"></label>
+        <label class="ctrl"><span>입력 전압 \(V_{in}\) <output id="ll-vin-out"></output></span><input type="range" id="ll-vin" min="0" max="0.75" step="0.005" value="0.34"></label>
         <div class="ctrl"><span>pMOS 폭 \(W_p\)</span><div class="seg" id="ll-wp"><button data-value="0.5">0.8</button><button data-value="1" class="on">1.6</button><button data-value="2">3.2</button></div></div>
         <div class="ctrl"><span>동작</span><div class="ctrl-row"><button class="btn sm primary" id="ll-sweep">▶ 쓸어 보기</button><button class="btn sm" id="ll-clear">자국 지우기</button></div></div>
       </div>
@@ -407,7 +407,7 @@
     var vdd = o.vdd, Wn = o.Wn, Wp = o.Wp, CL = o.CL, slew = o.slew, N = o.N || 3000;
     var Ion = DG.ids({ vgs: vdd, vds: vdd, type: "n", W: Math.min(Wn, Wp / MU) });
     var tpE = 0.69 * CL * vdd / (0.75 * Ion);
-    var L = Math.max(slew * 1.5, slew + 7 * tpE), t0 = 0.08 * L, t1 = L + t0, tEnd = 2 * L;
+    var L = Math.max(slew * 1.5, slew + 4.5 * tpE), t0 = 0.08 * L, t1 = L + t0, tEnd = 2 * L;
     var dt = tEnd / N, v = vdd;
     var tt = new Float64Array(N + 1), vi = new Float64Array(N + 1), vo = new Float64Array(N + 1), In = new Float64Array(N + 1), Ip = new Float64Array(N + 1);
     function vin(t) { if (t < t0) return 0; if (t < t0 + slew) return vdd * (t - t0) / slew; if (t < t1) return vdd; if (t < t1 + slew) return vdd * (1 - (t - t1) / slew); return 0; }
@@ -477,7 +477,7 @@
       if (sc > ION * 1e-3) dotsAlong(ctx, [[lx + 6, yT + 4], [lx + 6, yB - 4]], ph.s, 13, P.accent2, clamp(0.3 + 3 * sc / ION, 0, 1));
     }
     function switchModel(ctx, B, onP, onN) {
-      var cx = B.x + B.w * 0.45, yT = B.y + 26, yB = B.y + B.h - 22, ym = (yT + yB) / 2;
+      var cx = B.x + B.w * 0.5, yT = B.y + 44, yB = B.y + B.h - 22, ym = (yT + yB) / 2;
       txt(ctx, "스위치 모델", B.x + B.w / 2, B.y + 8, { size: 11, color: P.dim, align: "center", weight: 700 });
       DG.vdd(ctx, cx, yT); DG.gnd(ctx, cx, yB);
       function sw(yA, yC, on, col, name) {
@@ -489,7 +489,7 @@
         ctx.beginPath(); ctx.moveTo(cx, y0); ctx.lineTo(cx + Math.sin(ang) * len, y0 + Math.cos(ang) * len); ctx.stroke();
         DG.dot(ctx, cx, y0, col, 3.5); DG.dot(ctx, cx, y0 + len, P.text, 3);
         ctx.restore();
-        txt(ctx, name + (on > 0.6 ? " 닫힘" : on > 0.25 ? " 반쯤" : " 열림"), cx + 14, y0 + len * 0.45, { size: 11, color: col, weight: 700 });
+        txt(ctx, name + (on > 0.6 ? " 닫힘" : on > 0.25 ? " 반쯤" : " 열림"), cx - 12, y0 + len * 0.45, { size: 11, color: col, weight: 700, align: "right" });
       }
       sw(yT, ym, onP, P.pmos, "R_p");
       sw(ym, yB, onN, P.nmos, "R_n");
@@ -538,7 +538,7 @@
 
   /* ---------------------------------------------------------------- 2. 부하선 */
   (function () {
-    var vin = 0.2, wpk = 1, trace = [], sweeping = false;
+    var vin = 0.34, wpk = 1, trace = [], sweeping = false;
     var vt0 = (T.alpha * T.ss) / Math.LN10;
     function vdsat(vgs, vt) { var vov = vt0 * Math.log(1 + Math.exp((vgs - vt) / vt0)); return Math.max(1e-3, 0.9 * Math.pow(vov, T.alpha / 2) + 0.02); }
     function region(vgs, vds) { if (vgs < T.vtn - 0.03) return '<span class="warn-t">부문턱</span>'; return vds >= vdsat(vgs, T.vtn) ? '<span class="ok-t">포화</span>' : "선형"; }
@@ -631,8 +631,8 @@
       }
       var vl = [], hl = [], pts = [];
       if (M.VM != null) { vl.push({ x: M.VM, color: P.accent2, label: "V_M" }); pts.push({ x: M.VM, y: M.VM, color: P.accent2, r: 5 }); }
-      if (M.VIL != null) { vl.push({ x: M.VIL, color: P.faint, label: narrow ? "" : "V_IL" }); pts.push({ x: M.VIL, y: M.VOH, color: P.warn, r: 4 }); }
-      if (M.VIH != null) { vl.push({ x: M.VIH, color: P.faint, label: narrow ? "" : "V_IH" }); pts.push({ x: M.VIH, y: M.VOL, color: P.warn, r: 4 }); }
+      if (M.VIL != null) { vl.push({ x: M.VIL, color: P.faint, label: "" }); pts.push({ x: M.VIL, y: M.VOH, color: P.warn, r: 4 }); }
+      if (M.VIH != null) { vl.push({ x: M.VIH, color: P.faint, label: "" }); pts.push({ x: M.VIH, y: M.VOL, color: P.warn, r: 4 }); }
       hl.push({ y: M.VOH, color: P.faint, label: "V_OH" }); hl.push({ y: M.VOL, color: P.faint, label: "V_OL" });
       var c = SB.chart(ctx, A, {
         x: [0, V], y: [0, V], xLabel: "입력 V_in (V)", yLabel: "출력 V_out (V)",
@@ -640,6 +640,8 @@
         series: [{ data: [[0, 0], [V, V]], color: P.faint, width: 1, dash: [3, 4] }, { data: curve, color: P.accent, width: 2.6 }],
         vlines: vl, hlines: hl, points: pts,
       });
+      if (M.VIL != null) txt(ctx, "V_IL", c.X(M.VIL) - 8, c.Y(M.VOH) + 14, { size: 11, color: P.warn, weight: 700, align: "right" });
+      if (M.VIH != null) txt(ctx, "V_IH", c.X(M.VIH) + 8, c.Y(M.VOL) - 14, { size: 11, color: P.warn, weight: 700 });
       // 기울기 −1 접선
       [[M.VIL, M.VOH], [M.VIH, M.VOL]].forEach(function (p) {
         if (p[0] == null) return; var d = V * 0.08;
@@ -724,7 +726,7 @@
         ctx.fillStyle = P.grid; ctx.fillRect(B.x, y, bw, 12);
         ctx.fillStyle = b[2] ? P.hi : P.lo; ctx.fillRect(B.x, y, Math.max(0, b[1]) * sc, 12);
         ctx.strokeStyle = P.faint; ctx.beginPath(); ctx.moveTo(B.x + 0.275 * (vdd / 0.75) * sc, y - 2); ctx.lineTo(B.x + 0.275 * (vdd / 0.75) * sc, y + 14); ctx.stroke();
-        txt(ctx, b[0] + " " + (b[1] * 1000).toFixed(0) + " mV", B.x - 6, y + 6, { size: 11, mono: true, align: "right", color: P.text });
+        txt(ctx, b[0] + " " + (b[1] * 1000).toFixed(0) + " mV", B.x + B.w - 4, y + 6, { size: 11, mono: true, align: "right", color: P.text, weight: 700 });
       });
       txt(ctx, "VTC (점선: 대칭 1.6)", B.x + 6, B.y + 8, { size: 11, color: P.dim, weight: 700 });
     }, aopt("#cv-vm", 0.5, 1.5, 560, { minHeight: 320, maxHeight: 640 }));
@@ -789,7 +791,7 @@
       if (narrow) { y1 = S.y + S.h * 0.25; y2 = S.y + S.h * 0.75; }
       var v1 = st.a / vdd, v2 = st.b / vdd;
       ctx.save(); ctx.translate(0, 0);
-      var g1 = DG.gate(ctx, "NOT", cx - gw / 2, y1 - gh / 2, gw, gh, { inV: [v1], outV: v2, label: "1" });
+      var g1 = DG.gate(ctx, "NOT", cx - gw / 2, y1 - gh / 2, gw, gh, { inV: [v1], outV: v2 });
       ctx.restore();
       ctx.save(); ctx.translate(cx * 2, y2 * 2); ctx.scale(-1, -1);
       var g2 = DG.gate(ctx, "NOT", cx - gw / 2, y2 - gh / 2, gw, gh, { inV: [v2], outV: v1 });

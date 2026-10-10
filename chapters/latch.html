@@ -650,7 +650,7 @@
       const narrow = w < 600;
       const C = narrow ? { x: 0, y: 0, w: w, h: h * 0.52 } : { x: 0, y: 0, w: w * 0.5, h: h };
       const Wb = narrow ? { x: 8, y: C.h + 6, w: w - 16, h: h - C.h - 12 } : { x: w * 0.5 + 8, y: 16, w: w * 0.5 - 20, h: h - 32 };
-      const gw = Math.min(120, C.w * 0.36), gh = gw * 0.62, gx = C.x + C.w * 0.36;
+      const gw = Math.min(120, C.w * 0.36, (0.68 * C.h - 30) / 2 / 0.62), gh = gw * 0.62, gx = C.x + C.w * 0.36;
       const y1 = C.y + C.h * 0.16, y2 = C.y + C.h * 0.84 - gh, my = (y1 + gh / 2 + y2 + gh / 2) / 2;
       const g1 = DG.gate(ctx, type, gx, y1, gw, gh, { inV: [topExt(), QB], outV: Q });
       const g2 = DG.gate(ctx, type, gx, y2, gw, gh, { inV: [Q, botExt()], outV: QB });
@@ -676,7 +676,7 @@
           { name: "Q̄", type: "bit", v: hist.map((e) => e.qb) },
         ],
       });
-    }, aopt("#cv-sr", 0.42, 1.25, 600, { minHeight: 280, maxHeight: 520 }));
+    }, aopt("#cv-sr", 0.42, 1.4, 600, { minHeight: 280, maxHeight: 520 }));
     const tog = (k) => { if (k === "s") pS ^= 1; else pR ^= 1; act(); };
     document.getElementById("sr-s").addEventListener("click", () => tog("s"));
     document.getElementById("sr-r").addEventListener("click", () => tog("r"));
@@ -948,7 +948,7 @@
       const lh = (wH - 26) / lanes.length;
       ctx.strokeStyle = P.grid; ctx.lineWidth = 1;
       for (let tt = -30; tt <= 60; tt += 10) { ctx.beginPath(); ctx.moveTo(TX(tt), 6); ctx.lineTo(TX(tt), wH - 18); ctx.stroke(); T(ctx, String(tt), TX(tt), wH - 9, { size: 10, mono: true, align: "center", color: P.faint }); }
-      T(ctx, "t (ps)", 10, wH - 9, { size: 10, color: P.faint });
+      if (!narrow) T(ctx, "t (ps)", 10, wH - 9, { size: 10, color: P.faint });
       lanes.forEach(([nm, col, f], i) => {
         const top = 8 + i * lh + lh * 0.15, bot = 8 + (i + 1) * lh - lh * 0.15;
         T(ctx, nm, 10, (top + bot) / 2, { size: 12, mono: true, weight: 700, color: P.dim });

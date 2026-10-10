@@ -291,7 +291,7 @@
     </ul>
     <div class="predict"><strong>VDD를 0.1 V 낮추면 실패 확률은?</strong>
       <p>σVt = 25 mV, \(V_{DD}\) = 0.6 V에서 0.5 V로 낮추면 6T 셀 실패 확률은 대략 몇 배가 될까? 2배? 10배? 그보다 훨씬 더?</p>
-      <details><summary>답 보기</summary><p>그림에서 직접 확인해 보면 μ/σ가 약 5.6에서 4.9로, 0.7σ쯤 줄어든다. 정규 분포의 꼬리에서 이 차이는 확률로 수십 배다(5.6σ ≈ 1e-8, 4.9σ ≈ 5e-7). 평균 읽기 SNM은 겨우 13% 줄었는데 실패 확률은 한 자릿수 넘게 뛰고, 1 Mb 배열 수율은 99%에서 약 60%로 떨어진다. 수율이 "평균"이 아니라 "꼬리"로 정해지기 때문이다. 이것이 SRAM이 전압 미세화를 가장 먼저 멈추게 하는 이유다. 변동과 몬테카를로는 <a href="robust.html">16장</a>에서 더 다룬다.</p></details>
+      <details><summary>답 보기</summary><p>그림에서 직접 확인해 보면 μ/σ가 약 5.6에서 4.9로, 0.7σ쯤 줄어든다. 정규 분포의 꼬리에서 이 차이는 확률로 수십 배다(5.6σ ≈ 1e-8, 4.9σ ≈ 5e-7). 평균 읽기 SNM은 겨우 13% 줄었는데 실패 확률은 한 자릿수 넘게 뛰고, 1 Mb 배열 수율은 99%에서 약 55%로 떨어진다. 수율이 "평균"이 아니라 "꼬리"로 정해지기 때문이다. 이것이 SRAM이 전압 미세화를 가장 먼저 멈추게 하는 이유다. 변동과 몬테카를로는 <a href="robust.html">16장</a>에서 더 다룬다.</p></details>
     </div>
   </section>
 
@@ -751,7 +751,7 @@
         x: [x0, VDD], y: [0, ymax * 1.1], xLabel: "Q 노드 전압 V_Q (V)", yLabel: "전류 (µA)",
         bands: [{ x0: x0, x1: tp, color: DG.alpha(P.ok, 0.08) }],
         series: [{ data: b, color: P.pmos, width: 2.4 }, { data: a, color: P.nmos, width: 2.4 }],
-        vlines: [{ x: tp, color: P.warn, label: "문턱 " + tp.toFixed(2) + " V" }],
+        vlines: [{ x: tp, color: P.warn, label: w < 480 ? "" : "문턱 " + tp.toFixed(2) + " V" }],
         points: [{ x: vq, y: iPU(vq, st.g) * 1e6, color: ok ? P.ok : P.bad, r: 6 }],
       });
       var narrow = w < 480;
@@ -1011,7 +1011,7 @@
           txt(ctx, v === "x" ? "X" : String(v), cx + s / 2, y, { size: 13, mono: true, weight: 700, align: "center", color: v === "x" ? P.x : v ? P.hi : P.lo });
         });
         DG.wire(ctx, [[x0 - 2, y + rh * 0.42], [mlx + 10, y + rh * 0.42], [mlx + 10, y], [w - encW - 10, y]], m ? 1 : 0, m ? 2.4 : 1.4);
-        txt(ctx, m ? "ML 유지" : "ML 방전", mlx + 16, y - 9, { size: narrow ? 9.5 : 10.5, color: m ? P.hi : P.dim, weight: 700 });
+        if (!narrow) txt(ctx, m ? "ML 유지" : "ML 방전", mlx + 16, y - 9, { size: narrow ? 9.5 : 10.5, color: m ? P.hi : P.dim, weight: 700 });
       });
       var ex = w - encW - 6, ey = top, eh = rh * E.length;
       DG.box(ctx, ex, ey, encW, eh, DG.alpha(P.accent, 0.12), null, { stroke: P.accent });

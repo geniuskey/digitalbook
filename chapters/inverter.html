@@ -934,8 +934,8 @@
       var ymax = Math.max(curve[0][1] * 1.1, tp0 * 3);
       var tpS = tpOf(S, cext * 1e-15) * 1e12;
       SB.chart(ctx, A, {
-        x: [1, 32], y: [0, ymax], logX: true, xTicks: [1, 2, 4, 8, 16, 32], xFmt: function (v) { return v + "×"; },
-        xLabel: "크기 S (로그)", yLabel: "t_p (ps)",
+        x: [1, 32], y: [tp0 * 0.6, ymax], logX: true, logY: true, yTicks: [1, 2, 5, 10, 20, 50, 100].filter(function (t) { return t >= tp0 * 0.6 && t <= ymax; }), xTicks: [1, 2, 4, 8, 16, 32], xFmt: function (v) { return v + "×"; },
+        xLabel: "크기 S (로그)", yLabel: "t_p (ps, 로그)",
         series: [{ data: curve, color: P.accent, width: 2.6 }], hlines: [{ y: tp0, color: P.accent2, label: "고유 지연 t_p0", dash: [5, 4] }],
         points: [{ x: S, y: tpS, color: P.accent2, r: 6 }],
       });
@@ -995,7 +995,7 @@
       var rows = [["전원이 내놓은 에너지", E.s, P.accent2], ["커패시터 저장 ½CV²", E.c, P.accent], ["pMOS 열", E.p, P.pmos], ["nMOS 열", E.n, P.nmos]];
       var rh = Math.min(34, B.h / rows.length);
       rows.forEach(function (r, i) {
-        var y = B.y + i * rh, bw = B.w * 0.62, bx = B.x + B.w - bw;
+        var y = B.y + i * rh, bw = B.w * (narrow ? 0.46 : 0.62), bx = B.x + B.w - bw;
         txt(ctx, r[0], B.x, y + rh * 0.45, { size: narrow ? 11 : 12, color: P.text });
         ctx.fillStyle = P.grid; ctx.fillRect(bx, y + rh * 0.2, bw, rh * 0.5);
         ctx.fillStyle = r[2]; ctx.fillRect(bx, y + rh * 0.2, bw * Math.min(1, r[1] * unit / mx), rh * 0.5);

@@ -234,10 +234,10 @@
       <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>몇 단으로 자를까</h3></div>
       <div class="sim-view"><canvas id="cv-pipe"></canvas></div>
       <div class="sim-controls">
-        <label class="ctrl"><span>파이프라인 단 수 N <output id="pp-N-out"></output></span><input type="range" id="pp-N" min="1" max="24" step="1" value="5"></label>
+        <label class="ctrl"><span>파이프라인 단 수 N <output id="pp-N-out"></output></span><input type="range" id="pp-N" min="1" max="30" step="1" value="5"></label>
         <label class="ctrl"><span>전체 로직 t<sub>L</sub> <output id="pp-L-out"></output></span><input type="range" id="pp-L" min="20" max="200" step="2" value="120"></label>
         <label class="ctrl"><span>단마다 오버헤드 t<sub>o</sub> <output id="pp-o-out"></output></span><input type="range" id="pp-o" min="1" max="8" step="0.25" value="3"></label>
-        <label class="ctrl"><span>단마다 버블 손해 γ <output id="pp-g-out"></output></span><input type="range" id="pp-g" min="0" max="0.2" step="0.005" value="0.04"></label>
+        <label class="ctrl"><span>단마다 버블 손해 γ <output id="pp-g-out"></output></span><input type="range" id="pp-g" min="0" max="0.3" step="0.005" value="0.1"></label>
         <div class="ctrl"><span>바로 가기</span><div class="ctrl-row"><button class="btn sm" id="pp-opt">최적 단 수로</button></div></div>
       </div>
       <div class="sim-readout">
@@ -955,12 +955,12 @@
     const Tc = (n, L, o) => L / n + o;
     const perf = (n, L, o, g) => 1 / (Tc(n, L, o) * (1 + g * (n - 1)));
     function opt(L, o, g) { let b = 1, bv = 0; for (let n = 1; n <= 60; n++) { const v = perf(n, L, o, g); if (v > bv + 1e-12) { bv = v; b = n; } } return b; }
-    $("pp-opt").addEventListener("click", () => gN.set(Math.min(24, opt(gL(), gO(), gG()))));
+    $("pp-opt").addEventListener("click", () => gN.set(Math.min(30, opt(gL(), gO(), gG()))));
     function draw(ctx, w, h) {
       const P = SB.palette(), N = gN(), L = gL(), o = gO(), g = gG();
       const T = Tc(N, L, o), lat = N * T, p1 = perf(1, L, o, 0), nOpt = opt(L, o, g);
       // 위 막대
-      const bx = 12, bw = w - 24, maxLat = L + 24 * o, sc = bw / maxLat, by = 26, bh = 22;
+      const bx = 12, bw = w - 24, maxLat = L + 30 * o, sc = bw / maxLat, by = 26, bh = 22;
       tx(ctx, "일 하나가 지나는 길: 지연 " + r1(lat) + " FO4 (≈ " + Math.round(lat * FO) + " ps)", bx, 12, { size: 11.5, color: P.dim, weight: 600 });
       let x = bx;
       for (let i = 0; i < N; i++) {
@@ -975,13 +975,13 @@
       const ch = wide ? h - top - 6 : (h - top - 10) / 2;
       const boxA = wide ? { x: 50, y: top + 16, w: w / 2 - 70, h: ch - 50 } : { x: 50, y: top + 16, w: w - 66, h: ch - 46 };
       const boxB = wide ? { x: w / 2 + 40, y: top + 16, w: w / 2 - 56, h: ch - 50 } : { x: 50, y: top + ch + 26, w: w - 66, h: ch - 46 };
-      const Ns = []; for (let n = 1; n <= 24; n++) Ns.push(n);
+      const Ns = []; for (let n = 1; n <= 30; n++) Ns.push(n);
       const ideal = Ns.map((n) => [n, perf(n, L, o, 0) / p1]), real = Ns.map((n) => [n, perf(n, L, o, g) / p1]);
       const ymax = Math.max(...ideal.map((q) => q[1])) * 1.08;
       SB.chart(ctx, boxA, {
-        x: [1, 24], y: [0, ymax], xTicks: [1, 4, 8, 12, 16, 20, 24],
+        x: [1, 30], y: [0, ymax], xTicks: [1, 5, 10, 15, 20, 25, 30],
         series: [{ data: ideal, color: P.faint, dash: [5, 4], width: 1.6 }, { data: real, color: P.accent, width: 2.4 }],
-        vlines: [{ x: nOpt <= 24 ? nOpt : 24, color: P.ok, label: "최적 " + nOpt }],
+        vlines: [{ x: Math.min(nOpt, 30), color: P.ok, label: "최적 " + nOpt }],
         points: [{ x: N, y: perf(N, L, o, g) / p1, color: P.accent2, r: 5 }],
       });
       tx(ctx, "실효 성능 (N=1 대비 배)", boxA.x, boxA.y - 8, { size: 11, color: P.dim, weight: 600 });
@@ -989,7 +989,7 @@
       const ovs = Ns.map((n) => [n, o / Tc(n, L, o)]), lats = Ns.map((n) => [n, (L + n * o) / (L + o)]);
       const ymB = Math.max(1.2, Math.max(...lats.map((q) => q[1])) * 1.08);
       SB.chart(ctx, boxB, {
-        x: [1, 24], y: [0, ymB], xTicks: [1, 4, 8, 12, 16, 20, 24],
+        x: [1, 30], y: [0, ymB], xTicks: [1, 5, 10, 15, 20, 25, 30],
         series: [{ data: ovs, color: P.accent2, width: 2.4 }, { data: lats, color: P.dim, dash: [5, 4], width: 1.8 }],
         points: [{ x: N, y: o / T, color: P.accent2, r: 5 }, { x: N, y: lat / (L + o), color: P.dim, r: 4 }],
       });
@@ -1123,7 +1123,7 @@
       dashV(ctx, X(2 * T), rows[0][1], rows[2][1] + 4, P.dim);
       axis(ctx, X, 0, 500, h * 0.9, w < 520 ? 125 : 50, P, "ps");
       SB.stat("bo-arr", arr + " ps");
-      SB.stat("bo-bor", latch ? (ok1 ? borrow + " ps" : "한도 초과") : "— (FF는 빌릴 수 없음)");
+      SB.stat("bo-bor", latch ? (ok1 ? borrow + " ps" : "한도 초과") : "불가 (FF)");
       SB.stat("bo-s2", ok1 ? slackHTML(s2) : "—");
       const okAll = ok1 && s2 >= 0;
       SB.stat("bo-ok", `<span style="color:var(--${okAll ? "ok" : "bad"})">${okAll ? "통과" : !ok1 ? "단 1 실패" : "단 2 실패"}</span>`);

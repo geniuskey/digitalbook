@@ -112,7 +112,7 @@
         <div class="stat"><span class="k">사이클당 에너지 αCV²</span><span class="v" id="pd-e">—</span></div>
         <div class="stat"><span class="k">평균 전류 P/V</span><span class="v" id="pd-i">—</span></div>
       </div>
-      <figcaption><b>그림 15-2.</b> <span class="try">해 보기</span>왼쪽은 \(V_{DD}\)를 바꿀 때(다른 값 고정)의 전력 곡선, 오른쪽은 \(f\)를 바꿀 때의 직선이다. 점이 현재 값이다. 전압 쪽 곡선이 포물선이라는 점, 그리고 클럭망을 고르면 같은 커패시턴스에서도 전력이 10배로 뛰는 점을 보자. 커패시턴스는 블록 하나(코어 하나쯤)를 가정해 nF 단위로 잡았다.</figcaption>
+      <figcaption><b>그림 15-2.</b> <span class="try">해 보기</span>왼쪽(좁은 화면에서는 위)은 \(V_{DD}\)를 바꿀 때(다른 값 고정)의 전력 곡선, 오른쪽(아래)은 \(f\)를 바꿀 때의 직선이다. 점이 현재 값이다. 전압 쪽 곡선이 포물선이라는 점, 그리고 클럭망을 고르면 같은 커패시턴스에서도 전력이 10배로 뛰는 점을 보자. 커패시턴스는 블록 하나(코어 하나쯤)를 가정해 nF 단위로 잡았다.</figcaption>
     </figure>
     <div class="callout tip"><strong>클럭은 가장 부지런한 신호다</strong><p>데이터 노드는 평균 0.05~0.2 정도의 활동도를 갖지만 클럭은 매 주기 반드시 한 번 오르내린다(\(\alpha=1\)). 게다가 클럭망은 칩 구석구석의 플립플롭 수십만 개를 모두 구동하므로 커패시턴스도 크다. 그래서 고성능 프로세서에서 클럭망과 플립플롭이 동적 전력의 30~40 %를 차지하는 일이 흔하다(<a href="timing.html">10장</a>). 쓰지 않는 블록의 클럭을 끄는 <b>클럭 게이팅</b>이 가장 먼저, 가장 널리 쓰이는 저전력 기법인 이유다.</p></div>
   </section>
@@ -694,7 +694,7 @@
       var al = a(), C = c(), V = v(), F = f(), p = P_(al, C, V, F);
       var ymax = Math.max(0.5, P_(al, C, 1.0, 4) * 1.05);
       var b1 = wide ? { x: 56, y: 16, w: w / 2 - 80, h: h - 62 } : { x: 56, y: 14, w: w - 74, h: h / 2 - 52 };
-      var b2 = wide ? { x: w / 2 + 40, y: 16, w: w / 2 - 58, h: h - 62 } : { x: 56, y: h / 2 + 14, w: w - 74, h: h / 2 - 52 };
+      var b2 = wide ? { x: w / 2 + 40, y: 16, w: w / 2 - 58, h: h - 62 } : { x: 56, y: h / 2 + 10, w: w - 74, h: h / 2 - 56 };
       var d1 = [], d2 = [];
       for (var x = 0.4; x <= 1.0001; x += 0.01) d1.push([x, P_(al, C, x, F)]);
       for (var y = 0.2; y <= 4.0001; y += 0.05) d2.push([y, P_(al, C, V, y)]);
@@ -703,7 +703,7 @@
       SB.chart(ctx, b2, { x: [0.2, 4], y: [0, ymax], xLabel: "f (GHz)", yFmt: yF, series: [{ data: d2, color: Pp.accent, width: 2.4 }], points: [{ x: F, y: p, color: Pp.accent2, r: 5 }] });
       txt(ctx, "P vs VDD (포물선)", b1.x + 6, b1.y + 8, { size: 11.5, color: Pp.dim, weight: 600 });
       txt(ctx, "P vs f (직선)", b2.x + 6, b2.y + 8, { size: 11.5, color: Pp.dim, weight: 600 });
-    }, adaptive("cv-pdyn", 0.38, 1.05, 560, { minHeight: 240, maxHeight: 400 }));
+    }, adaptive("cv-pdyn", 0.38, 1.2, 560, { minHeight: 240, maxHeight: 420 }));
     function upd() {
       var p = P_(a(), c(), v(), f());
       SB.stat("pd-p", fW(p)); SB.stat("pd-e", fJ(a() * c() * 1e-9 * v() * v())); SB.stat("pd-i", fA(p / v()));

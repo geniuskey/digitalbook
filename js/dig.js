@@ -475,7 +475,7 @@
     gate(type, ins, out, delay = 1) { ins.forEach((n) => this._net(n)); this._net(out); const g = { type, ins, out, delay }; this.gates.push(g); ins.forEach((n) => this.fan[n].push(g)); return this; }
     dff(q, d, clk, o = {}) { [q, d, clk].forEach((n) => this._net(n)); const f = { q, d, clk, tcq: o.tcq != null ? o.tcq : 1, init: o.init != null ? o.init : "x", last: "x", en: o.en, rst: o.rst }; this.ffs.push(f); this.fan[clk].push(f); if (o.rst) this.fan[o.rst].push(f); return this; }
     reset() {
-      this.t = 0; this.queue = []; this.traces = {}; this.toggles = {};
+      this.t = 0; this.queue = []; this.traces = {}; this.toggles = {}; this._tstep = {};
       for (const n in this.nets) this.nets[n] = "x";
       for (const n in this.inputs) { this.nets[n] = this.inputs[n]; }
       for (const n in this.nets) { this.traces[n] = [[0, this.nets[n]]]; this.toggles[n] = 0; }
@@ -501,7 +501,13 @@
       if (this.nets[net] === v) return;
       const old = this.nets[net];
       this.nets[net] = v;
-      if ((old === 0 && v === 1) || (old === 1 && v === 0)) this.toggles[net] = (this.toggles[net] || 0) + 1;
+      // 같은 시각에 여러 번 바뀌면(폭 0 펄스) 그 시각의 처음 값과 마지막 값만 비교해 천이를 센다
+      const st = (this._tstep = this._tstep || {});
+      let s0 = st[net];
+      if (!s0 || s0.t !== t) s0 = st[net] = { t, v0: old, c: 0 };
+      const c = (s0.v0 === 0 && v === 1) || (s0.v0 === 1 && v === 0) ? 1 : 0;
+      this.toggles[net] = (this.toggles[net] || 0) + c - s0.c;
+      s0.c = c;
       (this.traces[net] = this.traces[net] || []).push([t, v]);
       this._fanout(net, t);
     }

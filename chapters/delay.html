@@ -22,7 +22,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Chapter","LearningResource"],"@id":"https://digitalbook.euiyun.com/chapters/delay.html#chapter","name":"게이트 지연과 논리적 노력","headline":"게이트 지연과 논리적 노력 · DigitalBook","description":"50% 지점 전파 지연과 경사, 트랜지스터를 저항으로 보는 RC 모델과 엘모어 지연, d = gh + p로 요약되는 논리적 노력, 경로 크기 최적화와 버퍼 체인의 최적 단 수, 그리고 표준 셀 라이브러리의 NLDM 표까지 직접 만지며 익힌다.","url":"https://digitalbook.euiyun.com/chapters/delay.html","position":6,"inLanguage":"ko","isAccessibleForFree":true,"learningResourceType":"인터랙티브 교재","educationalLevel":"공대 학부","image":"https://digitalbook.euiyun.com/og.png","dateModified":"2026-10-04","isPartOf":{"@type":"Book","@id":"https://digitalbook.euiyun.com/#book","name":"DigitalBook · 디지털 회로 설계 교과서","url":"https://digitalbook.euiyun.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DigitalBook","item":"https://digitalbook.euiyun.com/"},{"@type":"ListItem","position":2,"name":"6. 게이트 지연과 논리적 노력","item":"https://digitalbook.euiyun.com/chapters/delay.html"}]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Chapter","LearningResource"],"@id":"https://digitalbook.euiyun.com/chapters/delay.html#chapter","name":"게이트 지연과 논리적 노력","headline":"게이트 지연과 논리적 노력 · DigitalBook","description":"50% 지점 전파 지연과 경사, 트랜지스터를 저항으로 보는 RC 모델과 엘모어 지연, d = gh + p로 요약되는 논리적 노력, 경로 크기 최적화와 버퍼 체인의 최적 단 수, 그리고 표준 셀 라이브러리의 NLDM 표까지 직접 만지며 익힌다.","url":"https://digitalbook.euiyun.com/chapters/delay.html","position":6,"inLanguage":"ko","isAccessibleForFree":true,"learningResourceType":"인터랙티브 교재","educationalLevel":"공대 학부","image":"https://digitalbook.euiyun.com/og.png","dateModified":"2026-10-10","isPartOf":{"@type":"Book","@id":"https://digitalbook.euiyun.com/#book","name":"DigitalBook · 디지털 회로 설계 교과서","url":"https://digitalbook.euiyun.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DigitalBook","item":"https://digitalbook.euiyun.com/"},{"@type":"ListItem","position":2,"name":"6. 게이트 지연과 논리적 노력","item":"https://digitalbook.euiyun.com/chapters/delay.html"}]}]}</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -150,9 +150,9 @@
         <tr><td>FO4 인버터 지연</td><td class="num">약 7.5 ps</td><td>\(= 5\tau\). 전류 모델 적분으로는 약 8 ps</td></tr>
       </tbody>
     </table></div>
-    <div class="predict"><strong>RC 암산</strong>
-      <p>DG-7 단위 인버터(\(R \approx 15\) kΩ)가 같은 인버터 4개(입력 커패시턴스 4 × 0.21 fF)와 자기 확산 커패시턴스 0.16 fF를 구동한다. RC 모델로 예측한 하강 지연은? 위 표의 FO4 7.5 ps와 비교해 보자.</p>
-      <details><summary>답 보기</summary><p>\(C = 0.84 + 0.16 = 1.0\) fF, \(0.69 \times 15\,\text{k}\Omega \times 1.0\,\text{fF} \approx 10\) ps. 전류 모델 적분값(약 8 ps)이나 기준값 7.5 ps보다 25% 남짓 크다. 유효 저항 하나로 비선형 소자를 대신했으니 이 정도 오차는 감수한다. RC 모델의 진짜 쓸모는 절대값이 아니라 <b>비교</b>다. "부하를 두 배로 하면 지연이 거의 두 배", "폭을 두 배로 하면 저항이 절반" 같은 관계는 정확히 맞는다. 절대값은 한 번 보정(\(\tau\)를 FO4로 맞추기)하면 된다.</p></details>
+    <div class="callout tip"><strong>RC 암산 연습</strong>
+      <p>DG-7 단위 인버터(\(R \approx 15\) kΩ)가 같은 인버터 4개(입력 커패시턴스 4 × 0.21 fF)와 자기 확산 커패시턴스 0.16 fF를 구동한다. RC 모델로 예측한 하강 지연을 위 표의 FO4 7.5 ps와 비교해 보자.</p>
+      <p><b>풀이.</b> \(C = 0.84 + 0.16 = 1.0\) fF, \(0.69 \times 15\,\text{k}\Omega \times 1.0\,\text{fF} \approx 10\) ps. 전류 모델 적분값(약 8 ps)이나 기준값 7.5 ps보다 25% 남짓 크다. 유효 저항 하나로 비선형 소자를 대신했으니 이 정도 오차는 감수한다. RC 모델의 진짜 쓸모는 절대값이 아니라 <b>비교</b>다. "부하를 두 배로 하면 지연이 거의 두 배", "폭을 두 배로 하면 저항이 절반" 같은 관계는 정확히 맞는다. 절대값은 한 번 보정(\(\tau\)를 FO4로 맞추기)하면 된다.</p>
     </div>
     <div class="callout deep"><strong>왜 하필 50%인가</strong><p>50% 지점은 다음 게이트가 "입력이 바뀌었다"고 느끼기 시작하는 문턱(대칭 인버터의 \(V_M \approx V_{DD}/2\))과 대략 겹친다. 그래서 게이트마다 50%→50% 지연을 더하면 경로 전체의 지연이 된다. 이 덧셈 성질 덕분에 경로 지연을 게이트 단위로 쪼개 계산할 수 있고, 이것이 이 장 후반의 논리적 노력과 10장 정적 타이밍 분석의 토대다. 다만 입력 경사가 다음 게이트 지연에 영향을 주는 효과는 덧셈에서 빠지므로, 실제 도구는 경사를 함께 전파한다(<a href="#beyond">8절</a>).</p></div>
   </section>
@@ -721,7 +721,7 @@
       var e = elmore(obs).tau;
       SB.chart(ctx, B, {
         x: [0, tmax], y: [0, 1.02], xLabel: "시간 (ps)", yTicks: [0, 0.5, 1], series: series,
-        vlines: [{ x: 0.693 * e, color: P.accent2, label: "0.69τD" }, { x: res.t50[obs - 1], color: P.ok, label: w < 500 ? "" : "실제 50%", dash: [2, 3] }],
+        vlines: [{ x: 0.693 * e, color: P.accent2, label: "0.69τD" }, { x: res.t50[obs - 1], color: P.ok, dash: [2, 3] }],
         hlines: [{ y: 0.5, color: P.faint }],
       });
     }, { height: 470 });
@@ -1132,7 +1132,7 @@
       S.forEach(function (s) { L.forEach(function (l) {
         var v = truth(s, l)[kind], x = lx(l), y = ly(s);
         DG.dot(ctx, x, y, P.text, 2.5);
-        if (!small || size === 3) T(ctx, f1(v), x + 3, y - 8, { size: 10, mono: true, color: P.text, weight: 600 });
+        if (!small || size === 3) var edge = x > B.x + B.w - 30; T(ctx, f1(v), edge ? x - 3 : x + 3, y - 8, { size: 10, mono: true, color: P.text, weight: 600, align: edge ? "right" : "left" });
       }); });
       // 십자
       var px = lx(pt.ld), py = ly(pt.sl);

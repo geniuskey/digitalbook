@@ -1,0 +1,16 @@
+{
+  "name": "digitalbook",
+  "private": true,
+  "scripts": {
+    "generate": "python3 tools/glossary.py",
+    "build": "npm run generate && euiyun-book build",
+    "test": "node --test tools/series.test.cjs",
+    "test:browser": "node tools/check.js"
+  },
+  "dependencies": {
+    "@euiyun/book": "https://codeload.github.com/geniuskey/book/tar.gz/refs/tags/v0.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

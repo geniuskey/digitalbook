@@ -9,12 +9,22 @@ Bartosz Ciechanowski의 글처럼 **스위치 하나, 게이트 하나를 직접
 배포 주소: https://digitalbook.euiyun.com/
 
 ## 실행
-빌드 과정이 없는 정적 사이트입니다.
+정적 사이트이므로 별도 빌드 없이 로컬 서버나 브라우저에서 열 수 있습니다.
 
 ```bash
 python3 -m http.server 8000   # → http://localhost:8000
 ```
 `index.html`을 브라우저로 바로 열어도 동작합니다. KaTeX와 폰트는 CDN에서 불러옵니다.
+
+다른 시리즈 책과 같은 도구로 메타데이터와 배포 파일도 검사·생성할 수 있습니다(Node.js 20 이상, Python 3 필요).
+
+```bash
+npm ci
+npm test
+npm run build                 # 용어 데이터 갱신 → .book-dist/ 생성
+```
+
+상단의 ‘이 책 검색’에서 챕터·섹션·시뮬레이터·그림을 찾을 수 있습니다. 상세 검색은 로컬 서버나 배포 사이트에서 사용합니다. 실습 제목과 그림 설명의 `#` 링크로 해당 위치를 공유할 수 있습니다.
 
 ## 구성
 | 장 | 파일 | 주제 |
@@ -44,15 +54,20 @@ python3 -m http.server 8000   # → http://localhost:8000
 - `js/common.js` — 내비게이션, 캔버스·차트·컨트롤 헬퍼, 전역 `SB`
 - `js/dig.js` — 기준 공정 DG-7, MOSFET 근사 모델과 인버터 VTC, 게이트·트랜지스터 기호, 타이밍 파형, 이벤트 구동 논리 시뮬레이터, 추상화 사다리, 전역 `DG`
 - `tools/head.py` — 챕터 `<head>`·사이트맵·JSON-LD 생성기
-- `tools/glossary.py` — `tools/glossary/<slug>.json`(용어·문제 은행)으로 용어집 데이터 생성
+- `tools/glossary.py` — `tools/glossary/<slug>.json`(용어·문제 은행)으로 공통 용어 데이터와 종합 퀴즈 생성
+- `js/glossary-data.js` — 생성된 시리즈 공통 v1 용어 데이터(`ko`, `en`, `abbr`, `def`, `chapters`)
+- `js/glossary-tooltips.js`, `css/glossary-tooltips.css` — 다른 시리즈와 같은 본문 용어 뜻풀이
 - `tools/check.js` — Playwright로 모든 페이지의 콘솔 오류·모바일 가로 넘침 점검
 
 챕터 작성 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
 시뮬레이터의 수치는 교육용 근사 모델입니다. 실제 공정·제품 수치는 2020~2026년 공개 자료 기준의 대략값입니다.
 
+용어 정의는 `tools/glossary/<slug>.json`에서 수정한 뒤 `npm run generate`로 갱신합니다. 용어집과 본문 툴팁은 같은 데이터를 사용합니다. 마우스 오버, 키보드 포커스, 모바일 탭으로 뜻을 확인할 수 있으며, 이름 중복은 제거하고 묶음 항목은 가리킨 이름을 제목에 표시합니다.
+
 ## 점검
 ```bash
 python3 tools/head.py && python3 tools/glossary.py
+python3 tools/glossary.py --check   # 생성된 용어 데이터·퀴즈의 최신 여부 확인
 node tools/check.js            # playwright 필요 (전역 설치라면 PW_PATH=$(npm root -g)/playwright)
 ```
 

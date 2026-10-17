@@ -1,6 +1,7 @@
 # DigitalBook 챕터 작성 가이드
 
-빌드 과정 없는 정적 사이트다. `index.html` + `chapters/<slug>.html` + 공통 `css/style.css`, `js/common.js`, `js/dig.js`.
+별도 빌드 없이도 열 수 있는 정적 사이트다. `index.html` + `chapters/<slug>.html` + 공통 `css/style.css`, `js/common.js`, `js/dig.js`.
+다른 시리즈와 같은 `book.json`·`@euiyun/book` 빌드를 사용한다. `npm ci`, `npm test`, `npm run build`로 검사하며, 빌드 결과는 `.book-dist/`에 생성된다.
 로컬 실행: `python3 -m http.server 8000` → http://localhost:8000 (file://로 열어도 동작하게 classic script만 쓴다. ES module 금지.)
 ProcessBook·SoCBook·DesignBook과 같은 디자인 시스템과 컴포넌트를 쓰는 [euiyun books](https://books.euiyun.com/) 시리즈다.
 반도체 설계를 아날로그와 디지털로 나눌 때 **디지털 회로 설계** 쪽을 맡는다. 아키텍처(SoCBook)와 RTL→마스크 흐름(DesignBook)은 링크로 넘기고,
@@ -31,6 +32,10 @@ ProcessBook·SoCBook·DesignBook과 같은 디자인 시스템과 컴포넌트�
 <!--head:end-->
 ```
 그 아래에 장 전용 `<style>`을 둘 수 있다. 챕터를 추가하면 `CHAPTERS`, `chapters/glossary.html`의 `SHORT`, `tools/glossary/<slug>.json`에도 등록한다.
+
+용어 원본은 `tools/glossary/<slug>.json`이다. `npm run generate`는 시리즈 공통 v1 형식의 `js/glossary-data.js`와 종합 퀴즈를 함께 만든다. `js/glossary-data.js`나 용어집의 `DATA` 구역을 직접 고치지 않는다. 본문 툴팁은 생성된 정의를 그대로 사용한다.
+
+홈 카드의 배지는 `ch-tag-sim`·`ch-tag-3d`를 사용한다. `sim`은 실제 시뮬레이터 컨테이너용 클래스이므로 배지에 붙이지 않는다. 상단 검색과 공유 링크는 실습·그림의 `id`를 사용하므로 기존 `id`는 유지하고, 새 실습에도 고유한 `id`를 붙인다.
 
 ## 페이지 뼈대
 ```html

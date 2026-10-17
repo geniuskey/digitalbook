@@ -146,7 +146,7 @@
   SB.CHAPTERS.forEach(function (c) {
     if (c.part !== part) { if (part !== null) html += "</div>"; part = c.part; html += '<div class="part-h">' + part + '</div><div class="ch-grid">'; }
     html += '<a class="ch-card" href="chapters/' + c.slug + '.html"><span class="num">CHAPTER ' + c.num + "</span><h3>" + c.title + "</h3><p>" + c.desc + '</p><span class="tags">' +
-      c.tags.map(function (t) { return '<span class="' + (t === "sim" ? "sim" : t === "3d" ? "d3" : "") + '">' + (tagName[t] || t) + "</span>"; }).join("") + "</span></a>";
+      c.tags.map(function (t) { return '<span class="' + (t === "sim" ? "ch-tag-sim" : t === "3d" ? "ch-tag-3d" : "") + '">' + (tagName[t] || t) + "</span>"; }).join("") + "</span></a>";
   });
   grid.innerHTML = html + "</div>";
 
